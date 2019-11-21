@@ -17,6 +17,43 @@ library(lubridate)
 ```
 
 ```{r}
+# Load Dusttrack data
+## List sheets within the excel file
+list_sheets_nm <- excel_sheets("Input/nm_kids_dusttrack_20191121.xlsx")
+## Apply the read_xlsx function to each item in the sheet list
+## Bind the items from each sheet into a single dataframe
+pm_initial_nm <- data.frame(do.call("rbind", lapply(list_sheets_nm, read_xlsx, 
+                                      path = "Input/nm_kids_dusttrack_20191121.xlsx")))
 
+list_sheets_wmt <- excel_sheets("Input/wmt_kids_dusttrack_20191121.xlsx")
+pm_initial_wmt <- data.frame(do.call("rbind", lapply(list_sheets_wmt, read_xlsx, 
+                                      path = "Input/wmt_kids_dusttrack_20191121.xlsx")))
+
+# Bind data together from different study areas
+pm_initial <- rbind(pm_initial_nm, pm_initial_wmt)
+
+# Rename and create new variables
+kids_pm <- pm_initial %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  mutate(id_home = as.factor(homeid),
+         date = ymd(date),
+         time = hms(time),
+         pm25 = as.numeric(aerosol)) %>% 
+  unite(datetime, c("date", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(datetime = ymd_hms(datetime)) %>% 
+  select(id_home, date, time, datetime, pm25) %>% 
+  arrange(id_home, date) %>% 
+  group_by(id_home) %>% 
+  mutate(obs = n(),
+         total = sum(pm25),
+         min_datetime = as.character(datetime),
+         min_datetime = min(min_datetime)),
+         max_datetime = as.character(datetime),
+         max_datetime = max(max_datetime)),
+         diff_datetime = ymd_hms(max_datetime) - ymd_hms(min_datetime))
+
+test <- kids_pm %>% 
+  group_by(id_home) %>% 
+  summarize(n())
 ```
 
