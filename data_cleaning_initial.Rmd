@@ -14,8 +14,10 @@ library(tidyverse)
 library(readxl)
 library(naniar)
 library(lubridate)
+library(zoo)
 ```
 
+# Load, format, and save KidsAIR Dusttrack data
 ```{r}
 # Load Dusttrack data
 ## List sheets within the excel file
@@ -23,37 +25,75 @@ list_sheets_nm <- excel_sheets("Input/nm_kids_dusttrack_20191121.xlsx")
 ## Apply the read_xlsx function to each item in the sheet list
 ## Bind the items from each sheet into a single dataframe
 pm_initial_nm <- data.frame(do.call("rbind", lapply(list_sheets_nm, read_xlsx, 
-                                      path = "Input/nm_kids_dusttrack_20191121.xlsx")))
+                                      path = "Input/nm_kids_dusttrack_20191121.xlsx"))) %>% 
+  mutate(area = "NM")
 
 list_sheets_wmt <- excel_sheets("Input/wmt_kids_dusttrack_20191121.xlsx")
 pm_initial_wmt <- data.frame(do.call("rbind", lapply(list_sheets_wmt, read_xlsx, 
-                                      path = "Input/wmt_kids_dusttrack_20191121.xlsx")))
+                                      path = "Input/wmt_kids_dusttrack_20191121.xlsx"))) %>% 
+  mutate(area = "WMT")
 
 # Bind data together from different study areas
 pm_initial <- rbind(pm_initial_nm, pm_initial_wmt)
 
 # Rename and create new variables
 kids_pm <- pm_initial %>% 
+  # separate time from incorrect/associated date
   separate(time, into = c("trash", "time"), sep = " ") %>% 
+  # format/rename variables
   mutate(id_home = as.factor(homeid),
-         date = ymd(date),
-         time = hms(time),
-         pm25 = as.numeric(aerosol)) %>% 
-  unite(datetime, c("date", "time"), sep = " ", remove = FALSE) %>% 
-  mutate(datetime = ymd_hms(datetime)) %>% 
-  select(id_home, date, time, datetime, pm25) %>% 
-  arrange(id_home, date) %>% 
+         pm_date = ymd(date),
+         pm_time = hms(time),
+         pm = as.numeric(aerosol)) %>% 
+  # new datetime variable
+  unite(pm_datetime, c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(id_home, area, pm_date, pm_time, pm_datetime, pm) %>% 
+  arrange(id_home, pm_date) %>% 
   group_by(id_home) %>% 
-  mutate(obs = n(),
-         total = sum(pm25),
-         min_datetime = as.character(datetime),
-         min_datetime = min(min_datetime)),
-         max_datetime = as.character(datetime),
-         max_datetime = max(max_datetime)),
-         diff_datetime = ymd_hms(max_datetime) - ymd_hms(min_datetime))
+  # new variables summarizing pm2.5 within each id_home
+  mutate(pm_total_observations = n(),
+         pm_total_summed = sum(pm),
+         min_datetime = first(pm_datetime),
+         max_datetime = last(pm_datetime),
+         min_datetime = ymd_hms(min_datetime),
+         max_datetime = ymd_hms(max_datetime),
+         diff_datetime = interval(min_datetime, max_datetime),
+         pm_sampling_days = diff_datetime/86400,
+         pm_24hr_mean = pm_total_summed/pm_sampling_days,
+         pm_rolling_24hr = rollsum(pm, 1440, fill = "extend", align = "right")) %>% 
+  select(-min_datetime, -max_datetime, -diff_datetime) %>% 
+  ungroup()
 
-test <- kids_pm %>% 
-  group_by(id_home) %>% 
-  summarize(n())
+# Save pm dataset as RDS and CSV
+write_rds(kids_pm, "Output/kids_pm.rds")
+write_csv(kids_pm, "Output/kids_pm.csv")
+```
+
+# Load, format, and save fuel moisture content data
+```{r}
+moisture_initial_wmt <- read_xlsx("Input/wmt_kids_moisture_20191122.xlsx")
+
+kids_moisture <- moisture_initial_wmt %>% 
+  mutate(id = as.factor(ID), # ask about what these IDs are 
+         id_home = as.factor(HomeWinterID),
+         moisture_date = ymd(CompletedDate),
+         moisture_1 = as.numeric(Moisture1),
+         moisture_2 = as.numeric(Moisture2),
+         moisture_3 = as.numeric(Moisture3),
+         moisture_ave = as.numeric(MoistureAve),
+         moisture_missing = as.character(WhatMissing),
+         moisture_incomplete = as.factor(Incomplete),
+         moisture_ignore_missing = as.factor(IgnoreMissingData),
+         moisture_ignore_reason = as.character(IgnoreReason),
+         moisture_tech = as.character(Technician),
+         moisture_split = as.factor(Split),
+         area = "WMT") %>% 
+  select(id, id_home, area, moisture_date, moisture_1, moisture_2, moisture_3, 
+         moisture_ave, moisture_missing, moisture_incomplete, moisture_ignore_missing,
+         moisture_ignore_reason, moisture_tech, moisture_split)
+  
+# Save pm dataset as RDS and CSV
+write_rds(kids_moisture, "Output/kids_moisture.rds")
+write_csv(kids_moisture, "Output/kids_moisture.csv")
 ```
 
