@@ -25,9 +25,10 @@ kids_pm <- read_rds("Output/kids_pm.rds")
 summary_kids_pm <- kids_pm %>% 
   summarize(mean(pm_24hr_mean), sd(pm_24hr_mean),
             min(pm_24hr_mean), max(pm_24hr_mean),
-            min(pm), max(pm),
-            min(pm_sampling_days), max(pm_sampling_days),
-            min(pm_total_observations), max(pm_total_observations)) %>% 
+            min(pm), max(pm), mean(pm_total_days),
+            min(pm_total_days), max(pm_total_days),
+            min(pm_total_observations), max(pm_total_observations),
+            mean(pm_24hr_daily), mean(pm_24hr_daily_weighted)) %>% 
   t()
 summary_kids_pm
 ```

@@ -58,11 +58,24 @@ kids_pm <- pm_initial %>%
          min_datetime = ymd_hms(min_datetime),
          max_datetime = ymd_hms(max_datetime),
          diff_datetime = interval(min_datetime, max_datetime),
-         pm_sampling_days = diff_datetime/86400,
-         pm_24hr_mean = pm_total_summed/pm_sampling_days,
-         pm_rolling_24hr = rollsum(pm, 1440, fill = "extend", align = "right")) %>% 
-  select(-min_datetime, -max_datetime, -diff_datetime) %>% 
-  ungroup()
+         pm_total_days = diff_datetime/86400,
+         pm_24hr_mean = pm_total_summed/pm_total_days,
+         pm_rolling_24hr = rollsum(pm, 1440, fill = "extend", align = "right"),
+         obs = row_number(),
+         sampling_day = if_else(obs < 1441, 1, 0),
+         sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
+         sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day),
+         sampling_day = if_else(obs < 5761 & obs > 4320, 4, sampling_day),
+         sampling_day = if_else(obs < 7201 & obs > 5760, 5, sampling_day),
+         sampling_day = if_else(obs < 8641 & obs > 7200, 6, sampling_day),
+         sampling_day = if_else(obs < 10081 & obs > 8640, 7, sampling_day),
+         sampling_day = if_else(obs > 10080, 8, sampling_day)) %>%
+  group_by(id_home, sampling_day) %>% 
+  mutate(pm_24hr_daily = sum(pm),
+         pm_24hr_daily_weighted = pm_24hr_daily*(1440/n()),
+         pm_sampling_day = sampling_day) %>% 
+  ungroup() %>% 
+  select(-min_datetime, -max_datetime, -diff_datetime, -obs, -sampling_day) 
 
 # Save pm dataset as RDS and CSV
 write_rds(kids_pm, "Output/kids_pm.rds")
@@ -88,6 +101,15 @@ kids_moisture <- moisture_initial_wmt %>%
          moisture_tech = as.character(Technician),
          moisture_split = as.factor(Split),
          area = "WMT") %>% 
+  replace_with_na(replace = list(moisture_1 = 0, moisture_2 = 0,
+                                 moisture_3 = 0, moisture_ave = 0)) %>% 
+  replace_with_na(replace = list(moisture_1 = -999, moisture_2 = -999,
+                                 moisture_3 = -999)) %>% 
+  gather("sample", "value", c("moisture_1":"moisture_3")) %>% 
+  group_by(id_home, moisture_date) %>% 
+  mutate(moisture_ave = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  spread(sample, value) %>% 
   select(id, id_home, area, moisture_date, moisture_1, moisture_2, moisture_3, 
          moisture_ave, moisture_missing, moisture_incomplete, moisture_ignore_missing,
          moisture_ignore_reason, moisture_tech, moisture_split)

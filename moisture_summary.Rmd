@@ -23,26 +23,26 @@ kids_moisture <- read_rds("Output/kids_moisture.rds")
 # Summary stats
 ```{r}
 summary_kids_moisture <- kids_moisture %>% 
-  summarize(mean(pm_24hr_mean), sd(pm_24hr_mean),
-            min(pm_24hr_mean), max(pm_24hr_mean),
-            min(pm), max(pm),
-            min(pm_sampling_days), max(pm_sampling_days),
-            min(pm_total_observations), max(pm_total_observations)) %>% 
+  summarize(mean(moisture_ave, na.rm = TRUE), sd(moisture_ave, na.rm = TRUE),
+            median(moisture_ave, na.rm = TRUE),
+            min(moisture_ave, na.rm = TRUE), max(moisture_ave, na.rm = TRUE)) %>% 
   t()
-summary_kids_pm
+summary_kids_moisture
 ```
 
 # Boxplots
 ```{r, fig.height=6, fig.width=5}
-boxplots_kids_pm <- kids_pm %>% 
-  ggplot(aes(area, pm_24hr_mean)) +
+boxplots_kids_moisture <- kids_moisture %>% 
+  select(area, moisture_ave) %>% 
+  na.exclude() %>% 
+  ggplot(aes(area, moisture_ave)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
     theme_minimal() +
-    ylim(0, 400) +
+    ylim(0, 50) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
-    labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
+    labs(y = "Mean moisture content (%)") +
     #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
     theme(axis.text.x = element_text(size = 16, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
@@ -52,6 +52,6 @@ boxplots_kids_pm <- kids_pm %>%
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank())
-boxplots_kids_pm
+boxplots_kids_moisture
 ```
 
