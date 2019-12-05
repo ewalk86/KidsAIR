@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 4 Dec 2019"
+date: "Started 19 Nov 2019, Updated 5 Dec 2019"
 output: pdf_document
 ---
 
@@ -19,7 +19,7 @@ library(zoo)
 
 # Load, format, and save KidsAIR Dusttrack data
 ```{r}
-##### Read in dusttrack .txt files (from WMT location) #####
+##### Read in dusttrack .txt files (from WMT) #####
 
 # List files
 list_txt_files <- list.files("Input/WMT/dusttrack_txt_files")
@@ -33,21 +33,268 @@ initial_data = tibble(file_list = list_txt_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other WMT/PM data below
+# Format combined file from above; combine with other PM data below
 wmt_pm_txt <- initial_data %>% 
   mutate(date = mdy(`MM/dd/yyyy`),
-         time = hms(`hh:mm:ss`),
+         time = `hh:mm:ss`,
          pm = as.numeric(`mg/m^3`),
          area = "WMT") %>% 
-  select(home_winter_id, date, time, pm, area)
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area)
   
 
-##### Next, load other files from all locations #####
+##### Read in dusttrack .csv files (all areas) #####
+
+### WMT ###
+# List files
+list_csv_files <- list.files("Input/WMT/dusttrack_csv_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/WMT/dusttrack_csv_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_pm_csv <- initial_data %>% 
+  mutate(date = mdy(Date),
+         time = Time,
+         pm = as.numeric(AEROSOL),
+         area = "WMT") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  filter(!is.na(pm))
+
+### NN ###
+# List files
+list_csv_files <- list.files("Input/NN/dusttrack_csv_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/NN/dusttrack_csv_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+nn_pm_csv <- initial_data %>% 
+  mutate(date = mdy(Date),
+         time = Time,
+         pm = as.numeric(AEROSOL),
+         area = "NN") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  filter(!is.na(pm))
+
+### AK ###
+# List files
+list_csv_files <- list.files("Input/AK/dusttrack_csv_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/AK/dusttrack_csv_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+ak_pm_csv <- initial_data %>% 
+  mutate(date = mdy(Date),
+         time = Time,
+         pm = as.numeric(AEROSOL),
+         area = "AK") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  filter(!is.na(pm))
 
 
+##### Read in other dusttrack .csv files (WMT and NN) #####
+
+### WMT ### 
+# List files
+list_other_files <- list.files("Input/WMT/dusttrack_other_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/WMT/dusttrack_other_files")
+initial_data = tibble(file_list = list_other_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_pm_other <- initial_data %>% 
+  mutate(trash1 = `Instrument Name`,
+         trash2 = `DustTrak II`) %>% 
+  select(home_winter_id, trash1, trash2) %>% 
+  group_by(home_winter_id) %>% 
+  mutate(trash3 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash2, "NA"),
+         trash4 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash1, "NA"),
+         trash1 = as.numeric(trash1),
+         trash1 = as.character(trash1),
+         trash5 = if_else(trash3 != "NA", trash3, trash1)) %>% 
+  filter(!is.na(trash5)) %>% 
+  replace_with_na(replace = list(trash3 = "NA", trash4 = "NA")) %>% 
+  spread(trash4, trash3) %>% 
+  mutate(`Test Start Time` = lag(`Test Start Time`)) %>% 
+  unite("datetime", `Test Start Date`:`Test Start Time`, sep = " ") %>%
+  mutate(datetime = lead(datetime)) %>% 
+  replace_with_na(replace = list(datetime = "NA NA")) %>% 
+  mutate(datetime2 = first(datetime),
+         datetime = mdy_hms(datetime2),
+         trash1 = as.numeric(trash1)) %>% 
+  filter(!is.na(trash1)) %>% 
+  mutate(datetime2 = datetime + seconds(trash1),
+         datetime2 = ymd_hms(datetime2)) %>% 
+  separate(datetime2, into = c("date", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(pm = as.numeric(trash2),
+         datetime = datetime2,
+         area = "WMT") %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  ungroup()
 
 
+### NN ### 
+# List files
+list_other_files <- list.files("Input/NN/dusttrack_other_files")
 
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/NN/dusttrack_other_files")
+initial_data = tibble(file_list = list_other_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+nn_pm_other <- initial_data %>% 
+  mutate(trash1 = `Instrument Name`,
+         trash2 = `DustTrak II`) %>% 
+  select(home_winter_id, trash1, trash2) %>% 
+  filter(!is.na(trash1)) %>% 
+  group_by(home_winter_id) %>% 
+  mutate(trash3 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash1, "NA"),
+         trash4 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash2, "NA"),
+         trash1 = as.numeric(trash1),
+         trash1 = as.character(trash1),
+         trash5 = if_else(trash3 != "NA", trash3, trash1)) %>% 
+  replace_with_na(replace = list(trash3 = "NA", trash4 = "NA")) %>% 
+  filter(!is.na(trash5)) %>% 
+  spread(trash3, trash4) %>% 
+  mutate(`Test Start Time` = lag(`Test Start Time`)) %>% 
+  unite("datetime", `Test Start Date`:`Test Start Time`, sep = " ") %>%
+  mutate(datetime = lead(datetime)) %>% 
+  replace_with_na(replace = list(datetime = "NA NA")) %>% 
+  mutate(datetime2 = first(datetime),
+         datetime = mdy_hms(datetime2),
+         trash1 = as.numeric(trash1)) %>% 
+  filter(!is.na(trash1)) %>% 
+  mutate(datetime2 = datetime + seconds(trash1),
+         datetime2 = ymd_hms(datetime2)) %>% 
+  separate(datetime2, into = c("date", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(pm = as.numeric(trash2),
+         datetime = datetime2,
+         area = "NN") %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  ungroup() %>% 
+  mutate(home_winter_id = if_else(home_winter_id == "220001" | home_winter_id == "220002",
+                                  "22", home_winter_id),
+         home_winter_id = if_else(home_winter_id == "550001" | home_winter_id == "550002",
+                                  "55", home_winter_id),
+         home_winter_id = if_else(home_winter_id == "810001" | home_winter_id == "810002",
+                                  "81", home_winter_id))
+
+
+##### Bind all files from above #####
+kids_pm <- rbind(wmt_pm_csv, wmt_pm_txt, wmt_pm_other,
+                nn_pm_csv, nn_pm_other,
+                ak_pm_csv)
+
+
+# Save pm dataset as RDS and CSV
+write_rds(kids_pm, "Output/kids_pm_full.rds")
+#write_csv(kids_pm, "Output/kids_pm_full.csv")
+
+# Load data and clean up
+kids_pm <- read_rds("Output/kids_pm_full.rds")
+  
+kids_pm_check <- kids_pm %>% 
+  group_by(home_winter_id) %>% 
+  summarise(obs = n()) %>% 
+  ungroup()
+  
+
+ak_dt_home <- read_csv("Input/AK/ak_dt_home.csv")
+nn_dt_home <- read_csv("Input/NN/nn_dt_home.csv")
+wmt_dt_home <- read_csv("Input/WMT/wmt_dt_home.csv")
+
+dt_home <- rbind(ak_dt_home, nn_dt_home, wmt_dt_home) %>% 
+  rename_all(tolower) %>% 
+  filter(!is.na(homewinterid)) %>% 
+  mutate(home_winter_id = as.character(homewinterid)) %>% 
+  left_join(kids_pm_check, by = "home_winter_id")
+
+
+##### Add to new variables to Kids PM data #####
+kids_pm_new <- kids_pm %>% 
+  mutate(home_winter_id = as.character(home_winter_id),
+         area = as.factor(area),
+         pm_date = date,
+         pm_time = time,
+         pm_datetime = datetime,
+         pm = as.numeric(pm)) %>% 
+  select(home_winter_id, area, pm_date, pm_time, pm_datetime, pm) %>% 
+  arrange(home_winter_id, pm_date) %>% 
+  group_by(home_winter_id) %>% 
+  # new variables summarizing pm2.5 within each home_winter_id
+  mutate(pm_total_observations = n(),
+         pm_total_summed = sum(pm),
+         min_datetime = first(pm_datetime),
+         max_datetime = last(pm_datetime),
+         min_datetime = ymd_hms(min_datetime),
+         max_datetime = ymd_hms(max_datetime),
+         diff_datetime = interval(min_datetime, max_datetime),
+         pm_total_days = diff_datetime/86400,
+         pm_24hr_mean = pm_total_summed/pm_total_days,
+         pm_rolling_24hr = rollsum(pm, 1440, fill = "extend", align = "right"),
+         obs = row_number(),
+         sampling_day = if_else(obs < 1441, 1, 0),
+         sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
+         sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day),
+         sampling_day = if_else(obs < 5761 & obs > 4320, 4, sampling_day),
+         sampling_day = if_else(obs < 7201 & obs > 5760, 5, sampling_day),
+         sampling_day = if_else(obs < 8641 & obs > 7200, 6, sampling_day),
+         sampling_day = if_else(obs < 10081 & obs > 8640, 7, sampling_day),
+         sampling_day = if_else(obs > 10080, 8, sampling_day)) %>%
+  group_by(home_winter_id, sampling_day) %>% 
+  mutate(pm_24hr_daily = sum(pm),
+         pm_24hr_daily_weighted = pm_24hr_daily*(1440/n()),
+         pm_sampling_day = sampling_day) %>% 
+  ungroup() %>% 
+  select(-min_datetime, -max_datetime, -diff_datetime, -obs, -sampling_day) 
+
+
+# Save pm dataset as RDS and CSV
+write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+#write_csv(kids_pm_new, "Output/kids_pm_new.csv")
+```
+
+
+# Original code/files from Emily - save for future reference
+```{r}
 ##### Load combined dusttrack files from Emily W #####
 ##### Compare these with the raw data pulled in above #####
 
@@ -112,6 +359,7 @@ kids_pm <- pm_initial %>%
 write_rds(kids_pm, "Output/kids_pm.rds")
 write_csv(kids_pm, "Output/kids_pm.csv")
 ```
+
 
 # Load, format, and save fuel moisture content data
 ```{r}
