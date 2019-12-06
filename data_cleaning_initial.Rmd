@@ -17,7 +17,7 @@ library(lubridate)
 library(zoo)
 ```
 
-# Load, format, and save KidsAIR Dusttrack data
+# Load, format, and save KidsAIR Dusttrak data
 ```{r}
 ##### Read in dusttrack .txt files (from WMT) #####
 
@@ -227,49 +227,78 @@ kids_pm <- rbind(wmt_pm_csv, wmt_pm_txt, wmt_pm_other,
 # Save pm dataset as RDS and CSV
 write_rds(kids_pm, "Output/kids_pm_full.rds")
 #write_csv(kids_pm, "Output/kids_pm_full.csv")
+```
 
-# Load data and clean up
-kids_pm <- read_rds("Output/kids_pm_full.rds")
+
+# Load Dusttrak data and clean up
+```{r}
+kids_pm_full <- read_rds("Output/kids_pm_full.rds") 
   
-kids_pm_check <- kids_pm %>% 
-  group_by(home_winter_id) %>% 
+kids_pm_check <- kids_pm_full %>% 
+  group_by(area, home_winter_id) %>% 
   summarise(obs = n()) %>% 
   ungroup()
   
-
-ak_dt_home <- read_csv("Input/AK/ak_dt_home.csv")
-nn_dt_home <- read_csv("Input/NN/nn_dt_home.csv")
-wmt_dt_home <- read_csv("Input/WMT/wmt_dt_home.csv")
+ak_dt_home <- read_csv("Input/AK/ak_dt_home.csv") %>% 
+  mutate(area = "AK")
+nn_dt_home <- read_csv("Input/NN/nn_dt_home.csv") %>% 
+  mutate(area = "NN")
+wmt_dt_home <- read_csv("Input/WMT/wmt_dt_home.csv") %>% 
+  mutate(area = "WMT")
 
 dt_home <- rbind(ak_dt_home, nn_dt_home, wmt_dt_home) %>% 
   rename_all(tolower) %>% 
   filter(!is.na(homewinterid)) %>% 
   mutate(home_winter_id = as.character(homewinterid)) %>% 
-  left_join(kids_pm_check, by = "home_winter_id")
+  left_join(kids_pm_check, by = c("area", "home_winter_id")) 
+
+%>% 
+  group_by(home_winter_id) %>% 
+  mutate(n_hwid = n()) %>% 
+  ungroup() %>% 
+  filter(n_hwid == 2)
 
 
 ##### Add to new variables to Kids PM data #####
-kids_pm_new <- kids_pm %>% 
+kids_pm_new <- kids_pm_full %>%  
+  #filter(area == "AK") %>% 
+  # apply correction factor to pm
+  mutate(pm = pm/1.65) %>% 
   mutate(home_winter_id = as.character(home_winter_id),
          area = as.factor(area),
          pm_date = date,
          pm_time = time,
-         pm_datetime = datetime,
-         pm = as.numeric(pm)) %>% 
-  select(home_winter_id, area, pm_date, pm_time, pm_datetime, pm) %>% 
-  arrange(home_winter_id, pm_date) %>% 
-  group_by(home_winter_id) %>% 
+         pm = as.numeric(pm),
+         day_of_week = weekdays(date)) %>% 
+  unite("pm_datetime", date:time, sep = " ") %>% 
+  select(home_winter_id, area, pm_date, pm_time, pm_datetime, day_of_week, pm) %>% 
+  arrange(area, home_winter_id, pm_date) %>% 
+  group_by(area, home_winter_id) %>% 
   # new variables summarizing pm2.5 within each home_winter_id
   mutate(pm_total_observations = n(),
          pm_total_summed = sum(pm),
+         # new datetime values to calculate sampling interval
          min_datetime = first(pm_datetime),
          max_datetime = last(pm_datetime),
          min_datetime = ymd_hms(min_datetime),
          max_datetime = ymd_hms(max_datetime),
          diff_datetime = interval(min_datetime, max_datetime),
-         pm_total_days = diff_datetime/86400,
-         pm_24hr_mean = pm_total_summed/pm_total_days,
+         # total sampling interval, based on first and last datetimes
+         pm_sample_interval = diff_datetime/86400,
+         # expected number of observations with the sampling interval
+         expected_obs = pm_sample_interval*24*60,
+         # difference between actual and expected observations
+         actual_vs_expected_diff = pm_total_observations - expected_obs,
+         # indicator variable if actual vs expected obs > 10 or greater
+         actual_vs_expected = if_else(actual_vs_expected_diff < 10 &
+                                      actual_vs_expected_diff > -10, 1, 0),
+         # mean pm based on 24hr periods in the sampling interval
+         pm_24hr_mean_interval = pm_total_summed/pm_sample_interval,
+         # mean pm based on 24hr periods of total observations
+         pm_24hr_mean_obs = pm_total_summed/(pm_total_observations/1440),
+         # rolling 24hr mean pm
          pm_rolling_24hr = rollsum(pm, 1440, fill = "extend", align = "right"),
+         # breaking sampling period into days
          obs = row_number(),
          sampling_day = if_else(obs < 1441, 1, 0),
          sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
@@ -279,6 +308,7 @@ kids_pm_new <- kids_pm %>%
          sampling_day = if_else(obs < 8641 & obs > 7200, 6, sampling_day),
          sampling_day = if_else(obs < 10081 & obs > 8640, 7, sampling_day),
          sampling_day = if_else(obs > 10080, 8, sampling_day)) %>%
+  # calculate pm means for each sampling day
   group_by(home_winter_id, sampling_day) %>% 
   mutate(pm_24hr_daily = sum(pm),
          pm_24hr_daily_weighted = pm_24hr_daily*(1440/n()),

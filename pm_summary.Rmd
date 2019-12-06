@@ -22,17 +22,30 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Summary stats
 ```{r}
-summary_kids_pm <- kids_pm %>% 
-  na.exclude() %>% 
+summary <- kids_pm %>% 
+  filter(pm < 0)
+
+summary_kids_pm <- kids_pm %>%
   #filter(pm < 0)
-  summarize(mean(pm_24hr_mean), sd(pm_24hr_mean),
-            min(pm_24hr_mean), max(pm_24hr_mean),
-            min(pm), max(pm), mean(pm_total_days),
-            min(pm_total_days), max(pm_total_days),
-            min(pm_total_observations), max(pm_total_observations),
-            mean(pm_24hr_daily), mean(pm_24hr_daily_weighted)) %>% 
+  summarize(mean(pm_24hr_mean_interval, na.rm = TRUE), 
+            sd(pm_24hr_mean_interval, na.rm = TRUE),
+            min(pm_24hr_mean_interval, na.rm = TRUE), 
+            max(pm_24hr_mean_interval, na.rm = TRUE),
+            mean(pm_24hr_mean_obs, na.rm = TRUE), 
+            sd(pm_24hr_mean_obs, na.rm = TRUE),
+            min(pm_24hr_mean_obs, na.rm = TRUE), 
+            max(pm_24hr_mean_obs, na.rm = TRUE),
+            min(pm, na.rm = TRUE), 
+            max(pm, na.rm = TRUE), 
+            mean(pm_sample_interval, na.rm = TRUE),
+            min(pm_sample_interval, na.rm = TRUE), 
+            max(pm_sample_interval, na.rm = TRUE),
+            min(pm_total_observations, na.rm = TRUE), 
+            max(pm_total_observations, na.rm = TRUE),
+            mean(pm_24hr_daily, na.rm = TRUE), 
+            mean(pm_24hr_daily_weighted, na.rm = TRUE)) %>% 
   t()
-summary_kids_pm
+kable(summary_kids_pm, digits = 2)
 ```
 
 # Boxplots
