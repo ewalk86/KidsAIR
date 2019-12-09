@@ -22,41 +22,65 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Summary stats
 ```{r}
-summary <- kids_pm %>% 
-  filter(pm < 0)
-
-summary_kids_pm <- kids_pm %>%
-  #filter(pm < 0)
-  summarize(mean(pm_24hr_mean_interval, na.rm = TRUE), 
-            sd(pm_24hr_mean_interval, na.rm = TRUE),
-            min(pm_24hr_mean_interval, na.rm = TRUE), 
-            max(pm_24hr_mean_interval, na.rm = TRUE),
-            mean(pm_24hr_mean_obs, na.rm = TRUE), 
-            sd(pm_24hr_mean_obs, na.rm = TRUE),
-            min(pm_24hr_mean_obs, na.rm = TRUE), 
-            max(pm_24hr_mean_obs, na.rm = TRUE),
-            min(pm, na.rm = TRUE), 
-            max(pm, na.rm = TRUE), 
-            mean(pm_sample_interval, na.rm = TRUE),
-            min(pm_sample_interval, na.rm = TRUE), 
-            max(pm_sample_interval, na.rm = TRUE),
-            min(pm_total_observations, na.rm = TRUE), 
-            max(pm_total_observations, na.rm = TRUE),
-            mean(pm_24hr_daily, na.rm = TRUE), 
-            mean(pm_24hr_daily_weighted, na.rm = TRUE)) %>% 
+# summary by area
+summary_area <- kids_pm %>%
+  #filter(actual_vs_expected == 1) %>% 
+  #filter(pm <0) %>% 
+  group_by(home_winter_id) %>% 
+  summarize("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE),
+            "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
+            "Min Sample Days" = min(pm_sample_interval, na.rm = TRUE), 
+            "Max Sample Days" = max(pm_sample_interval, na.rm = TRUE),
+            "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
+            "Min Sample Obs" = min(pm_total_observations, na.rm = TRUE), 
+            "Max Sample Obs" = max(pm_total_observations, na.rm = TRUE)) %>% 
   t()
-kable(summary_kids_pm, digits = 2)
+summary <- as.data.frame(summary_area)
+my_names <- summary_area[1, ]
+colnames(summary) <- my_names
+summary_area <- summary %>% 
+  rownames_to_column() %>% 
+  rename(Statistic = rowname) %>% 
+  filter(Statistic != "area") 
+#summary_area
+
+# summary by home_winter_id
+summary_id <- kids_pm %>% 
+  group_by(area, home_winter_id) %>% 
+  summarise("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE),
+            "Comments" = first(qaqccomments))
+
+# summary by dusttrak id
+summary_dtid <- kids_pm %>% 
+  group_by(area, dtid) %>% 
+  summarise("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE))
 ```
 
 # Boxplots
 ```{r, fig.height=6, fig.width=5}
 boxplots_kids_pm <- kids_pm %>% 
-  ggplot(aes(area, pm_24hr_mean)) +
+  filter(pm < 500) %>% 
+  ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
     theme_minimal() +
-    ylim(0, 400) +
+    ylim(-100, 500) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
     #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
