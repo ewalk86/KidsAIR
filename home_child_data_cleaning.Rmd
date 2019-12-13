@@ -1,0 +1,104 @@
+---
+title: "KidsAIR initial home/child data work"
+author: "Ethan Walker"
+date: "Started 19 Nov 2019, Updated 13 Dec 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+
+# Load, format, and save home and child overview/demographic data
+```{r}
+# Load files
+wmt_child_initial <- read_xlsx("Input/wmt_child_20191126.xlsx")
+wmt_home_initial <- read_xlsx("Input/wmt_home_20191126.xlsx")
+wmt_homewinter_initial <- read_xlsx("Input/wmt_homewinter_20191126.xlsx")
+wmt_parent_demographics_initial <- read_xlsx("Input/wmt_parent_demographics_20191126.xlsx")
+
+# join all files from above
+joined1 <- wmt_child_initial %>% 
+  mutate(hispanic_child = as.factor(Hispanic),
+         race_child = as.factor(Race),
+         comments_child = Comments,
+         what_missing_child = WhatMissing,
+         incomplete_child = Incomplete,
+         ignore_missing_child = IgnoreMissingData,
+         ignore_reason_child = IgnoreReason) %>% 
+  select(-ID, -Hispanic, -Race, -Comments, -WhatMissing, -Incomplete,
+         -IgnoreMissingData, -IgnoreReason) %>% 
+  left_join(wmt_homewinter_initial, by = "HomeID") %>% 
+  left_join(wmt_home_initial, by = "HomeID") %>% 
+  left_join(wmt_parent_demographics_initial, by = "HomeWinterID") %>%
+  mutate(gender_parent = as.factor(Gender),
+         hispanic_parent = as.factor(Hispanic),
+         race_parent = as.factor(Race),
+         what_missing_parent = WhatMissing,
+         incomplete_parent = Incomplete,
+         ignore_missing_parent = IgnoreMissingData,
+         ignore_reason_parent = IgnoreReason) %>%
+  select(-ID, -Hispanic, -Race, -WhatMissing, -Incomplete,
+         -IgnoreMissingData, -IgnoreReason, -Gender, -EnterDate) %>%
+  rename_all(tolower)
+
+# create dataset of id's and treatment assignment
+wmt_ids_linked <- joined1 %>% 
+  select(childid, homeid, home, homewinterid, winterid, txcondition) %>% 
+  mutate(child_id = as.character(childid),
+         home_id = as.character(homeid),
+         home_winter_id = as.character(homewinterid),
+         winter_id = as.character(winterid),
+         treatment = as.factor(txcondition)) %>% 
+  select(-childid, -homeid, -homewinterid, -winterid, -txcondition)
+  
+# create dataset of demographic data
+wmt_demographic_data <- joined1 %>% 
+  mutate(child_id = as.character(childid),
+         home_id = as.character(homeid),
+         age_nov1 = as.factor(agenov1),
+         child_assent_date = ymd(childassentdate),
+         parent_consent_date = ymd(parentconsentdate),
+         home_winter_id = as.character(homewinterid),
+         total_residents = as.numeric(totalres),
+         total_residents_under5 = as.numeric(underfive),
+         ignore_blanks_parent = ignoreblanks,
+         income = as.factor(income),
+         education = as.factor(education)) %>% 
+  select(child_id, home_id, hispanic_child, age_nov1, race_child, child_assent_date,
+         parent_consent_date, comments_child, what_missing_child, incomplete_child,
+         enrolled, ignore_missing_child, ignore_reason_child,
+         home_winter_id, gender_parent, hispanic_parent, race_parent, income,
+         education, total_residents, total_residents_under5, incomplete_parent,
+         ignore_blanks_parent, what_missing_parent, ignore_missing_parent,
+         ignore_reason_parent) %>% 
+  distinct(child_id, .keep_all = TRUE)
+
+# create dataset of data on home details
+## lower on priority list - see which variables we will use and clean later
+wmt_home_details_uncleaned <- wmt_homewinter_initial %>%
+  left_join(wmt_home_initial, by = "HomeID") %>% 
+  rename_all(tolower)
+
+
+# Save as RDS and CSV
+write_rds(wmt_ids_linked, "Output/wmt_ids_linked.rds")
+write_rds(wmt_demographic_data, "Output/wmt_demographic_data.rds")
+write_csv(wmt_ids_linked, "Output/wmt_ids_linked.csv")
+write_csv(wmt_demographic_data, "Output/wmt_demographic_data.csv")
+```
+
+
+```{r}
+
+```
+

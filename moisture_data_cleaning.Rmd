@@ -1,0 +1,61 @@
+---
+title: "KidsAIR initial moisture content data work"
+author: "Ethan Walker"
+date: "Started 19 Nov 2019, Updated 13 Dec 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load, format, and save fuel moisture content data
+```{r}
+# Load data
+moisture_initial_wmt <- read_xlsx("Input/wmt_kids_moisture_20191122.xlsx")
+
+kids_moisture <- moisture_initial_wmt %>% 
+  # rename variables
+  mutate(moisture_id = as.factor(ID),  
+         home_winter_id = as.factor(HomeWinterID),
+         moisture_date = ymd(CompletedDate),
+         moisture_1 = as.numeric(Moisture1),
+         moisture_2 = as.numeric(Moisture2),
+         moisture_3 = as.numeric(Moisture3),
+         moisture_ave = as.numeric(MoistureAve),
+         moisture_missing = as.character(WhatMissing),
+         moisture_incomplete = as.factor(Incomplete),
+         moisture_ignore_missing = as.factor(IgnoreMissingData),
+         moisture_ignore_reason = as.character(IgnoreReason),
+         moisture_tech = as.character(Technician),
+         moisture_split = as.factor(Split),
+         area = "WMT") %>% 
+  # replace 0 and -999 values with NA
+  replace_with_na(replace = list(moisture_1 = 0, moisture_2 = 0,
+                                 moisture_3 = 0, moisture_ave = 0)) %>% 
+  replace_with_na(replace = list(moisture_1 = -999, moisture_2 = -999,
+                                 moisture_3 = -999)) %>% 
+  # gather 3 moisture samples to calculate average
+  gather("sample", "value", c("moisture_1":"moisture_3")) %>% 
+  group_by(home_winter_id, moisture_date) %>% 
+  mutate(moisture_ave = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>% 
+  select(moisture_id, home_winter_id, area, moisture_date, moisture_1, moisture_2, moisture_3, 
+         moisture_ave, moisture_missing, moisture_incomplete, moisture_ignore_missing,
+         moisture_ignore_reason, moisture_tech, moisture_split)
+  
+# Save as RDS and CSV
+write_rds(kids_moisture, "Output/kids_moisture.rds")
+write_csv(kids_moisture, "Output/kids_moisture.csv")
+```
+

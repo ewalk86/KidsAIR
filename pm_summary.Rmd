@@ -1,12 +1,12 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 5 Dec 2019"
+date: "Started 22 Nov 2019, Updated 13 Dec 2019"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -25,12 +25,42 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 ```
 
 # Summary stats
+## Updated as data is cleaned
 ```{r}
 # summary by area
 summary_area <- kids_pm %>%
+  # filtering out specific houses during data cleaning
+  ## decide for sure if they should be exluded going forward
+  mutate(do_not_use = if_else(area == "AK" & home_winter_id == "39", 1, 0),
+         do_not_use = if_else(area == "AK" & home_winter_id == "89", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "127", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "1330", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "134", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "135", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "1510", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "161", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "165", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "2150", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "2210", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "29", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "58", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "620", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "840", 1, do_not_use),
+         do_not_use = if_else(area == "NN" & home_winter_id == "86", 1, do_not_use),
+         do_not_use = if_else(area == "WMT" & home_winter_id == "1910", 1, do_not_use),
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2500", 1, do_not_use),
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2510", 1, do_not_use),
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2860", 1, do_not_use),
+         do_not_use = if_else(area == "WMT" & home_winter_id == "3750", 1, do_not_use),
+         do_not_use = if_else(area == "WMT" & home_winter_id == "5100", 
+                              1, do_not_use)) %>% 
+  filter(do_not_use != 1) %>% 
+  # filter out high PM values
+  filter(pm < 5000) %>% 
   #filter(actual_vs_expected == 1) %>% 
   #filter(pm <0) %>% 
-  group_by(home_winter_id) %>% 
+  group_by(area) %>% 
+  # Run summary stats
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
@@ -43,7 +73,9 @@ summary_area <- kids_pm %>%
             "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
             "Min Sample Obs" = min(pm_total_observations, na.rm = TRUE), 
             "Max Sample Obs" = max(pm_total_observations, na.rm = TRUE)) %>% 
+  # transpose data for ease of reading
   t()
+# create column names and make it look nicer
 summary <- as.data.frame(summary_area)
 my_names <- summary_area[1, ]
 colnames(summary) <- my_names
@@ -51,8 +83,11 @@ summary_area <- summary %>%
   rownames_to_column() %>% 
   rename(Statistic = rowname) %>% 
   filter(Statistic != "area") 
-#summary_area
+kable(summary_area, digits = 2)
+```
 
+# Summarize by ID and Dusttrak ID
+```{r}
 # summary by home_winter_id
 summary_id <- kids_pm %>% 
   group_by(area, home_winter_id) %>% 
@@ -65,27 +100,31 @@ summary_id <- kids_pm %>%
             "Act vs Exp Diff" = first(as.numeric(actual_vs_expected_diff)),
             "Act vs Exp" = first(actual_vs_expected),
             "Comments" = first(qaqccomments))
-write_csv(summary_id, "output/kids_summary_id.csv")
+# write_csv(summary_id, "output/kids_summary_id.csv")
 
 # summary by dusttrak id
 summary_dtid <- kids_pm %>% 
-  group_by(area, dtid) %>% 
+  group_by(dtid) %>% 
   summarise("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
             "Min PM" = min(pm, na.rm = TRUE), 
             "Median PM" = median(pm, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE))
+```
 
+# Histogram for distribution of PM by individual ID
+```{r}
 histogram_id <- kids_pm %>% 
   filter(home_winter_id == "10" & area == "AK") %>% 
   ggplot() + 
     geom_histogram(aes(pm), bins = 50) +
     theme_classic()
 histogram_id
+```
 
-##### 2 Functions to look at PM data across time #####
-
+# Function to look at PM data across time
+```{r}
 # Plot PM by datetime to look at trends, gaps, and peaks
 pm_time_plot_function <- function(id, location) {
 pm_time_plot <- kids_pm %>% 
@@ -132,21 +171,24 @@ pm_desc <<- kids_pm %>%
 
 pm_time_plot
 }
+```
 
+# Run function from above to look at results
+```{r}
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "228", location = "NN")
+pm_time_plot_function(id = "85", location = "AK")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
 
 # filter data for a single home
-check <- kids_pm %>% 
-  filter(area == "NN" & home_winter_id == "224") %>% 
+check_data <- kids_pm %>% 
+  filter(area == "WMT" & home_winter_id == "513") %>% 
   filter(pm < 0)
 ```
 
-# Boxplots
+# Boxplots for PM by study area
 ```{r, fig.height=6, fig.width=5}
 boxplots_kids_pm <- kids_pm %>% 
   filter(pm < 500) %>% 
