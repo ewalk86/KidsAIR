@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 13 Dec 2019"
+date: "Started 19 Nov 2019, Updated 16 Dec 2019"
 output: pdf_document
 ---
 
@@ -17,7 +17,7 @@ library(lubridate)
 library(zoo)
 ```
 
-# Load, format, and save KidsAIR Dusttrak data
+# Initial load, format, and save KidsAIR Dusttrak data
 ```{r}
 ##### Read in dusttrack .txt files (from WMT) #####
 
@@ -229,7 +229,6 @@ write_rds(kids_pm, "Output/kids_pm_full_raw.rds")
 #write_csv(kids_pm, "Output/kids_pm_full.csv")
 ```
 
-
 # Load Dusttrak data and clean up
 ```{r}
 # Load full, raw dataset compiled in chunk above
@@ -241,19 +240,19 @@ ak_dt_home <- read_csv("Input/AK/ak_dt_home.csv") %>%
 ak_dt <- read_xlsx("Input/AK/ak_dustrak.xlsx") %>% 
   mutate(area = "AK") %>% 
   rename_all(tolower) %>% 
-  select(homewinterid, dtid, area)
+  select(homewinterid, dtid, area, startdate, starttime, stopdate, stoptime)
 nn_dt_home <- read_csv("Input/NN/nn_dt_home.csv") %>% 
   mutate(area = "NN")
 nn_dt <- read_xlsx("Input/NN/nn_dustrak.xlsx") %>% 
   mutate(area = "NN") %>% 
   rename_all(tolower) %>% 
-  select(homewinterid, dtid, area)
+  select(homewinterid, dtid, area, startdate, starttime, stopdate, stoptime)
 wmt_dt_home <- read_csv("Input/WMT/wmt_dt_home.csv") %>% 
   mutate(area = "WMT")
 wmt_dt <- read_xlsx("Input/WMT/wmt_dustrak.xlsx") %>% 
   mutate(area = "WMT") %>% 
   rename_all(tolower) %>% 
-  select(homewinterid, dtid, area)
+  select(homewinterid, dtid, area, startdate, starttime, stopdate, stoptime)
 
 dt <- rbind(ak_dt, nn_dt, wmt_dt) %>% 
   mutate(home_winter_id = as.character(homewinterid)) %>% 
@@ -320,14 +319,174 @@ kids_pm_new <- kids_pm_joined %>%
   group_by(area, home_winter_id, sampling_day) %>% 
   mutate(pm_mean_daily = mean(pm),
          pm_sampling_day = sampling_day) %>% 
+  separate(starttime, c("trash1", "starttime"), sep = " ") %>% 
+  separate(stoptime, c("trash2", "stoptime"), sep = " ") %>% 
   ungroup() %>% 
-  select(-min_datetime, -max_datetime, -diff_datetime, -obs, -sampling_day, -datetime) 
+  select(-min_datetime, -max_datetime, -diff_datetime, -obs, -sampling_day, 
+         -datetime, -trash1, -trash2) 
 
 
 # Save pm dataset as RDS and CSV
 write_rds(kids_pm_new, "Output/kids_pm_new.rds")
 #write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
+
+# Summarize by ID and Dusttrak ID to look for trends
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+
+# summary by home_winter_id
+summary_id <- kids_pm %>% 
+  group_by(area, home_winter_id) %>% 
+  summarise("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE),
+            "Act vs Exp Diff" = first(as.numeric(actual_vs_expected_diff)),
+            "Act vs Exp" = first(actual_vs_expected),
+            "Comments" = first(qaqccomments))
+ write_csv(summary_id, "output/kids_summary_id.csv")
+
+# summary by dusttrak id
+summary_dtid <- kids_pm %>% 
+  group_by(dtid) %>% 
+  summarise("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE))
+```
+
+# Histogram for distribution of PM by individual ID
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+
+histogram_id <- kids_pm %>% 
+  filter(home_winter_id == "10" & area == "AK") %>% 
+  ggplot() + 
+    geom_histogram(aes(pm), bins = 50) +
+    theme_classic()
+histogram_id
+```
+
+# Function to look at PM data across time
+```{r}
+# Plot PM by datetime to look at trends, gaps, and peaks
+pm_time_plot_function <- function(id, location) {
+pm_time_plot <- kids_pm %>% 
+  filter(home_winter_id == id & area == location) %>% 
+  #filter(pm < 30000) %>% 
+  arrange(pm_datetime) %>% 
+  mutate(pm_sampling_day = as.character(pm_sampling_day),
+         day_of_week = factor(day_of_week,
+                              levels = c("Sunday", "Monday", "Tuesday", "Wednesday", 
+                                         "Thursday", "Friday", "Saturday"))) %>%
+  ggplot() + 
+    geom_point(aes(pm_datetime, pm, color = day_of_week), size = 1.5) +
+    theme_classic() +
+    labs(title = id,
+         y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")")),
+         x = "Datetime",
+         color = "Day of week") +
+    theme(axis.title.y = element_text(size = 12,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_text(size = 12),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12, color = "black"),
+          axis.line.x = element_line(colour = "black", size = 1), 
+          axis.line.y = element_line(colour = "black", size = 1), 
+          axis.ticks = element_blank()) +
+    scale_color_manual(values = jvPalette)
+
+gaps <<- kids_pm %>% 
+  filter(home_winter_id == id & area == location) %>% 
+  mutate(pm_datetime = ymd_hms(pm_datetime),
+         datetime_lead = ymd_hms(lead(pm_datetime)),
+         datetime_1 = seconds(pm_datetime),
+         datetime_2 = seconds(datetime_lead),
+         datetime_diff_minutes = as.numeric(datetime_2 - datetime_1)/60,
+         datetime_diff_hours = as.numeric(datetime_diff_minutes/60)) %>% 
+  arrange(desc(datetime_diff_minutes)) %>% 
+  select(day_of_week, pm_sampling_day, datetime_diff_minutes, datetime_diff_hours, 
+         pm_datetime, datetime_lead)
+
+pm_desc <<- kids_pm %>% 
+  filter(home_winter_id == id & area == location) %>% 
+  arrange(desc(pm)) %>% 
+  select(pm_datetime, pm, pm_sampling_day)
+
+pm_time_plot
+}
+```
+
+# Run function from above to look at results
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+
+# Change function input to look at specific home
+# Run all of these lines together
+pm_time_plot_function(id = "512", location = "WMT")
+head(gaps, 25)
+head(pm_desc, 25)
+tail(pm_desc, 25)
+
+# filter data for a single home
+check_data <- kids_pm %>% 
+  filter(area == "AK" & home_winter_id == "10") 
+
+%>% 
+  filter(pm < 0)
+```
+
+# Check sample start times
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+
+# Checking difference between dustrak start datetime and field data log datetime
+sample_times <- kids_pm %>% 
+  #filter(area == "AK") %>% 
+  group_by(area, home_winter_id) %>% 
+  arrange(pm_datetime) %>% 
+  unite(start_datetime, c("startdate", "starttime"), 
+        sep = " ", remove = FALSE) %>% 
+  mutate(first_datetime = first(pm_datetime),
+         first_datetime = ymd_hms(first_datetime),
+         start_datetime = ymd_hms(start_datetime),
+         time_diff = first_datetime - start_datetime) %>% 
+  distinct(time_diff, .keep_all = TRUE) %>% 
+  select(area, home_winter_id, pm_datetime, first_datetime,
+         start_datetime, time_diff, startdate, starttime) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id)
+#write_csv(sample_times, "Output/pm_sample_times_comparison.csv")
+```
+
+# Loading and combining notes from time and PM logs
+```{r}
+time_notes <- read_xlsx("Input/pm_sample_times_comparison.xlsx") %>% 
+  select(area, home_winter_id, first_datetime, start_datetime,
+         time_diff, next_steps_time, check_log_time)
+
+pm_notes <- read_xlsx("Input/kids_summary_id.xlsx") %>% 
+  select(area, home_winter_id, n, further_comments_pm, next_steps_pm, check_log_pm)
+
+kids_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+  mutate(home_winter_id = as.numeric(home_winter_id))
+
+notes_joined <- pm_notes %>% 
+  left_join(time_notes, by = c("area", "home_winter_id")) %>% 
+  left_join(kids_ids, by = c("area", "home_winter_id"))
+#write_csv(notes_joined, "Output/pm_notes_check_logs.csv")
+```
+
+
 
 
 # Original code/files from Emily - save for future reference
@@ -396,5 +555,4 @@ kids_pm <- pm_initial %>%
 write_rds(kids_pm, "Output/kids_pm.rds")
 write_csv(kids_pm, "Output/kids_pm.csv")
 ```
-
 

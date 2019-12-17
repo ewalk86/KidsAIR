@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial home/child data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 13 Dec 2019"
+date: "Started 19 Nov 2019, Updated 16 Dec 2019"
 output: pdf_document
 ---
 
@@ -18,87 +18,259 @@ library(zoo)
 ```
 
 
-# Load, format, and save home and child overview/demographic data
+# Load, format, and save home and child overview/demographic data for WMT
 ```{r}
 # Load files
-wmt_child_initial <- read_xlsx("Input/wmt_child_20191126.xlsx")
-wmt_home_initial <- read_xlsx("Input/wmt_home_20191126.xlsx")
-wmt_homewinter_initial <- read_xlsx("Input/wmt_homewinter_20191126.xlsx")
-wmt_parent_demographics_initial <- read_xlsx("Input/wmt_parent_demographics_20191126.xlsx")
+wmt_child_initial <- read_xlsx("Input/WMT/wmt_child_20191126.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
+  mutate(child_id_num = as.character(childid),
+         home_id = as.character(homeid),
+         child_id_char = as.character(id),
+         hispanic_child = as.factor(hispanic),
+         race_child = as.factor(race),
+         age_child_nov = as.character(agenov1)) %>% 
+  select(child_id_num, home_id, child_id_char, hispanic_child,
+         race_child, age_child_nov, enrolled) 
+
+wmt_home_initial <- read_xlsx("Input/WMT/wmt_home_20191126.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homeid, home, txcondition) %>% 
+  mutate(home_id = as.character(homeid),
+         home = as.character(home),
+         treatment = as.factor(txcondition)) %>% 
+  select(home_id, home, treatment)
+
+wmt_homewinter_initial <- read_xlsx("Input/WMT/wmt_homewinter_20191126.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         home_id = as.character(homeid),
+         winter_id = as.character(winterid),
+         intervention_date = interventiondate,
+         intervention_time = interventiontime) %>% 
+  select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
+
+wmt_parent_demographics_initial <-
+  read_xlsx("Input/WMT/wmt_parent_demographics_20191126.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, gender, hispanic, race, income, education,
+         totalres, underfive) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         gender_parent = as.factor(gender),
+         hispanic_parent = as.factor(hispanic),
+         race_parent = as.factor(race),
+         income = as.factor(income),
+         education = as.factor(education),
+         total_residents = as.character(totalres),
+         residents_under_five = as.character(underfive)) %>% 
+  select(home_winter_id, gender_parent, hispanic_parent, race_parent,
+         income, education, total_residents, residents_under_five) %>% 
+  filter(!is.na(gender_parent))
 
 # join all files from above
-joined1 <- wmt_child_initial %>% 
-  mutate(hispanic_child = as.factor(Hispanic),
-         race_child = as.factor(Race),
-         comments_child = Comments,
-         what_missing_child = WhatMissing,
-         incomplete_child = Incomplete,
-         ignore_missing_child = IgnoreMissingData,
-         ignore_reason_child = IgnoreReason) %>% 
-  select(-ID, -Hispanic, -Race, -Comments, -WhatMissing, -Incomplete,
-         -IgnoreMissingData, -IgnoreReason) %>% 
-  left_join(wmt_homewinter_initial, by = "HomeID") %>% 
-  left_join(wmt_home_initial, by = "HomeID") %>% 
-  left_join(wmt_parent_demographics_initial, by = "HomeWinterID") %>%
-  mutate(gender_parent = as.factor(Gender),
-         hispanic_parent = as.factor(Hispanic),
-         race_parent = as.factor(Race),
-         what_missing_parent = WhatMissing,
-         incomplete_parent = Incomplete,
-         ignore_missing_parent = IgnoreMissingData,
-         ignore_reason_parent = IgnoreReason) %>%
-  select(-ID, -Hispanic, -Race, -WhatMissing, -Incomplete,
-         -IgnoreMissingData, -IgnoreReason, -Gender, -EnterDate) %>%
-  rename_all(tolower)
+joined1 <- wmt_homewinter_initial %>% 
+  left_join(wmt_parent_demographics_initial, by = "home_winter_id") %>% 
+  left_join(wmt_home_initial, by = "home_id") %>% 
+  left_join(wmt_child_initial, by = "home_id") %>% 
+  mutate(area = "WMT")
+  
 
 # create dataset of id's and treatment assignment
-wmt_ids_linked <- joined1 %>% 
-  select(childid, homeid, home, homewinterid, winterid, txcondition) %>% 
-  mutate(child_id = as.character(childid),
-         home_id = as.character(homeid),
-         home_winter_id = as.character(homewinterid),
-         winter_id = as.character(winterid),
-         treatment = as.factor(txcondition)) %>% 
-  select(-childid, -homeid, -homewinterid, -winterid, -txcondition)
+wmt_home_ids_linked <- joined1 %>% 
+  select(area, home_id, winter_id, home, home_winter_id, treatment) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  arrange(home_id, winter_id)
   
-# create dataset of demographic data
-wmt_demographic_data <- joined1 %>% 
-  mutate(child_id = as.character(childid),
-         home_id = as.character(homeid),
-         age_nov1 = as.factor(agenov1),
-         child_assent_date = ymd(childassentdate),
-         parent_consent_date = ymd(parentconsentdate),
-         home_winter_id = as.character(homewinterid),
-         total_residents = as.numeric(totalres),
-         total_residents_under5 = as.numeric(underfive),
-         ignore_blanks_parent = ignoreblanks,
-         income = as.factor(income),
-         education = as.factor(education)) %>% 
-  select(child_id, home_id, hispanic_child, age_nov1, race_child, child_assent_date,
-         parent_consent_date, comments_child, what_missing_child, incomplete_child,
-         enrolled, ignore_missing_child, ignore_reason_child,
-         home_winter_id, gender_parent, hispanic_parent, race_parent, income,
-         education, total_residents, total_residents_under5, incomplete_parent,
-         ignore_blanks_parent, what_missing_parent, ignore_missing_parent,
-         ignore_reason_parent) %>% 
-  distinct(child_id, .keep_all = TRUE)
-
-# create dataset of data on home details
-## lower on priority list - see which variables we will use and clean later
-wmt_home_details_uncleaned <- wmt_homewinter_initial %>%
-  left_join(wmt_home_initial, by = "HomeID") %>% 
-  rename_all(tolower)
+# create dataset of child demographic data
+wmt_child_demographics <- joined1 %>% 
+  distinct(child_id_num, .keep_all = TRUE) %>% 
+  arrange(home_id, child_id_num, winter_id) %>% 
+  filter(enrolled == 1)
 
 
 # Save as RDS and CSV
-write_rds(wmt_ids_linked, "Output/wmt_ids_linked.rds")
-write_rds(wmt_demographic_data, "Output/wmt_demographic_data.rds")
-write_csv(wmt_ids_linked, "Output/wmt_ids_linked.csv")
-write_csv(wmt_demographic_data, "Output/wmt_demographic_data.csv")
+write_rds(wmt_home_ids_linked, "Output/wmt_ids_linked.rds")
+write_rds(wmt_child_demographics, "Output/wmt_demographic_data.rds")
+write_csv(wmt_home_ids_linked, "Output/wmt_ids_linked.csv")
+write_csv(wmt_child_demographics, "Output/wmt_demographic_data.csv")
 ```
 
-
+# Load, format, and save home and child overview/demographic data for NN
 ```{r}
+# Load files
+nn_child_initial <- read_xlsx("Input/NN/nn_child_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
+  mutate(child_id_num = as.character(childid),
+         home_id = as.character(homeid),
+         child_id_char = as.character(id),
+         hispanic_child = as.factor(hispanic),
+         race_child = as.factor(race),
+         age_child_nov = as.character(agenov1)) %>% 
+  select(child_id_num, home_id, child_id_char, hispanic_child,
+         race_child, age_child_nov, enrolled) 
 
+nn_home_initial <- read_xlsx("Input/NN/nn_home_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homeid, home, txcondition) %>% 
+  mutate(home_id = as.character(homeid),
+         home = as.character(home),
+         treatment = as.factor(txcondition)) %>% 
+  select(home_id, home, treatment)
+
+nn_homewinter_initial <- read_xlsx("Input/NN/nn_homewinter_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         home_id = as.character(homeid),
+         winter_id = as.character(winterid),
+         intervention_date = interventiondate,
+         intervention_time = interventiontime) %>% 
+  select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
+
+nn_parent_demographics_initial <-
+  read_xlsx("Input/NN/nn_parent_demographics_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, gender, hispanic, race, income, education,
+         totalres, underfive) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         gender_parent = as.factor(gender),
+         hispanic_parent = as.factor(hispanic),
+         race_parent = as.factor(race),
+         income = as.factor(income),
+         education = as.factor(education),
+         total_residents = as.character(totalres),
+         residents_under_five = as.character(underfive)) %>% 
+  select(home_winter_id, gender_parent, hispanic_parent, race_parent,
+         income, education, total_residents, residents_under_five) %>% 
+  filter(!is.na(gender_parent))
+
+# join all files from above
+joined1 <- nn_homewinter_initial %>% 
+  left_join(nn_parent_demographics_initial, by = "home_winter_id") %>% 
+  left_join(nn_home_initial, by = "home_id") %>% 
+  left_join(nn_child_initial, by = "home_id") %>% 
+  mutate(area = "NN")
+  
+
+# create dataset of id's and treatment assignment
+nn_home_ids_linked <- joined1 %>% 
+  select(area, home_id, winter_id, home, home_winter_id, treatment) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  arrange(home_id, winter_id)
+  
+# create dataset of child demographic data
+nn_child_demographics <- joined1 %>% 
+  distinct(child_id_num, .keep_all = TRUE) %>% 
+  arrange(home_id, child_id_num, winter_id) %>% 
+  filter(enrolled == 1)
+
+
+# Save as RDS and CSV
+write_rds(nn_home_ids_linked, "Output/nn_ids_linked.rds")
+write_rds(nn_child_demographics, "Output/nn_demographic_data.rds")
+write_csv(nn_home_ids_linked, "Output/nn_ids_linked.csv")
+write_csv(nn_child_demographics, "Output/nn_demographic_data.csv")
+```
+
+# Load, format, and save home and child overview/demographic data for AK
+```{r}
+# Load files
+ak_child_initial <- read_xlsx("Input/AK/ak_child_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
+  mutate(child_id_num = as.character(childid),
+         home_id = as.character(homeid),
+         child_id_char = as.character(id),
+         hispanic_child = as.factor(hispanic),
+         race_child = as.factor(race),
+         age_child_nov = as.character(agenov1)) %>% 
+  select(child_id_num, home_id, child_id_char, hispanic_child,
+         race_child, age_child_nov, enrolled) 
+
+ak_home_initial <- read_xlsx("Input/AK/ak_home_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homeid, home, txcondition) %>% 
+  mutate(home_id = as.character(homeid),
+         home = as.character(home),
+         treatment = as.factor(txcondition)) %>% 
+  select(home_id, home, treatment)
+
+ak_homewinter_initial <- read_xlsx("Input/AK/ak_homewinter_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         home_id = as.character(homeid),
+         winter_id = as.character(winterid),
+         intervention_date = interventiondate,
+         intervention_time = interventiontime) %>% 
+  select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
+
+ak_parent_demographics_initial <-
+  read_xlsx("Input/AK/ak_parent_demographics_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, gender, hispanic, race, income, education,
+         totalres, underfive) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         gender_parent = as.factor(gender),
+         hispanic_parent = as.factor(hispanic),
+         race_parent = as.factor(race),
+         income = as.factor(income),
+         education = as.factor(education),
+         total_residents = as.character(totalres),
+         residents_under_five = as.character(underfive)) %>% 
+  select(home_winter_id, gender_parent, hispanic_parent, race_parent,
+         income, education, total_residents, residents_under_five) %>% 
+  filter(!is.na(gender_parent))
+
+# join all files from above
+joined1 <- ak_homewinter_initial %>% 
+  left_join(ak_parent_demographics_initial, by = "home_winter_id") %>% 
+  left_join(ak_home_initial, by = "home_id") %>% 
+  left_join(ak_child_initial, by = "home_id") %>% 
+  mutate(area = "AK")
+  
+
+# create dataset of id's and treatment assignment
+ak_home_ids_linked <- joined1 %>% 
+  select(area, home_id, winter_id, home, home_winter_id, treatment) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  arrange(home_id, winter_id) 
+  
+# create dataset of child demographic data
+ak_child_demographics <- joined1 %>% 
+  distinct(child_id_num, .keep_all = TRUE) %>% 
+  arrange(home_id, child_id_num, winter_id) %>% 
+  filter(enrolled == 1) 
+
+
+# Save as RDS and CSV
+write_rds(ak_home_ids_linked, "Output/ak_ids_linked.rds")
+write_rds(ak_child_demographics, "Output/ak_demographic_data.rds")
+write_csv(ak_home_ids_linked, "Output/ak_ids_linked.csv")
+write_csv(ak_child_demographics, "Output/ak_demographic_data.csv")
+```
+
+# Combine linked id data for WMT, NN, AK
+```{r}
+ak_ids <- read_rds("Output/ak_ids_linked.rds")
+nn_ids <- read_rds("Output/nn_ids_linked.rds")
+wmt_ids <- read_rds("Output/wmt_ids_linked.rds")
+
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids)
+
+#write_rds(kids_ids, "Output/kids_linked_ids.rds")
+```
+
+# Combine demographic data for WMT, NN, AK
+```{r}
+ak_demographics <- read_rds("Output/ak_demographic_data.rds")
+nn_demographics <- read_rds("Output/nn_demographic_data.rds")
+wmt_demographics <- read_rds("Output/wmt_demographic_data.rds")
+
+kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics)
+
+#write_rds(kids_demographics, "Output/kids_combined_demographics.rds")
 ```
 
