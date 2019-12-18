@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 16 Dec 2019"
+date: "Started 19 Nov 2019, Updated 18 Dec 2019"
 output: pdf_document
 ---
 
@@ -15,6 +15,9 @@ library(readxl)
 library(naniar)
 library(lubridate)
 library(zoo)
+jvPalette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
 ```
 
 # Initial load, format, and save KidsAIR Dusttrak data
@@ -431,14 +434,14 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "512", location = "WMT")
+pm_time_plot_function(id = "140", location = "NN")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
 
 # filter data for a single home
 check_data <- kids_pm %>% 
-  filter(area == "AK" & home_winter_id == "10") 
+  filter(area == "NN" & home_winter_id == "140") 
 
 %>% 
   filter(pm < 0)
@@ -486,6 +489,73 @@ notes_joined <- pm_notes %>%
 #write_csv(notes_joined, "Output/pm_notes_check_logs.csv")
 ```
 
+# Fix dusttrak sample start times
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+
+# Checking difference between dustrak start datetime and field data log datetime
+sample_times <- kids_pm %>% 
+  #filter(area == "NN") %>% 
+  group_by(area, home_winter_id) %>% 
+  arrange(pm_datetime) %>% 
+  unite(start_datetime, c("startdate", "starttime"), 
+        sep = " ", remove = FALSE) %>% 
+  mutate(first_datetime = first(pm_datetime),
+         first_datetime = ymd_hms(first_datetime),
+         start_datetime = ymd_hms(start_datetime),
+         time_diff = first_datetime - start_datetime) %>% 
+  #distinct(time_diff, .keep_all = TRUE) %>% 
+  # make general time changes based on ranges
+  mutate(pm_datetime = ymd_hms(pm_datetime),
+         pm_datetime_new = if_else(time_diff > 1800 & time_diff < 5400, 
+                                   pm_datetime - 3600, pm_datetime),
+         pm_datetime_new = if_else(time_diff < -1800 & time_diff > -5400, 
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff > 5400 & time_diff < 9000, 
+                                   pm_datetime_new - 7200, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff < -5400 & time_diff > -9000, 
+                                   pm_datetime_new + 7200, pm_datetime_new)) %>% 
+  # make specific time changes
+  mutate(pm_datetime_new = if_else(time_diff == 10903, # WMA457
+                                   pm_datetime_new - 10800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == (-82721), # WMA440
+                                   pm_datetime_new + 82800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 10069, # WMA459
+                                   pm_datetime_new - 9900, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 9817, # WMA314
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff < -31535900, # YKC06-103 
+                                   pm_datetime_new + 31539519, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff < -31532200, # WMA305
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 9120, # WMA228
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == (-21497), # WMA130
+                                   pm_datetime_new + 21497, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 684, # WMA237
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 149793, # WMA238
+                                   pm_datetime_new - 149793, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -46227, # CH320
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 13514, # TC360 
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -10696, # TC357 
+                                   pm_datetime_new + 10800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -43427, # TC355 
+                                   pm_datetime_new + 43200, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -11388, # TC353 
+                                   pm_datetime_new + 10800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -221, # TC351 
+                                   pm_datetime_new + 3600, pm_datetime_new)) %>% 
+  mutate(first_datetime_new = first(pm_datetime_new),
+         first_datetime_new = ymd_hms(first_datetime_new),
+         start_datetime = ymd_hms(start_datetime),
+         time_diff_new = first_datetime_new - start_datetime) %>% 
+  distinct(time_diff, .keep_all = TRUE)  
+
+```
 
 
 

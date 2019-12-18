@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial home/child data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 16 Dec 2019"
+date: "Started 19 Nov 2019, Updated 17 Dec 2019"
 output: pdf_document
 ---
 
@@ -21,6 +21,8 @@ library(zoo)
 # Load, format, and save home and child overview/demographic data for WMT
 ```{r}
 # Load files
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > WMT > child.xlsx
 wmt_child_initial <- read_xlsx("Input/WMT/wmt_child_20191126.xlsx") %>% 
   rename_all(tolower) %>% 
   select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
@@ -33,6 +35,8 @@ wmt_child_initial <- read_xlsx("Input/WMT/wmt_child_20191126.xlsx") %>%
   select(child_id_num, home_id, child_id_char, hispanic_child,
          race_child, age_child_nov, enrolled) 
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > WMT > home.xlsx
 wmt_home_initial <- read_xlsx("Input/WMT/wmt_home_20191126.xlsx") %>% 
   rename_all(tolower) %>% 
   select(homeid, home, txcondition) %>% 
@@ -41,6 +45,8 @@ wmt_home_initial <- read_xlsx("Input/WMT/wmt_home_20191126.xlsx") %>%
          treatment = as.factor(txcondition)) %>% 
   select(home_id, home, treatment)
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > WMT > homewinter.xlsx
 wmt_homewinter_initial <- read_xlsx("Input/WMT/wmt_homewinter_20191126.xlsx") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
@@ -51,6 +57,8 @@ wmt_homewinter_initial <- read_xlsx("Input/WMT/wmt_homewinter_20191126.xlsx") %>
          intervention_time = interventiontime) %>% 
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > WMT > Home Data > parentdemographics.xlsx
 wmt_parent_demographics_initial <-
   read_xlsx("Input/WMT/wmt_parent_demographics_20191126.xlsx") %>% 
   rename_all(tolower) %>% 
@@ -99,6 +107,8 @@ write_csv(wmt_child_demographics, "Output/wmt_demographic_data.csv")
 # Load, format, and save home and child overview/demographic data for NN
 ```{r}
 # Load files
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > child.xlsx
 nn_child_initial <- read_xlsx("Input/NN/nn_child_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
   select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
@@ -111,6 +121,8 @@ nn_child_initial <- read_xlsx("Input/NN/nn_child_20191216.xlsx") %>%
   select(child_id_num, home_id, child_id_char, hispanic_child,
          race_child, age_child_nov, enrolled) 
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > home.xlsx
 nn_home_initial <- read_xlsx("Input/NN/nn_home_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
   select(homeid, home, txcondition) %>% 
@@ -119,6 +131,8 @@ nn_home_initial <- read_xlsx("Input/NN/nn_home_20191216.xlsx") %>%
          treatment = as.factor(txcondition)) %>% 
   select(home_id, home, treatment)
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > homewinter.xlsx
 nn_homewinter_initial <- read_xlsx("Input/NN/nn_homewinter_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
@@ -129,6 +143,8 @@ nn_homewinter_initial <- read_xlsx("Input/NN/nn_homewinter_20191216.xlsx") %>%
          intervention_time = interventiontime) %>% 
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > Home Data > parentdemographics.xlsx
 nn_parent_demographics_initial <-
   read_xlsx("Input/NN/nn_parent_demographics_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
@@ -177,6 +193,8 @@ write_csv(nn_child_demographics, "Output/nn_demographic_data.csv")
 # Load, format, and save home and child overview/demographic data for AK
 ```{r}
 # Load files
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > child.xlsx
 ak_child_initial <- read_xlsx("Input/AK/ak_child_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
   select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
@@ -189,6 +207,8 @@ ak_child_initial <- read_xlsx("Input/AK/ak_child_20191216.xlsx") %>%
   select(child_id_num, home_id, child_id_char, hispanic_child,
          race_child, age_child_nov, enrolled) 
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > home.xlsx
 ak_home_initial <- read_xlsx("Input/AK/ak_home_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
   select(homeid, home, txcondition) %>% 
@@ -197,6 +217,8 @@ ak_home_initial <- read_xlsx("Input/AK/ak_home_20191216.xlsx") %>%
          treatment = as.factor(txcondition)) %>% 
   select(home_id, home, treatment)
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > homewinter.xlsx
 ak_homewinter_initial <- read_xlsx("Input/AK/ak_homewinter_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
@@ -207,6 +229,8 @@ ak_homewinter_initial <- read_xlsx("Input/AK/ak_homewinter_20191216.xlsx") %>%
          intervention_time = interventiontime) %>% 
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > Home Data > parentdemographics.xlsx
 ak_parent_demographics_initial <-
   read_xlsx("Input/AK/ak_parent_demographics_20191216.xlsx") %>% 
   rename_all(tolower) %>% 
