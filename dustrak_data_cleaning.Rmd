@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 18 Dec 2019"
+date: "Started 19 Nov 2019, Updated 19 Dec 2019"
 output: pdf_document
 ---
 
@@ -15,7 +15,8 @@ library(readxl)
 library(naniar)
 library(lubridate)
 library(zoo)
-jvPalette <- c("#330099","#CC0066","#FF6633", 
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
@@ -232,7 +233,7 @@ write_rds(kids_pm, "Output/kids_pm_full_raw.rds")
 #write_csv(kids_pm, "Output/kids_pm_full.csv")
 ```
 
-# Load Dusttrak data and clean up
+# Load Dusttrak data and do initial clean-up
 ```{r}
 # Load full, raw dataset compiled in chunk above
 kids_pm_full <- read_rds("Output/kids_pm_full_raw.rds") 
@@ -330,7 +331,7 @@ kids_pm_new <- kids_pm_joined %>%
 
 
 # Save pm dataset as RDS and CSV
-write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+#write_rds(kids_pm_new, "Output/kids_pm_new.rds")
 #write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
 
@@ -404,7 +405,7 @@ pm_time_plot <- kids_pm %>%
           axis.line.x = element_line(colour = "black", size = 1), 
           axis.line.y = element_line(colour = "black", size = 1), 
           axis.ticks = element_blank()) +
-    scale_color_manual(values = jvPalette)
+    scale_color_manual(values = jv_palette)
 
 gaps <<- kids_pm %>% 
   filter(home_winter_id == id & area == location) %>% 
@@ -434,7 +435,7 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "140", location = "NN")
+pm_time_plot_function(id = "137", location = "NN")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
@@ -495,7 +496,7 @@ notes_joined <- pm_notes %>%
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Checking difference between dustrak start datetime and field data log datetime
-sample_times <- kids_pm %>% 
+kids_pm_new2 <- kids_pm_new %>% 
   #filter(area == "NN") %>% 
   group_by(area, home_winter_id) %>% 
   arrange(pm_datetime) %>% 
@@ -548,13 +549,149 @@ sample_times <- kids_pm %>%
          pm_datetime_new = if_else(time_diff == -11388, # TC353 
                                    pm_datetime_new + 10800, pm_datetime_new),
          pm_datetime_new = if_else(time_diff == -221, # TC351 
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 4999, # CH214 
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 4061, # WMA203 
                                    pm_datetime_new + 3600, pm_datetime_new)) %>% 
   mutate(first_datetime_new = first(pm_datetime_new),
          first_datetime_new = ymd_hms(first_datetime_new),
          start_datetime = ymd_hms(start_datetime),
-         time_diff_new = first_datetime_new - start_datetime) %>% 
+         time_diff_new = first_datetime_new - start_datetime) %>%  
   distinct(time_diff, .keep_all = TRUE)  
 
+kids_pm_new2 <- kids_pm_new %>%
+  ungroup() %>% 
+  arrange(area, home_winter_id, pm_datetime_new)
+
+# write_rds(kids_pm_new2, "Output/kids_pm_new.rds")
+```
+
+# Further cleaning:
+## Remove specific homes from PM dataset
+## Remove extremely high values
+## Change negative values
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+
+kids_pm_new <- kids_pm %>%
+  # filtering out specific homes where PM data is not suitable for analysis
+  # removes 119,520 obs
+         # YKC06_105: only 12 hours of data
+  mutate(do_not_use = if_else(area == "AK" & home_winter_id == "39", 1, 0),
+         # YKC06_313: sample hourly instead of every minute
+         do_not_use = if_else(area == "AK" & home_winter_id == "89", 1, do_not_use),
+         # CH_302: sample hourly instead of every minute
+         do_not_use = if_else(area == "NN" & home_winter_id == "127", 1, do_not_use),
+         # CH_304: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "1330", 1, do_not_use),
+         # CH_306: sample hourly instead of every minute
+         do_not_use = if_else(area == "NN" & home_winter_id == "134", 1, do_not_use),
+         # CH_307: only 8 datapoints
+         do_not_use = if_else(area == "NN" & home_winter_id == "135", 1, do_not_use),
+         # TC_357: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "1510", 1, do_not_use),
+         # CH_322: sample hourly instead of every minute
+         do_not_use = if_else(area == "NN" & home_winter_id == "161", 1, do_not_use),
+         # CH_325: 6300 obs are negative, down to -12.12. Median is negative.
+         do_not_use = if_else(area == "NN" & home_winter_id == "165", 1, do_not_use),
+         # CH_400: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "2150", 1, do_not_use),
+         # CH_403: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "2210", 1, do_not_use),
+         # CH_108: Only 300 datapoints and no other files found
+         do_not_use = if_else(area == "NN" & home_winter_id == "29", 1, do_not_use),
+         # CH_207: Only 400 datapoints; no other files found
+         do_not_use = if_else(area == "NN" & home_winter_id == "58", 1, do_not_use),
+         # TC_230: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "620", 1, do_not_use),
+         # CH_223: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "840", 1, do_not_use),
+         # TC_242: 1 day worth of data with lots of gaps
+         do_not_use = if_else(area == "NN" & home_winter_id == "86", 1, do_not_use),
+         # WMA277: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "1910", 1, do_not_use),
+         # WMA305: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2500", 1, do_not_use),
+         # WMA306: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2510", 1, do_not_use),
+         # WMA358: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2860", 1, do_not_use),
+         # WMA448: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "3750", 1, do_not_use),
+         # WMA200: 4700 negative values, down to -4.85. Median is negative
+         do_not_use = if_else(area == "WMT" & home_winter_id == "152", 1, do_not_use),
+         # WMA201: 5000 negative values, down to -10. Median negative. 17 hour gap 
+         do_not_use = if_else(area == "WMT" & home_winter_id == "153", 1, do_not_use),
+         # WMA603: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "5100", 
+                              1, do_not_use)) %>% 
+  filter(do_not_use != 1) %>% 
+  # replace PM > 10,000 with NA (33 obs)
+  mutate(pm = if_else(pm > 10000, 999999, pm)) %>% 
+  replace_with_na(replace = list(pm = 999999)) %>% 
+  # replace PM < 1 (lower DustTrak limit) with 0.5 (lower limit / 2) 
+  # 291,490 obs less than 1; 56,684 obs less than 0 
+  mutate(pm = if_else(pm < 1, 0.5, pm))
+
+# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+```
+
+# New variables to use for analysis
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+cleaning_summary <- read_xlsx("Input/cleaning_summary.xlsx") %>% 
+  select(area, home_winter_id, final_cleaning_pm, sensitivity_analysis_pm)
+
+kids_pm_new <- kids_pm %>% 
+  mutate(home_winter_id = as.numeric(home_winter_id)) %>% 
+  left_join(cleaning_summary, by = c("area", "home_winter_id")) %>% 
+  select(-samplingdate, -samplingtime, -pickupdate, -pickuptime,
+         -dtmin, -dtmax, -dtaverage, -qaqccomments, -data_comments,
+         -pm_sampling_day, -pm_mean_daily) %>% 
+  # create sampling days based on datetime differences
+  group_by(area, home_winter_id) %>% 
+  mutate(pm_datetime_new = if_else(is.na(pm_datetime_new), 
+                                   pm_datetime, pm_datetime_new),
+         first_datetime_new = first(pm_datetime_new),
+         first_datetime_new = ymd_hms(first_datetime_new)) %>% 
+  mutate(datetime_diff = pm_datetime_new - first_datetime_new,
+         sampling_day = if_else(datetime_diff <= 86400, 1, 0),
+         sampling_day = if_else(datetime_diff > 86400 & datetime_diff <= 172800, 
+                                2, sampling_day),
+         sampling_day = if_else(datetime_diff > 172800 & datetime_diff <= 259200, 
+                                3, sampling_day),
+         sampling_day = if_else(datetime_diff > 259200 & datetime_diff <= 345600, 
+                                4, sampling_day),
+         sampling_day = if_else(datetime_diff > 345600 & datetime_diff <= 432000, 
+                                5, sampling_day),
+         sampling_day = if_else(datetime_diff > 432000 & datetime_diff <= 518400, 
+                                6, sampling_day),
+         sampling_day = if_else(datetime_diff > 518400 & datetime_diff <= 604800, 
+                                7, sampling_day),
+         sampling_day = if_else(datetime_diff > 604800 & datetime_diff <= 691200, 
+                                8, sampling_day),
+         sampling_day = if_else(datetime_diff > 691200 & datetime_diff <= 777600, 
+                                9, sampling_day),
+         sampling_day = if_else(datetime_diff > 777600 & datetime_diff <= 864000, 
+                                10, sampling_day),
+         sampling_day = if_else(datetime_diff > 864000, 
+                                11, sampling_day)) %>% 
+  # new vars for daily means and % expected observations for each day
+  group_by(area, home_winter_id, sampling_day) %>% 
+  mutate(pm_mean_daily = mean(pm),
+         percent_daily_obs_pm = n()/1440) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id, pm_datetime_new) %>% 
+  select(-first_datetime, -time_diff, -do_not_use)
+  
+test <- kids_pm_new %>% 
+  filter(percent_daily_obs_pm >= 0.9) %>% 
+  summarise(n()/2241695)
+# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+# write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
 
 

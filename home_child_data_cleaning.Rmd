@@ -285,6 +285,8 @@ wmt_ids <- read_rds("Output/wmt_ids_linked.rds")
 kids_ids <- rbind(ak_ids, nn_ids, wmt_ids)
 
 #write_rds(kids_ids, "Output/kids_linked_ids.rds")
+
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 ```
 
 # Combine demographic data for WMT, NN, AK

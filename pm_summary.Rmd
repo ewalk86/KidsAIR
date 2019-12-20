@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 16 Dec 2019"
+date: "Started 22 Nov 2019, Updated 19 Dec 2019"
 output: pdf_document
 ---
 
@@ -15,7 +15,7 @@ library(readr)
 library(readxl)
 library(knitr)
 library(lubridate)
-jvPalette <- c("#330099","#CC0066","#FF6633", 
+jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
@@ -26,42 +26,10 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 ```
 
 # Summary stats
-## Updated as data is cleaned
 ```{r}
-# summary by area
-summary_area <- kids_pm %>%
-  # filtering out specific houses during data cleaning
-  ## decide for sure if they should be exluded going forward
-  mutate(do_not_use = if_else(area == "AK" & home_winter_id == "39", 1, 0),
-         do_not_use = if_else(area == "AK" & home_winter_id == "89", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "127", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "1330", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "134", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "135", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "1510", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "161", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "165", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "2150", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "2210", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "29", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "58", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "620", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "840", 1, do_not_use),
-         do_not_use = if_else(area == "NN" & home_winter_id == "86", 1, do_not_use),
-         do_not_use = if_else(area == "WMT" & home_winter_id == "1910", 1, do_not_use),
-         do_not_use = if_else(area == "WMT" & home_winter_id == "2500", 1, do_not_use),
-         do_not_use = if_else(area == "WMT" & home_winter_id == "2510", 1, do_not_use),
-         do_not_use = if_else(area == "WMT" & home_winter_id == "2860", 1, do_not_use),
-         do_not_use = if_else(area == "WMT" & home_winter_id == "3750", 1, do_not_use),
-         do_not_use = if_else(area == "WMT" & home_winter_id == "5100", 
-                              1, do_not_use)) %>% 
-  filter(do_not_use != 1) %>% 
-  # filter out high PM values
-  filter(pm < 5000) %>% 
-  #filter(actual_vs_expected == 1) %>% 
-  #filter(pm <0) %>% 
-  group_by(area) %>% 
-  # Run summary stats
+pm_summary <- kids_pm %>% 
+  # group by: area, treatment, dtid, day_of_week, Sampling_day
+  group_by(day_of_week) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
@@ -69,35 +37,21 @@ summary_area <- kids_pm %>%
             "Median PM" = median(pm, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
-            "Min Sample Days" = min(pm_sample_interval, na.rm = TRUE), 
-            "Max Sample Days" = max(pm_sample_interval, na.rm = TRUE),
             "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
-            "Min Sample Obs" = min(pm_total_observations, na.rm = TRUE), 
-            "Max Sample Obs" = max(pm_total_observations, na.rm = TRUE)) %>% 
-  # transpose data for ease of reading
-  t()
-# create column names and make it look nicer
-summary <- as.data.frame(summary_area)
-my_names <- summary_area[1, ]
-colnames(summary) <- my_names
-summary_area <- summary %>% 
-  rownames_to_column() %>% 
-  rename(Statistic = rowname) %>% 
-  filter(Statistic != "area") 
-kable(summary_area, digits = 2)
+            "Mean % Daily Obs" = mean(percent_daily_obs_pm, na.rm = TRUE))
 ```
 
 
 # Boxplots for PM by study area
 ```{r, fig.height=6, fig.width=5}
 boxplots_kids_pm <- kids_pm %>% 
-  filter(pm < 500) %>% 
-  ggplot(aes(area, pm)) +
+  #filter(pm < 500) %>% 
+  ggplot(aes(area, log(pm))) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
     theme_minimal() +
-    ylim(-100, 500) +
+    #ylim(0, 500) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
     #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
