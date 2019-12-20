@@ -298,5 +298,7 @@ wmt_demographics <- read_rds("Output/wmt_demographic_data.rds")
 kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics)
 
 #write_rds(kids_demographics, "Output/kids_combined_demographics.rds")
+
+kids_demographics <- read_rds("Output/kids_combined_demographics.rds")
 ```
 

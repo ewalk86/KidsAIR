@@ -29,7 +29,7 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 ```{r}
 pm_summary <- kids_pm %>% 
   # group by: area, treatment, dtid, day_of_week, Sampling_day
-  group_by(sampling_day) %>% 
+  group_by(area) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
