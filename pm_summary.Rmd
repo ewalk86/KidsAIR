@@ -29,7 +29,7 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 ```{r}
 pm_summary <- kids_pm %>% 
   # group by: area, treatment, dtid, day_of_week, Sampling_day
-  group_by(day_of_week) %>% 
+  group_by(sampling_day) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
@@ -46,12 +46,12 @@ pm_summary <- kids_pm %>%
 ```{r, fig.height=6, fig.width=5}
 boxplots_kids_pm <- kids_pm %>% 
   #filter(pm < 500) %>% 
-  ggplot(aes(area, log(pm))) +
+  ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
     theme_minimal() +
-    #ylim(0, 500) +
+    ylim(0, 100) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
     #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +

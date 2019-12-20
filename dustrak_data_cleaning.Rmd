@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 19 Dec 2019"
+date: "Started 19 Nov 2019, Updated 20 Dec 2019"
 output: pdf_document
 ---
 
@@ -22,6 +22,12 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 # Initial load, format, and save KidsAIR Dusttrak data
+## Files here are in 3 formats: csv (2 different formats) and txt
+## I had to do some manual cleaning of the files to get them named
+## consistently and in reasonably similar formats to be able to load
+## into R in batches, as seen below. The files I upload in the code below
+## will also be uploaded to Box in a folder with my name.
+## Box folder directory: 
 ```{r}
 ##### Read in dusttrack .txt files (from WMT) #####
 
@@ -435,16 +441,14 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "137", location = "NN")
+pm_time_plot_function(id = "129", location = "WMT")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
 
 # filter data for a single home
 check_data <- kids_pm %>% 
-  filter(area == "NN" & home_winter_id == "140") 
-
-%>% 
+  filter(area == "WMT" & home_winter_id == "129") %>% 
   filter(pm < 0)
 ```
 
@@ -496,7 +500,7 @@ notes_joined <- pm_notes %>%
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Checking difference between dustrak start datetime and field data log datetime
-kids_pm_new2 <- kids_pm_new %>% 
+kids_pm_new <- kids_pm %>% 
   #filter(area == "NN") %>% 
   group_by(area, home_winter_id) %>% 
   arrange(pm_datetime) %>% 
@@ -558,13 +562,11 @@ kids_pm_new2 <- kids_pm_new %>%
          first_datetime_new = ymd_hms(first_datetime_new),
          start_datetime = ymd_hms(start_datetime),
          time_diff_new = first_datetime_new - start_datetime) %>%  
-  distinct(time_diff, .keep_all = TRUE)  
-
-kids_pm_new2 <- kids_pm_new %>%
+  #distinct(time_diff, .keep_all = TRUE) %>%
   ungroup() %>% 
   arrange(area, home_winter_id, pm_datetime_new)
 
-# write_rds(kids_pm_new2, "Output/kids_pm_new.rds")
+# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
 ```
 
 # Further cleaning:
@@ -694,72 +696,4 @@ test <- kids_pm_new %>%
 # write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
 
-
-
-# Original code/files from Emily - save for future reference
-```{r}
-##### Load combined dusttrack files from Emily W #####
-##### Compare these with the raw data pulled in above #####
-
-## List sheets within the excel file
-list_sheets_nn <- excel_sheets("Input/nn_kids_dusttrack_20191121.xlsx")
-## Apply the read_xlsx function to each item in the sheet list
-## Bind the items from each sheet into a single dataframe
-pm_initial_nn <- data.frame(do.call("rbind", lapply(list_sheets_nn, read_xlsx, 
-                                      path = "Input/nn_kids_dusttrack_20191121.xlsx"))) %>% 
-  mutate(area = "NN")
-
-list_sheets_wmt <- excel_sheets("Input/wmt_kids_dusttrack_20191121.xlsx")
-pm_initial_wmt <- data.frame(do.call("rbind", lapply(list_sheets_wmt, read_xlsx, 
-                                      path = "Input/wmt_kids_dusttrack_20191121.xlsx"))) %>% 
-  mutate(area = "WMT")
-
-# Bind data together from different study areas
-pm_initial <- rbind(pm_initial_nm, pm_initial_wmt)
-
-# Rename and create new variables
-kids_pm <- pm_initial %>% 
-  # separate time from incorrect/associated date
-  separate(time, into = c("trash", "time"), sep = " ") %>% 
-  # format/rename variables
-  mutate(home_winter_id = as.factor(homeid),
-         pm_date = ymd(date),
-         pm_time = hms(time),
-         pm = as.numeric(aerosol)) %>% 
-  # new datetime variable
-  unite(pm_datetime, c("date", "time"), sep = " ", remove = FALSE) %>% 
-  select(home_winter_id, area, pm_date, pm_time, pm_datetime, pm) %>% 
-  arrange(home_winter_id, pm_date) %>% 
-  group_by(home_winter_id) %>% 
-  # new variables summarizing pm2.5 within each home_winter_id
-  mutate(pm_total_observations = n(),
-         pm_total_summed = sum(pm),
-         min_datetime = first(pm_datetime),
-         max_datetime = last(pm_datetime),
-         min_datetime = ymd_hms(min_datetime),
-         max_datetime = ymd_hms(max_datetime),
-         diff_datetime = interval(min_datetime, max_datetime),
-         pm_total_days = diff_datetime/86400,
-         pm_24hr_mean = pm_total_summed/pm_total_days,
-         pm_rolling_24hr = rollsum(pm, 1440, fill = "extend", align = "right"),
-         obs = row_number(),
-         sampling_day = if_else(obs < 1441, 1, 0),
-         sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
-         sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day),
-         sampling_day = if_else(obs < 5761 & obs > 4320, 4, sampling_day),
-         sampling_day = if_else(obs < 7201 & obs > 5760, 5, sampling_day),
-         sampling_day = if_else(obs < 8641 & obs > 7200, 6, sampling_day),
-         sampling_day = if_else(obs < 10081 & obs > 8640, 7, sampling_day),
-         sampling_day = if_else(obs > 10080, 8, sampling_day)) %>%
-  group_by(home_winter_id, sampling_day) %>% 
-  mutate(pm_24hr_daily = sum(pm),
-         pm_24hr_daily_weighted = pm_24hr_daily*(1440/n()),
-         pm_sampling_day = sampling_day) %>% 
-  ungroup() %>% 
-  select(-min_datetime, -max_datetime, -diff_datetime, -obs, -sampling_day) 
-
-# Save pm dataset as RDS and CSV
-write_rds(kids_pm, "Output/kids_pm.rds")
-write_csv(kids_pm, "Output/kids_pm.csv")
-```
 
