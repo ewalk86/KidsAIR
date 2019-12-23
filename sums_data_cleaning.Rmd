@@ -1,0 +1,365 @@
+---
+title: "KidsAIR initial PM data work"
+author: "Ethan Walker"
+date: "Started 23 Dec 2019, Updated 23 Dec 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+
+```{r}
+wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         date = ChangeDate,
+         time = ChangeTime,
+         alarms = Alarms,
+         file_name = ibutFile,
+         notes = `REPLACE(REPLACE(Notes`) %>% 
+  select(home_winter_id, date, time, alarms, file_name, notes)
+
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+  filter(area == "WMT") %>% 
+  select(home_winter_id, home) 
+  
+
+wmt_sums_log <- wmt_sums_data_log %>% 
+  left_join(kids_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, home, date, time, alarms, file_name, notes)
+
+write_csv(wmt_sums_log, "Output/wmt_sums_data_log.csv")
+```
+
+
+# Initial load, format, and save KidsAIR Dusttrak data
+## Files here are in 3 formats: csv (2 different formats) and txt
+## I had to do some manual cleaning of the files to get them named
+## consistently and in reasonably similar formats to be able to load
+## into R in batches, as seen below. The files I upload in the code below
+## will also be uploaded to Box in a folder with my name.
+## Box folder directory: 
+```{r}
+##### Read in sums csv files (from WMT) #####
+
+# List files
+list_csv_files <- list.files("Input/WMT/sums_csv_new")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 12 lines together
+setwd("Input/WMT/sums_csv_new")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv, skip = 1,
+                            col_names = c("line", "date", "time", "temp_c", "trash"),
+                            col_types = cols(line = col_double(),
+                                             date = col_date(format = ""),
+                                             time = col_time(format = ""),
+                                             temp_c = col_character(),
+                                             trash = col_character()))) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_sums_csv <- initial_data %>% 
+  mutate(area = "WMT",
+         home2 = "WMA") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  unite("home", c("home2", "home"), sep = "") %>% 
+  mutate(datetime_sums = datetime,
+         date_sums = date,
+         time_sums = time,
+         temp_c_sums = temp_c) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums)
+
+
+# List files
+list_csv_files_2 <- list.files("Input/WMT/sums_csv_old/format_1")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 7 lines together
+setwd("Input/WMT/sums_csv_old/format_1")
+initial_data = tibble(file_list = list_csv_files_2) %>%
+  extract(file_list, "home", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv, skip = 22,
+                            col_names = c("datetime_sums", "temp_c_sums"))) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_sums_csv_2 <- initial_data %>% 
+  mutate(area = "WMT",
+         home2 = "WMA",
+         datetime_sums = ymd_hms(datetime_sums)) %>% 
+  separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
+  unite("home", c("home2", "home"), sep = "") %>% 
+  mutate(date_sums = ymd(date_sums)) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+  na.exclude()
+
+
+# List files
+list_csv_files_3 <- list.files("Input/WMT/sums_csv_old/format_2")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 12 lines together
+setwd("Input/WMT/sums_csv_old/format_2")
+initial_data = tibble(file_list = list_csv_files_3) %>%
+  extract(file_list, "home", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv, skip = 2,
+                            col_names = c("line", "date", "time", "temp_f", "trash"),
+                            col_types = cols(line = col_double(),
+                                             date = col_character(),
+                                             time = col_time(format = ""),
+                                             temp_f = col_double(),
+                                             trash = col_character()))) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_sums_csv_3 <- initial_data %>% 
+  mutate(area = "WMT",
+         home2 = "WMA") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  unite("home", c("home2", "home"), sep = "") %>% 
+  mutate(datetime_sums = mdy_hms(datetime),
+         date_sums = mdy(date),
+         time_sums = time,
+         temp_c_sums = (temp_f-32)/1.8) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums)
+
+
+##### Read in sums csv files (from WMT) #####
+
+# List files
+list_csv_files <- list.files("Input/WMT/sums_xlsx_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 12 lines together
+setwd("Input/WMT/sums_xlsx_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv, skip = 1,
+                            col_names = c("line", "date", "time", "temp_c", "trash"),
+                            col_types = cols(line = col_double(),
+                                             date = col_date(format = ""),
+                                             time = col_time(format = ""),
+                                             temp_c = col_character(),
+                                             trash = col_character()))) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_sums_csv <- initial_data %>% 
+  mutate(area = "WMT",
+         home2 = "WMA") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  unite("home", c("home2", "home"), sep = "") %>% 
+  mutate(datetime_sums = datetime,
+         date_sums = date,
+         time_sums = time,
+         temp_c_sums = temp_c) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums)
+```
+
+
+# Code from PM cleaning
+```{r}
+##### Read in dusttrack .csv files (all areas) #####
+
+### WMT ###
+# List files
+list_csv_files <- list.files("Input/WMT/dusttrack_csv_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/WMT/dusttrack_csv_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_pm_csv <- initial_data %>% 
+  mutate(date = mdy(Date),
+         time = Time,
+         pm = as.numeric(AEROSOL),
+         area = "WMT") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  filter(!is.na(pm))
+
+### NN ###
+# List files
+list_csv_files <- list.files("Input/NN/dusttrack_csv_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/NN/dusttrack_csv_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+nn_pm_csv <- initial_data %>% 
+  mutate(date = mdy(Date),
+         time = Time,
+         pm = as.numeric(AEROSOL),
+         area = "NN") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  filter(!is.na(pm))
+
+### AK ###
+# List files
+list_csv_files <- list.files("Input/AK/dusttrack_csv_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/AK/dusttrack_csv_files")
+initial_data = tibble(file_list = list_csv_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+ak_pm_csv <- initial_data %>% 
+  mutate(date = mdy(Date),
+         time = Time,
+         pm = as.numeric(AEROSOL),
+         area = "AK") %>% 
+  unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  filter(!is.na(pm))
+
+
+##### Read in other dusttrack .csv files (WMT and NN) #####
+
+### WMT ### 
+# List files
+list_other_files <- list.files("Input/WMT/dusttrack_other_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/WMT/dusttrack_other_files")
+initial_data = tibble(file_list = list_other_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+wmt_pm_other <- initial_data %>% 
+  mutate(trash1 = `Instrument Name`,
+         trash2 = `DustTrak II`) %>% 
+  select(home_winter_id, trash1, trash2) %>% 
+  group_by(home_winter_id) %>% 
+  mutate(trash3 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash2, "NA"),
+         trash4 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash1, "NA"),
+         trash1 = as.numeric(trash1),
+         trash1 = as.character(trash1),
+         trash5 = if_else(trash3 != "NA", trash3, trash1)) %>% 
+  filter(!is.na(trash5)) %>% 
+  replace_with_na(replace = list(trash3 = "NA", trash4 = "NA")) %>% 
+  spread(trash4, trash3) %>% 
+  mutate(`Test Start Time` = lag(`Test Start Time`)) %>% 
+  unite("datetime", `Test Start Date`:`Test Start Time`, sep = " ") %>%
+  mutate(datetime = lead(datetime)) %>% 
+  replace_with_na(replace = list(datetime = "NA NA")) %>% 
+  mutate(datetime2 = first(datetime),
+         datetime = mdy_hms(datetime2),
+         trash1 = as.numeric(trash1)) %>% 
+  filter(!is.na(trash1)) %>% 
+  mutate(datetime2 = datetime + seconds(trash1),
+         datetime2 = ymd_hms(datetime2)) %>% 
+  separate(datetime2, into = c("date", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(pm = as.numeric(trash2),
+         datetime = datetime2,
+         area = "WMT") %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  ungroup()
+
+
+### NN ### 
+# List files
+list_other_files <- list.files("Input/NN/dusttrack_other_files")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 6 lines together
+setwd("Input/NN/dusttrack_other_files")
+initial_data = tibble(file_list = list_other_files) %>%
+  extract(file_list, "home_winter_id", remove = FALSE) %>%
+  mutate(save_data = lapply(file_list, read_csv)) %>%
+  unnest(save_data) %>%
+  select(-file_list) 
+
+# Format combined file from above; combine with other PM data below
+nn_pm_other <- initial_data %>% 
+  mutate(trash1 = `Instrument Name`,
+         trash2 = `DustTrak II`) %>% 
+  select(home_winter_id, trash1, trash2) %>% 
+  filter(!is.na(trash1)) %>% 
+  group_by(home_winter_id) %>% 
+  mutate(trash3 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash1, "NA"),
+         trash4 = if_else(trash1 == "Test Start Date" | trash1 == "Test Start Time", 
+                              trash2, "NA"),
+         trash1 = as.numeric(trash1),
+         trash1 = as.character(trash1),
+         trash5 = if_else(trash3 != "NA", trash3, trash1)) %>% 
+  replace_with_na(replace = list(trash3 = "NA", trash4 = "NA")) %>% 
+  filter(!is.na(trash5)) %>% 
+  spread(trash3, trash4) %>% 
+  mutate(`Test Start Time` = lag(`Test Start Time`)) %>% 
+  unite("datetime", `Test Start Date`:`Test Start Time`, sep = " ") %>%
+  mutate(datetime = lead(datetime)) %>% 
+  replace_with_na(replace = list(datetime = "NA NA")) %>% 
+  mutate(datetime2 = first(datetime),
+         datetime = mdy_hms(datetime2),
+         trash1 = as.numeric(trash1)) %>% 
+  filter(!is.na(trash1)) %>% 
+  mutate(datetime2 = datetime + seconds(trash1),
+         datetime2 = ymd_hms(datetime2)) %>% 
+  separate(datetime2, into = c("date", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(pm = as.numeric(trash2),
+         datetime = datetime2,
+         area = "NN") %>% 
+  select(home_winter_id, datetime, date, time, pm, area) %>% 
+  ungroup() %>% 
+  mutate(home_winter_id = if_else(home_winter_id == "220001" | home_winter_id == "220002",
+                                  "22", home_winter_id),
+         home_winter_id = if_else(home_winter_id == "550001" | home_winter_id == "550002",
+                                  "55", home_winter_id),
+         home_winter_id = if_else(home_winter_id == "810001" | home_winter_id == "810002",
+                                  "81", home_winter_id))
+
+
+##### Bind all files from above #####
+kids_pm <- rbind(wmt_pm_csv, wmt_pm_txt, wmt_pm_other,
+                nn_pm_csv, nn_pm_other,
+                ak_pm_csv)
+
+
+# Save pm dataset as RDS and CSV
+write_rds(kids_pm, "Output/kids_pm_full_raw.rds")
+#write_csv(kids_pm, "Output/kids_pm_full.csv")
+```
