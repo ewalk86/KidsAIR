@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 23 Dec 2019"
+date: "Started 23 Dec 2019, Updated 24 Dec 2019"
 output: pdf_document
 ---
 
@@ -23,7 +23,7 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 
 ```{r}
-wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>% 
+wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log_updated.csv") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
          time = ChangeTime,
@@ -34,12 +34,12 @@ wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>%
 
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
   filter(area == "WMT") %>% 
-  select(home_winter_id, home) 
+  select(home_winter_id, home, home_id) 
   
 
 wmt_sums_log <- wmt_sums_data_log %>% 
   left_join(kids_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, home, date, time, alarms, file_name, notes)
+  select(home_winter_id, home, home_id, date, time, alarms, file_name, notes)
 
 write_csv(wmt_sums_log, "Output/wmt_sums_data_log.csv")
 ```
