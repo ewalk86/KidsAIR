@@ -20,7 +20,7 @@ library(zoo)
 
 # Load, format, and save home and child overview/demographic data for WMT
 ```{r}
-# Load files
+# Load files 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
 ## 2019-November-Data > WMT > child.xlsx
 wmt_child_initial <- read_xlsx("Input/WMT/wmt_child_20191126.xlsx") %>% 
@@ -102,7 +102,7 @@ write_rds(wmt_home_ids_linked, "Output/wmt_ids_linked.rds")
 write_rds(wmt_child_demographics, "Output/wmt_demographic_data.rds")
 write_csv(wmt_home_ids_linked, "Output/wmt_ids_linked.csv")
 write_csv(wmt_child_demographics, "Output/wmt_demographic_data.csv")
-```
+``` 
 
 # Load, format, and save home and child overview/demographic data for NN
 ```{r}
@@ -192,7 +192,7 @@ write_csv(nn_child_demographics, "Output/nn_demographic_data.csv")
 
 # Load, format, and save home and child overview/demographic data for AK
 ```{r}
-# Load files
+# Load files 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
 ## 2019-November-Data > AK > child.xlsx
 ak_child_initial <- read_xlsx("Input/AK/ak_child_20191216.xlsx") %>% 
