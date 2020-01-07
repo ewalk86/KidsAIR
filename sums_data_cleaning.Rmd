@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 3 Jan 2020"
+date: "Started 23 Dec 2019, Updated 6 Jan 2020"
 output: pdf_document
 ---
 
@@ -23,7 +23,7 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 # Add linked IDs to WMT SUMs data logs
 ```{r}
-wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>%
+wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
          date_log = InstallDate,
@@ -707,3 +707,90 @@ sums_time_comparison <- all_sums_raw %>%
 write_csv(sums_time_comparison, "Output/sums_time_comparison.csv")
 write_rds(sums_time_comparison, "Output/sums_time_comparison.rds")
 ```
+
+# Compile start and stop times for SUMs based on field logs
+```{r}
+# Load all SUMs data
+all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>% 
+  ungroup() %>% 
+  arrange(area, home, datetime_sums)
+
+# Load and format SUMs data logs for WMT
+wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds")
+
+wmt_sums_stop <- read_csv("Input/WMT/wmt_medicalvisit_20200107.csv") %>% 
+  mutate(home_winter_id = HomeWinterID,
+         final_visit_date = if_else(VisitDate == "11/4/2025", "11/4/2015", VisitDate),
+         final_visit_date = mdy(final_visit_date)) %>% 
+  group_by(home_winter_id) %>% 
+  arrange(final_visit_date) %>% 
+  mutate(date_last = last(final_visit_date),
+         date_filter = if_else(date_last == final_visit_date, 1, 0)) %>% 
+  ungroup() %>% 
+  filter(date_filter == 1) %>% 
+  select(home_winter_id, final_visit_date) %>% 
+  distinct(.keep_all = TRUE) %>% 
+  arrange(home_winter_id) %>% 
+  mutate(time = "01:00:00") %>% 
+  unite(datetime_stop, c("final_visit_date", "time"), sep = " ") %>% 
+  mutate(datetime_stop = ymd_hms(datetime_stop))
+
+wmt_sums_start <- read_xlsx("Input/WMT/wmt_sums_start_times_20200107.xlsx") %>% 
+  mutate(datetime_start = ymd_hms(datetime_start))
+
+wmt_sums_start_stop <- wmt_sums_start %>% 
+  left_join(wmt_sums_stop, by = "home_winter_id")
+
+wmt_sums_raw <- all_sums_raw %>% 
+  filter(area == "WMT") %>% 
+  left_join(wmt_sums_start_stop, by = c("area", "home")) %>% 
+  mutate(filter_var = 
+         if_else(datetime_sums > datetime_start & datetime_sums < datetime_stop,
+                 1, 0))
+
+wmt_sums_filtered <- wmt_sums_raw %>% 
+  filter(filter_var == 1) %>% 
+  arrange(area, home, winter_id, datetime_sums) 
+
+# Start here next:
+## Make sure datetime_sums lines up with start/stop range
+## Work on cleaning up temp_c_sums
+## Ask about NN/AK finish dates and move on to repeating steps for those homes
+write_rds(wmt_sums_filtered, "Output/wmt_sums_filtered.rds")
+
+  
+
+nn_sums_log <- read_rds("Output/nn_sums_data_log.rds")
+# Need to get the NN medicalvisit file once data collection is finished
+nn_sums_stop <- read_csv("Input/NN/nn_medicalvisit_20200107.csv") %>% 
+  mutate(home_winter_id = HomeWinterID,
+         final_visit_date = if_else(VisitDate == "11/4/2025", "11/4/2015", VisitDate),
+         final_visit_date = mdy(final_visit_date)) %>% 
+  group_by(home_winter_id) %>% 
+  arrange(final_visit_date) %>% 
+  mutate(date_last = last(final_visit_date),
+         date_filter = if_else(date_last == final_visit_date, 1, 0)) %>% 
+  ungroup() %>% 
+  filter(date_filter == 1) %>% 
+  select(home_winter_id, final_visit_date) %>% 
+  distinct(.keep_all = TRUE) %>% 
+  arrange(home_winter_id)
+
+
+ak_sums_log <- read_rds("Output/ak_sums_data_log.rds")
+# Need to get the AK medicalvisit file once data collection is finished
+ak_sums_stop <- read_csv("Input/AK/ak_medicalvisit_20200107.csv") %>% 
+  mutate(home_winter_id = HomeWinterID,
+         final_visit_date = if_else(VisitDate == "11/4/2025", "11/4/2015", VisitDate),
+         final_visit_date = mdy(final_visit_date)) %>% 
+  group_by(home_winter_id) %>% 
+  arrange(final_visit_date) %>% 
+  mutate(date_last = last(final_visit_date),
+         date_filter = if_else(date_last == final_visit_date, 1, 0)) %>% 
+  ungroup() %>% 
+  filter(date_filter == 1) %>% 
+  select(home_winter_id, final_visit_date) %>% 
+  distinct(.keep_all = TRUE) %>% 
+  arrange(home_winter_id)
+```
+
