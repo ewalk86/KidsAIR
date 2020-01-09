@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 8 Jan 2020"
+date: "Started 23 Dec 2019, Updated 9 Jan 2020"
 output: pdf_document
 ---
 
@@ -182,8 +182,9 @@ wmt_sums_csv <- initial_data %>%
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         temp_c_sums = temp_c,
+         file_type = "logtag") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -208,8 +209,9 @@ wmt_sums_csv_2 <- initial_data %>%
          datetime_sums = ymd_hms(datetime_sums)) %>% 
   separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
-  mutate(date_sums = ymd(date_sums)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+  mutate(date_sums = ymd(date_sums),
+         file_type = "temp_c") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -241,8 +243,9 @@ wmt_sums_csv_3 <- initial_data %>%
   mutate(datetime_sums = mdy_hms(datetime),
          date_sums = mdy(date),
          time_sums = time,
-         temp_c_sums = (temp_f-32)/1.8) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         temp_c_sums = (temp_f-32)/1.8,
+         file_type = "temp_f") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -273,8 +276,9 @@ wmt_sums_xlsx <- initial_data %>%
          date_sums = date,
          time_sums = time,
          temp_c_sums = temp_c,
-         home = as.factor(home)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_c") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -303,8 +307,9 @@ wmt_sums_xlsx2 <- initial_data %>%
          date_sums = date,
          time_sums = time,
          temp_c_sums = temp_c,
-         home = as.factor(home)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_c") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -333,8 +338,9 @@ wmt_sums_xlsx3 <- initial_data %>%
          date_sums = date,
          time_sums = time,
          temp_c_sums = temp_c,
-         home = as.factor(home)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_c") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -364,8 +370,9 @@ wmt_sums_xlsx4 <- initial_data %>%
          date_sums = ymd(date),
          time_sums = time,
          temp_c_sums = temp_c,
-         home = as.factor(home)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_c") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -395,8 +402,9 @@ wmt_sums_xlsx5 <- initial_data %>%
          date_sums = ymd(date),
          time_sums = time,
          temp_c_sums = (temp_f-32)/1.8,
-         home = as.factor(home)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_f") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -409,9 +417,20 @@ wmt_sums_raw <- rbind(wmt_sums_csv, wmt_sums_csv_2, wmt_sums_csv_3,
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   filter(!is.na(date_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  mutate(file_type = factor(file_type, levels = c("logtag", "temp_c",
+                                                  "temp_f", "xlsx_c",
+                                                  "xlsx_f")))
 
-write_rds(wmt_sums_raw, "Output/wmt_sums_raw.rds")
+# This filtering will keep only the first instance when there are multiple
+# observations for a specific datetime_sums
+wmt_sums_filter <- wmt_sums_raw %>% 
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(home, datetime_sums)
+
+write_rds(wmt_sums_filter, "Output/wmt_sums_raw.rds")
 ```
 
 # Initial load, format, and save KidsAIR NN SUMs data
@@ -442,8 +461,9 @@ nn_sums_csv <- initial_data %>%
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         temp_c_sums = temp_c,
+         file_type = "logtag") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -466,8 +486,9 @@ nn_sums_csv_2 <- initial_data %>%
          datetime_sums = mdy_hm(datetime)) %>% 
   separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>%
   mutate(date_sums = ymd(date_sums),
-         temp_c_sums = as.numeric(temp_c)) %>%
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         temp_c_sums = as.numeric(temp_c),
+         file_type = "temp_c") %>%
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -495,8 +516,9 @@ nn_sums_csv_3 <- initial_data %>%
   mutate(datetime_sums = mdy_hms(datetime),
          date_sums = mdy(date),
          time_sums = time,
-         temp_c_sums = (temp_f-32)/1.8) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         temp_c_sums = (temp_f-32)/1.8,
+         file_type = "temp_f") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -508,14 +530,24 @@ nn_sums_raw <- rbind(nn_sums_csv, nn_sums_csv_2, nn_sums_csv_3) %>%
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   filter(!is.na(date_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  mutate(file_type = factor(file_type, levels = c("logtag", "temp_c",
+                                                  "temp_f")))
 
-write_rds(nn_sums_raw, "Output/nn_sums_raw.rds")
+# This filtering will keep only the first instance when there are multiple
+# observations for a specific datetime_sums
+nn_sums_filter <- nn_sums_raw %>% 
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(home, datetime_sums)
+
+write_rds(nn_sums_filter, "Output/nn_sums_raw.rds")
 ```
 
 # Initial load, format, and save KidsAIR AK SUMs data
 ```{r}
-##### Read in sums csv files (from AK) ##### 
+##### Read in sums csv files (from AK) #####
 
 # List files
 list_csv_files <- list.files("Input/AK/sums_csv_new")
@@ -541,8 +573,9 @@ ak_sums_csv <- initial_data %>%
   mutate(datetime_sums = ymd_hms(datetime),
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+         temp_c_sums = temp_c,
+         file_type = "logtag") %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -570,10 +603,11 @@ ak_sums_csv_2 <- initial_data %>%
   mutate(area = "AK") %>% 
   mutate(date_sums = mdy(date),
          time_sums = time,
-         temp_c_sums = (temp_f-32)/1.8) %>% 
+         temp_c_sums = (temp_f-32)/1.8,
+         file_type = "temp_f") %>% 
   unite("datetime", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -603,10 +637,11 @@ ak_sums_xlsx <- initial_data %>%
   mutate(date_sums = ymd(date),
          time_sums = time,
          temp_c_sums = as.numeric(temp_c),
-         home = as.factor(home)) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_c") %>% 
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -633,10 +668,11 @@ ak_sums_xlsx2 <- initial_data %>%
   mutate(date_sums = ymd(date),
          time_sums = time,
          temp_c_sums = as.numeric((temp_f-32)/1.8),
-         home = as.factor(home)) %>% 
+         home = as.factor(home),
+         file_type = "xlsx_f") %>% 
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums) %>% 
+  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
   distinct()
 
@@ -648,14 +684,24 @@ ak_sums_raw <- rbind(ak_sums_csv, ak_sums_csv_2,
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   filter(!is.na(date_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  mutate(file_type = factor(file_type, levels = c("logtag", "temp_f",
+                                                  "xlsx_c", "xlsx_f")))
 
-# write_rds(ak_sums_raw, "Output/ak_sums_raw.rds")
+# This filtering will keep only the first instance when there are multiple
+# observations for a specific datetime_sums
+ak_sums_filter <- ak_sums_raw %>% 
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(home, datetime_sums)
+
+# write_rds(ak_sums_filter, "Output/ak_sums_raw.rds")
 ```
 
 # Bind all SUMs files together
 ```{r}
-wmt_sums_raw <- read_rds("Output/wmt_sums_raw.rds")
+wmt_sums_raw <- read_rds("Output/wmt_sums_raw.rds") 
 
 nn_sums_raw <- read_rds("Output/nn_sums_raw.rds")
 
@@ -716,7 +762,7 @@ all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>%
   arrange(area, home, datetime_sums)
 
 # Load and format SUMs data logs for WMT
-wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds")
+#wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds")
 
 wmt_sums_stop <- read_csv("Input/WMT/wmt_medicalvisit_20200107.csv") %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -752,12 +798,11 @@ wmt_sums_filtered <- wmt_sums_raw %>%
   filter(filter_var == 1) %>% 
   arrange(area, home, winter_id, datetime_sums) 
 
-# Clean up this file and combine with other areas
 # write_rds(wmt_sums_filtered, "Output/wmt_sums_filtered.rds")
 
   
 #####
-nn_sums_log <- read_rds("Output/nn_sums_data_log.rds")
+#nn_sums_log <- read_rds("Output/nn_sums_data_log.rds")
 
 nn_sums_stop <- read_xlsx("Input/NN/nn_medicalvisit_20200108.xlsx") %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -792,12 +837,11 @@ nn_sums_filtered <- nn_sums_raw %>%
   filter(filter_var == 1) %>% 
   arrange(area, home, winter_id, datetime_sums)
 
-# Clean up this file and combine with other areas
 # write_rds(nn_sums_filtered, "Output/nn_sums_filtered.rds")
 
 
 #####
-ak_sums_log <- read_rds("Output/ak_sums_data_log.rds")
+#ak_sums_log <- read_rds("Output/ak_sums_data_log.rds")
 
 ak_sums_stop <- read_xlsx("Input/AK/ak_medicalvisit_20200108.xlsx") %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -822,7 +866,7 @@ ak_sums_start_stop <- ak_sums_start %>%
   left_join(ak_sums_stop, by = "home_winter_id")
 
 ak_sums_raw <- all_sums_raw %>% 
-  filter(area == "AK") %>% 
+  filter(area == "AK") %>%
   left_join(ak_sums_start_stop, by = c("area", "home")) %>% 
   mutate(filter_var = 
          if_else(datetime_sums > datetime_start & datetime_sums < datetime_stop,
@@ -832,8 +876,70 @@ ak_sums_filtered <- ak_sums_raw %>%
   filter(filter_var == 1) %>% 
   arrange(area, home, winter_id, datetime_sums)
 
-# Clean up this file and combine with other areas
-# fix doubled observations
-# write_rds(ak_sums_filtered, "Output/wmt_sums_filtered.rds")
+# write_rds(ak_sums_filtered, "Output/ak_sums_filtered.rds")
+```
+
+# Checking to make sure multiple observations per datetime_sums were removed
+# Number of obs in each dataset below should match # obs in check_dates
+```{r}
+wmt_sums_filtered <- read_rds("Output/wmt_sums_filtered.rds")
+nn_sums_filtered <- read_rds("Output/nn_sums_filtered.rds")
+ak_sums_filtered <- read_rds("Output/ak_sums_filtered.rds")
+
+check_dates <- nn_sums_filtered %>% 
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE)
+```
+
+# Combine filtered data from each area
+```{r}
+wmt_sums_filtered <- read_rds("Output/wmt_sums_filtered.rds")
+nn_sums_filtered <- read_rds("Output/nn_sums_filtered.rds")
+ak_sums_filtered <- read_rds("Output/ak_sums_filtered.rds")
+
+all_sums_filtered <- rbind(wmt_sums_filtered, nn_sums_filtered, ak_sums_filtered)
+
+# write_rds(all_sums_filtered, "Output/all_sums_filtered.rds")
+```
+
+# Continue cleaning up SUMs data
+```{r}
+all_sums_filtered <- read_rds("Output/all_sums_filtered.rds")
+
+sums_clean <- all_sums_filtered %>% 
+   mutate(temp_c_sums = as.numeric(temp_c_sums),
+          winter_id = as.factor(winter_id),
+          home_winter_id = as.factor(home_winter_id),
+          home_id = as.factor(home_id),
+          day_of_week = weekdays(date_sums),
+          month_sums = as.factor(month(date_sums, label = TRUE, abbr = TRUE))) %>% 
+  select(-filter_var) %>% 
+  arrange(area, home, winter_id, datetime_sums)
+
+# write_rds(sums_clean, "Output/sums_clean.rds")
+```
+
+# Plot temp over time for individual home to check for trends visually
+```{r}
+sums_clean <- read_rds("Output/sums_clean.rds")
+
+sums_time_trends_plot <- sums_clean %>% 
+  filter(home == "WMA102") %>% 
+  ggplot() + 
+    geom_point(aes(datetime_sums, temp_c_sums, color = month_sums), size = 1.5) +
+    theme_classic() +
+    labs(y = "Temperature (degrees C)",
+         x = "Datetime",
+         color = "Month of Year") +
+    theme(axis.title.y = element_text(size = 12,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_text(size = 12),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12, color = "black"),
+          axis.line.x = element_line(colour = "black", size = 1), 
+          axis.line.y = element_line(colour = "black", size = 1), 
+          axis.ticks = element_blank()) +
+    scale_color_manual(values = jv_palette)
+sums_time_trends_plot
 ```
 

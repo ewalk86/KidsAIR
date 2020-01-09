@@ -1,0 +1,64 @@
+---
+title: "Kids SUMs Summary"
+author: "Ethan Walker"
+date: "Started 9 Jan 2020, Updated 9 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(knitr)
+library(lubridate)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+# Load data
+sums_clean <- read_rds("Output/sums_clean.rds")
+```
+
+# Summary stats
+```{r}
+sums_summary <- sums_clean %>% 
+  # group by: area, treatment, dtid, day_of_week, Sampling_day
+  group_by(area) %>% 
+  summarize("n" = n(),
+            "Mean Temp" = mean(temp_c_sums, na.rm = TRUE), 
+            "SD Temp" = sd(temp_c_sums, na.rm = TRUE),
+            "Min Temp" = min(temp_c_sums, na.rm = TRUE), 
+            "Median Temp" = median(temp_c_sums, na.rm = TRUE),
+            "Max Temp" = max(temp_c_sums, na.rm = TRUE))
+```
+
+
+# Boxplots for PM by study area
+```{r, fig.height=6, fig.width=5}
+boxplots_kids_sums <- sums_clean %>%
+  ggplot(aes(area, temp_c_sums)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    theme_minimal() +
+    ylim(-50, 100) +
+    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
+    labs(y = "Temperature (degrees C)") +
+    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_kids_sums
+```
+
