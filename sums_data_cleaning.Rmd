@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 9 Jan 2020"
+date: "Started 23 Dec 2019, Updated 10 Jan 2020"
 output: pdf_document
 ---
 
@@ -22,8 +22,12 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 # Add linked IDs to WMT SUMs data logs
+## Use these throughout the data cleaning process to check start times
+## Files and notes can be found on Box: 
+### NoonanGroupData > KidsAIR > Ethan - data cleaning and analysis
 ```{r}
-wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>% 
+# Input file from Box: ibutton.xlsx
+wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>%
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
          date_log = InstallDate,
@@ -44,7 +48,7 @@ write_rds(wmt_sums_log, "Output/wmt_sums_data_log.rds")
 write_csv(wmt_sums_log, "Output/wmt_sums_data_log.csv")
 
 
-
+# Input file from Box: ibuttonupd.xlsx
 wmt_sums_data_log_updated <- read_csv("Input/WMT/wmt_sums_data_log_updated.csv") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
@@ -63,7 +67,11 @@ write_csv(wmt_sums_log, "Output/wmt_sums_data_log_updated.csv")
 ```
 
 # Add linked IDs to NN SUMs data logs
+## Use these throughout the data cleaning process to check start times
+## Files and notes can be found on Box: 
+### NoonanGroupData > KidsAIR > Ethan - data cleaning and analysis
 ```{r}
+# Input file from Box: ibutton.xlsx
 nn_sums_data_log <- read_xlsx("Input/NN/nn_sums_data_log.xlsx") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
@@ -86,7 +94,7 @@ write_rds(nn_sums_log, "Output/nn_sums_data_log.rds")
 write_csv(nn_sums_log, "Output/nn_sums_data_log.csv")
 
 
-
+# Input file from Box: ibuttonupd.xlsx
 nn_sums_data_log_updated <- read_xlsx("Input/NN/nn_sums_data_log_updated.xlsx") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
@@ -105,7 +113,11 @@ write_csv(nn_sums_log, "Output/nn_sums_data_log_updated.csv")
 ```
 
 # Add linked IDs to AK SUMs data logs
+## Use these throughout the data cleaning process to check start times
+## Files and notes can be found on Box: 
+### NoonanGroupData > KidsAIR > Ethan - data cleaning and analysis
 ```{r}
+# Input file from Box: ibutton.xlsx
 ak_sums_data_log <- read_xlsx("Input/AK/ak_sums_data_log.xlsx") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
@@ -127,7 +139,7 @@ write_csv(ak_sums_log, "Output/ak_sums_data_log.csv")
 write_rds(ak_sums_log, "Output/ak_sums_data_log.rds")
 
 
-
+# Input file from Box: ibutton.xlsx
 ak_sums_data_log_updated <- read_xlsx("Input/AK/ak_sums_data_log_updated.xlsx") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
@@ -146,24 +158,36 @@ write_csv(ak_sums_log, "Output/ak_sums_data_log_updated.csv")
 ```
 
 # Initial load, format, and save KidsAIR WMT SUMs data
-## Files here are in several formats: csv (3 different formats) and txt (5 formats)
-## I had to do some manual cleaning of the files to get them named
-## consistently and in reasonably similar formats to be able to load
-## into R in batches, as seen below. The files I upload in the code below
-## will also be uploaded to Box in a folder with my name.
-## Box folder directory: 
+## Files were downloaded from Box: KidsAIR > 2019-Nov-Data > WMT > uploads > IButton
+## Files were not named consistently, so I renamed them by their home ID number.
+## Files also had several different types and formats.
+## Manual cleaning of some files had to be done to get them in 
+## consistent formats and file types to work with in R.
+## Unfortunately, this process had to be manual due to the large number of files
+## and inconsistent QC process across the various files.
+## As a result, this process will be difficult to replicate if needed;
+## The code below will highlight how the files were formatted and grouped together.
+## Once files were in consistent formats, I load them to R in batches, as seen below.
+## The following code cleans and combines all SUMs temperature data
+## Notes and cleaned data files are uploaded to Box:
+### KidsAIR > Ethan - data cleaning and analysis
 ```{r}
 ##### Read in sums csv files (from WMT) #####
 
 # List files
+## These files were directly exported by me from the Logtag software.
+## I am confident in their formatting and content since I pulled the data
+## from the original file type of the field instrument.
+## The files have 5 columns: line, date, time, temp (C), notes
 list_csv_files <- list.files("Input/WMT/sums_csv_new")
 
 # Set working directory and load files in list; extract file name and add as column
-## run next 12 lines together
-setwd("Input/WMT/sums_csv_new")
-initial_data = tibble(file_list = list_csv_files) %>%
-  extract(file_list, "home", remove = FALSE) %>%
-  mutate(save_data = lapply(file_list, read_csv, skip = 1,
+## run next 13 lines together
+setwd("Input/WMT/sums_csv_new") # set new working directory
+initial_data = tibble(file_list = list_csv_files) %>% # use list of files from above
+  extract(file_list, "home", remove = FALSE) %>% # extract file name, name "home"
+  # apply read_csv function; name and format columns
+  mutate(save_data = lapply(file_list, read_csv, skip = 1, 
                             col_names = c("line", "date", "time", "temp_c", "trash"),
                             col_types = cols(line = col_double(),
                                              date = col_date(format = ""),
@@ -173,50 +197,66 @@ initial_data = tibble(file_list = list_csv_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_csv <- initial_data %>% 
   mutate(area = "WMT",
          home2 = "WMA") %>% 
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_c != "Paused") %>% 
+  # separate temp to remove instances of ">" in the temp data
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          file_type = "logtag") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Only 1 file had this format: 
+## a 21 row header, then columns of datetime and temp (C)
 list_csv_files_2 <- list.files("Input/WMT/sums_csv_old/format_1")
 
 # Set working directory and load files in list; extract file name and add as column
-## run next 7 lines together
+## run next 9 lines together
 setwd("Input/WMT/sums_csv_old/format_1")
 initial_data = tibble(file_list = list_csv_files_2) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv, skip = 22,
-                            col_names = c("datetime_sums", "temp_c_sums"))) %>%
+                            col_names = c("datetime_sums", "temp_c"),
+                            col_types = cols(datetime_sums = col_character(),
+                                             temp_c = col_character()))) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_csv_2 <- initial_data %>% 
   mutate(area = "WMT",
          home2 = "WMA",
          datetime_sums = ymd_hms(datetime_sums)) %>% 
   separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(date_sums = ymd(date_sums),
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          file_type = "temp_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Numerous files had this format: 
+## 5 columns: line, date, time, temp (F), notes
 list_csv_files_3 <- list.files("Input/WMT/sums_csv_old/format_2")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -229,30 +269,37 @@ initial_data = tibble(file_list = list_csv_files_3) %>%
                             col_types = cols(line = col_double(),
                                              date = col_character(),
                                              time = col_time(format = ""),
-                                             temp_f = col_double(),
+                                             temp_f = col_character(),
                                              trash = col_character()))) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_csv_3 <- initial_data %>% 
   mutate(area = "WMT",
          home2 = "WMA") %>% 
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_f != "Paused") %>% 
+  separate(temp_f, c("trash2", "temp_f"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = mdy_hms(datetime),
          date_sums = mdy(date),
          time_sums = time,
+         temp_f = if_else(is.na(temp_f), trash2, temp_f),
+         temp_f = as.numeric(temp_f),
          temp_c_sums = (temp_f-32)/1.8,
          file_type = "temp_f") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 ##### Read in sums xlsx files (from WMT) #####
 
 # List files
+## Numerous files had this format with a 16 row header
+## 2 columns: datetime, temp (C)
 list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/header_skip16")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -264,7 +311,7 @@ initial_data = tibble(file_list = list_xlsx_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_xlsx <- initial_data %>% 
   mutate(datetime = ymd_hms(`Log data: date/time`),
          temp_c = as.numeric(`Temperature °C`),
@@ -272,18 +319,24 @@ wmt_sums_xlsx <- initial_data %>%
          home2 = "WMA") %>% 
   separate("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## 6 files had this format with a 21 row header
+## 2 columns: datetime, temp (C)
 list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/header_skip21")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -295,7 +348,7 @@ initial_data = tibble(file_list = list_xlsx_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_xlsx2 <- initial_data %>% 
   mutate(datetime = ymd_hms(`Log data: date/time`),
          temp_c = as.numeric(`Temperature °C`),
@@ -303,18 +356,24 @@ wmt_sums_xlsx2 <- initial_data %>%
          home2 = "WMA") %>% 
   separate("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>%
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Numerous files had this format with no header
+## 2 columns: datetime, temp (C)
 list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/no_header_2col_c")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -326,7 +385,7 @@ initial_data = tibble(file_list = list_xlsx_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_xlsx3 <- initial_data %>% 
   mutate(datetime = ymd_hms(datetime),
          temp_c = as.numeric(temp_c),
@@ -334,18 +393,24 @@ wmt_sums_xlsx3 <- initial_data %>%
          home2 = "WMA") %>% 
   separate("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>%
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Numerous files had this format with no header
+## 4 columns: date, time, am/pm, temp (C)
 list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/no_header_4col_c")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -357,7 +422,7 @@ initial_data = tibble(file_list = list_xlsx_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_xlsx4 <- initial_data %>% 
   mutate(temp_c = as.numeric(temp_c),
          area = "WMT",
@@ -366,18 +431,24 @@ wmt_sums_xlsx4 <- initial_data %>%
   unite("time", c("time", "am_pm"), sep = " ") %>% 
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>%
   mutate(datetime_sums = ymd_hms(datetime),
          date_sums = ymd(date),
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Numerous files had this format with no header
+## 4 columns: date, time, am/pm, temp (F)
 list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/no_header_4col_f")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -389,7 +460,7 @@ initial_data = tibble(file_list = list_xlsx_files) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 wmt_sums_xlsx5 <- initial_data %>% 
   mutate(temp_f = as.numeric(temp_f),
          area = "WMT",
@@ -406,7 +477,8 @@ wmt_sums_xlsx5 <- initial_data %>%
          file_type = "xlsx_f") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # Bind all WMT SUMs data together
@@ -417,7 +489,7 @@ wmt_sums_raw <- rbind(wmt_sums_csv, wmt_sums_csv_2, wmt_sums_csv_3,
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   filter(!is.na(date_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
+  distinct() %>% # remove duplicate lines that have same info from different files
   mutate(file_type = factor(file_type, levels = c("logtag", "temp_c",
                                                   "temp_f", "xlsx_c",
                                                   "xlsx_f")))
@@ -430,14 +502,19 @@ wmt_sums_filter <- wmt_sums_raw %>%
   ungroup() %>% 
   arrange(home, datetime_sums)
 
-write_rds(wmt_sums_filter, "Output/wmt_sums_raw.rds")
+# write_rds(wmt_sums_filter, "Output/wmt_sums_raw.rds")
 ```
 
 # Initial load, format, and save KidsAIR NN SUMs data
+## This chunk performs the same process that was done previously for WMT files
 ```{r}
 ##### Read in sums csv files (from NN) #####
 
 # List files
+## These files were directly exported by me from the Logtag software.
+## I am confident in their formatting and content since I pulled the data
+## from the original file type of the field instrument.
+## The files have 5 columns: line, date, time, temp (C), notes
 list_csv_files <- list.files("Input/NN/sums_csv_new")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -446,29 +523,35 @@ setwd("Input/NN/sums_csv_new")
 initial_data = tibble(file_list = list_csv_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv,
-                            col_names = c("line", "date", "time", "temp_c"),
-                            col_types = cols(line = col_double(),
+                            col_names = c("line", "date", "time", "temp_c", "trash"),
+                            col_types = cols(line = col_character(),
                                              date = col_date(format = ""),
                                              time = col_time(format = ""),
-                                             temp_c = col_character()))) %>%
+                                             temp_c = col_character(),
+                                             trash = col_character()))) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 nn_sums_csv <- initial_data %>% 
   mutate(area = "NN") %>% 
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = datetime,
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          file_type = "logtag") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+# 1 file had this format: No header, columns of datetime and temp (C)
 list_csv_files_2 <- list.files("Input/NN/sums_csv_old/2col-c")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -485,15 +568,21 @@ nn_sums_csv_2 <- initial_data %>%
   mutate(area = "NN",
          datetime_sums = mdy_hm(datetime)) %>% 
   separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>%
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(date_sums = ymd(date_sums),
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          file_type = "temp_c") %>%
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums)) 
 
 
 # List files
+## Numerous files had this format
+## No header, 3 columns: date, time, temp (F)
 list_csv_files_3 <- list.files("Input/NN/sums_csv_old/3col-f")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -505,7 +594,7 @@ initial_data = tibble(file_list = list_csv_files_3) %>%
                             col_names = c("date", "time", "temp_f"),
                             col_types = cols(date = col_character(),
                                              time = col_time(format = ""),
-                                             temp_f = col_double()))) %>%
+                                             temp_f = col_character()))) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
@@ -513,14 +602,19 @@ initial_data = tibble(file_list = list_csv_files_3) %>%
 nn_sums_csv_3 <- initial_data %>% 
   mutate(area = "NN") %>% 
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
+  filter(temp_f != "Paused") %>% 
+  separate(temp_f, c("trash2", "temp_f"), sep = " ", remove = FALSE) %>%
   mutate(datetime_sums = mdy_hms(datetime),
          date_sums = mdy(date),
          time_sums = time,
+         temp_f = if_else(is.na(temp_f), trash2, temp_f),
+         temp_f = as.numeric(temp_f),
          temp_c_sums = (temp_f-32)/1.8,
          file_type = "temp_f") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 
@@ -542,7 +636,7 @@ nn_sums_filter <- nn_sums_raw %>%
   ungroup() %>% 
   arrange(home, datetime_sums)
 
-write_rds(nn_sums_filter, "Output/nn_sums_raw.rds")
+# write_rds(nn_sums_filter, "Output/nn_sums_raw.rds")
 ```
 
 # Initial load, format, and save KidsAIR AK SUMs data
@@ -550,6 +644,10 @@ write_rds(nn_sums_filter, "Output/nn_sums_raw.rds")
 ##### Read in sums csv files (from AK) #####
 
 # List files
+## These files were directly exported by me from the Logtag software.
+## I am confident in their formatting and content since I pulled the data
+## from the original file type of the field instrument.
+## The files have 5 columns: line, date, time, temp (C), notes
 list_csv_files <- list.files("Input/AK/sums_csv_new")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -558,11 +656,12 @@ setwd("Input/AK/sums_csv_new")
 initial_data = tibble(file_list = list_csv_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv,
-                            col_names = c("line", "date", "time", "temp_c"),
-                            col_types = cols(line = col_double(),
+                            col_names = c("line", "date", "time", "temp_c", "trash"),
+                            col_types = cols(line = col_character(),
                                              date = col_date(format = ""),
                                              time = col_time(format = ""),
-                                             temp_c = col_double()))) %>%
+                                             temp_c = col_character(),
+                                             trash = col_character()))) %>%
   unnest(save_data) %>%
   select(-file_list) 
 
@@ -570,17 +669,23 @@ initial_data = tibble(file_list = list_csv_files) %>%
 ak_sums_csv <- initial_data %>% 
   mutate(area = "AK") %>% 
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>%
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime),
          date_sums = date,
          time_sums = time,
-         temp_c_sums = temp_c,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
+         temp_c_sums = as.numeric(temp_c),
          file_type = "logtag") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Numerous files had this format with no header
+## 5 columns: line, date, time, temp (F), notes
 list_csv_files_2 <- list.files("Input/AK/sums_csv_old")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -590,10 +695,10 @@ initial_data = tibble(file_list = list_csv_files_2) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv, skip = 1,
                             col_names = c("line", "date", "time", "temp_f", "trash"),
-                            col_types = cols(line = col_double(),
+                            col_types = cols(line = col_character(),
                                              date = col_character(),
                                              time = col_time(format = ""),
-                                             temp_f = col_double(),
+                                             temp_f = col_character(),
                                              trash = col_character())))  %>%
   unnest(save_data) %>%
   select(-file_list) 
@@ -601,21 +706,28 @@ initial_data = tibble(file_list = list_csv_files_2) %>%
 # Format combined file from above; combine with other PM data below
 ak_sums_csv_2 <- initial_data %>% 
   mutate(area = "AK") %>% 
+  filter(temp_f != "Paused") %>% 
+  separate(temp_f, c("trash2", "temp_f"), sep = " ", remove = FALSE) %>%
   mutate(date_sums = mdy(date),
          time_sums = time,
+         temp_f = if_else(is.na(temp_f), trash2, temp_f),
+         temp_f = as.numeric(temp_f),
          temp_c_sums = (temp_f-32)/1.8,
          file_type = "temp_f") %>% 
   unite("datetime", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime)) %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 
 ##### Read in sums xlsx files (from AK) #####
 
 # List files
+## 3 files had this format with no header
+## 5 columns: date, time, am or pm, C, temp
 list_xlsx_files <- list.files("Input/AK/sums_xlsx_temp_c")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -634,8 +746,11 @@ ak_sums_xlsx <- initial_data %>%
   mutate(area = "AK") %>% 
   separate("time", c("trash", "time"), sep = " ", remove = FALSE) %>% 
   unite("time", c("time", "am_pm"), sep = " ") %>% 
+  filter(temp_c != "Paused") %>% 
+  separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(date_sums = ymd(date),
          time_sums = time,
+         temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
@@ -643,10 +758,13 @@ ak_sums_xlsx <- initial_data %>%
   mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # List files
+## Numerous files had this format with no header
+## 5 columns: date, time, am or pm, F, temp
 list_xlsx_files2 <- list.files("Input/AK/sums_xlsx_temp_f")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -674,7 +792,8 @@ ak_sums_xlsx2 <- initial_data %>%
   mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct()
+  distinct() %>% 
+  filter(!is.na(temp_c_sums))
 
 
 # Bind all AK SUMs data together
@@ -699,7 +818,7 @@ ak_sums_filter <- ak_sums_raw %>%
 # write_rds(ak_sums_filter, "Output/ak_sums_raw.rds")
 ```
 
-# Bind all SUMs files together
+# Bind all SUMs files together after initial upload
 ```{r}
 wmt_sums_raw <- read_rds("Output/wmt_sums_raw.rds") 
 
@@ -713,8 +832,14 @@ all_sums_raw <- rbind(wmt_sums_raw, nn_sums_raw, ak_sums_raw)
 ```
 
 # Check sample start times vs log start times
+## This chunk of code produced a log of sample start times for each home
+## that we have SUMs/Logtag/IButton data for.
+## I used this log to go through individual homes and assess start times
+## vs expected start times, find missing start times, etc.
+## This log, with additional notes, are found on Box:
+### KidsAIR > Ethan - data cleaning and analysis > sums_time_comparison
 ```{r}
-# Load all SUMs data
+# Load all SUMs data 
 all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>% 
   ungroup() %>% 
   arrange(area, home, datetime_sums)
@@ -755,6 +880,11 @@ write_rds(sums_time_comparison, "Output/sums_time_comparison.rds")
 ```
 
 # Compile start and stop times for SUMs based on field logs
+## Start times were compiled based on the beginning of data collection
+## recorded in the paper logs. A list of start times is uploaded to Box:
+### KidsAIR > Ethan - data cleaning and analysis > sums_time_comparison
+## Stope times were based on the date of the final visit to a home each winter
+## This timestamp was extracted from the "medicalvisit" files found on Box
 ```{r}
 # Load all SUMs data
 all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>% 
@@ -762,7 +892,6 @@ all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>%
   arrange(area, home, datetime_sums)
 
 # Load and format SUMs data logs for WMT
-#wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds")
 
 wmt_sums_stop <- read_csv("Input/WMT/wmt_medicalvisit_20200107.csv") %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -802,7 +931,6 @@ wmt_sums_filtered <- wmt_sums_raw %>%
 
   
 #####
-#nn_sums_log <- read_rds("Output/nn_sums_data_log.rds")
 
 nn_sums_stop <- read_xlsx("Input/NN/nn_medicalvisit_20200108.xlsx") %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -841,7 +969,6 @@ nn_sums_filtered <- nn_sums_raw %>%
 
 
 #####
-#ak_sums_log <- read_rds("Output/ak_sums_data_log.rds")
 
 ak_sums_stop <- read_xlsx("Input/AK/ak_medicalvisit_20200108.xlsx") %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -886,7 +1013,7 @@ wmt_sums_filtered <- read_rds("Output/wmt_sums_filtered.rds")
 nn_sums_filtered <- read_rds("Output/nn_sums_filtered.rds")
 ak_sums_filtered <- read_rds("Output/ak_sums_filtered.rds")
 
-check_dates <- nn_sums_filtered %>% 
+check_dates <- ak_sums_filtered %>% 
   group_by(home) %>% 
   distinct(datetime_sums, .keep_all = TRUE)
 ```

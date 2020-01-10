@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 20 Dec 2019"
+date: "Started 19 Nov 2019, Updated 10 Jan 2020"
 output: pdf_document
 ---
 
@@ -21,17 +21,24 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
-# Initial load, format, and save KidsAIR Dusttrak data
-## Files here are in 3 formats: csv (2 different formats) and txt
-## I had to do some manual cleaning of the files to get them named
-## consistently and in reasonably similar formats to be able to load
-## into R in batches, as seen below. The files I upload in the code below
-## will also be uploaded to Box in a folder with my name.
-## Box folder directory: 
+# Initial load, format, and save KidsAIR DustTrak (PM) data
+## Files were downloaded from Box: KidsAIR > 2019-Nov-Data > WMT > uploads > Dusttrack
+## Files were not named consistently, so I renamed them by their home ID number.
+## Files also had several different types and formats.
+## Manual cleaning of some files had to be done to get them in 
+## consistent formats and file types to work with in R.
+## Unfortunately, this process had to be manual due to the large number of files
+## and inconsistent QC process across the various files.
+## As a result, this process will be difficult to replicate if needed;
+## The code below will highlight how the files were formatted and grouped together.
+## Once files were in consistent formats, I load them to R in batches, as seen below.
+## The following code cleans and combines all PM data
 ```{r}
 ##### Read in dusttrack .txt files (from WMT) #####
 
 # List files
+## Numerous files had this format with a 28 row header
+## 3 columns: date, time, PM
 list_txt_files <- list.files("Input/WMT/dusttrack_txt_files")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -57,6 +64,8 @@ wmt_pm_txt <- initial_data %>%
 
 ### WMT ###
 # List files
+## Numerous files had this format with no header
+## 3 columns: date, time, PM
 list_csv_files <- list.files("Input/WMT/dusttrack_csv_files")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -80,6 +89,8 @@ wmt_pm_csv <- initial_data %>%
 
 ### NN ###
 # List files
+## Numerous files had this format with no header
+## 3 columns: date, time, PM
 list_csv_files <- list.files("Input/NN/dusttrack_csv_files")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -103,6 +114,8 @@ nn_pm_csv <- initial_data %>%
 
 ### AK ###
 # List files
+## Numerous files had this format with no header
+## 3 columns: date, time, PM
 list_csv_files <- list.files("Input/AK/dusttrack_csv_files")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -129,6 +142,8 @@ ak_pm_csv <- initial_data %>%
 
 ### WMT ### 
 # List files
+## 4 files had this format with a 19 row header
+## 4 columns: elapsed time (start time extracted from header), PM, notes, notes
 list_other_files <- list.files("Input/WMT/dusttrack_other_files")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -176,6 +191,8 @@ wmt_pm_other <- initial_data %>%
 
 ### NN ### 
 # List files
+## Numerous files had this format with a 19 row header
+## 4 columns: elapsed time (start time extracted from header), PM, notes, notes
 list_other_files <- list.files("Input/NN/dusttrack_other_files")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -235,8 +252,8 @@ kids_pm <- rbind(wmt_pm_csv, wmt_pm_txt, wmt_pm_other,
 
 
 # Save pm dataset as RDS and CSV
-write_rds(kids_pm, "Output/kids_pm_full_raw.rds")
-#write_csv(kids_pm, "Output/kids_pm_full.csv")
+# write_rds(kids_pm, "Output/kids_pm_full_raw.rds")
+# write_csv(kids_pm, "Output/kids_pm_full.csv")
 ```
 
 # Load Dusttrak data and do initial clean-up
@@ -281,7 +298,7 @@ kids_pm_joined <- kids_pm_full %>%
   rename(treatment = condition)
 
 
-##### Add to new variables to Kids PM data #####
+##### Add new variables to Kids PM data #####
 kids_pm_new <- kids_pm_joined %>%  
   #filter(area == "AK") %>% 
   # apply correction factor to pm and change to ug
@@ -337,13 +354,13 @@ kids_pm_new <- kids_pm_joined %>%
 
 
 # Save pm dataset as RDS and CSV
-#write_rds(kids_pm_new, "Output/kids_pm_new.rds")
-#write_csv(kids_pm_new, "Output/kids_pm_new.csv")
+# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+# write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
 
 # Summarize by ID and Dusttrak ID to look for trends
 ```{r}
-# Load data
+# Load data 
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # summary by home_winter_id
@@ -435,8 +452,11 @@ pm_time_plot
 ```
 
 # Run function from above to look at results
+## Function run for each household to check for odd trends/gaps in the data
+## Notes from this process on uploaded to Box:
+### KidsAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
-# Load data
+# Load data 
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Change function input to look at specific home
@@ -473,15 +493,18 @@ sample_times <- kids_pm %>%
          start_datetime, time_diff, startdate, starttime) %>% 
   ungroup() %>% 
   arrange(area, home_winter_id)
-#write_csv(sample_times, "Output/pm_sample_times_comparison.csv")
+# write_csv(sample_times, "Output/pm_sample_times_comparison.csv")
 ```
 
 # Loading and combining notes from time and PM logs
+## Notes from the process of comparing actual vs expect start times 
+## on uploaded to Box:
+### KidsAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
 time_notes <- read_xlsx("Input/pm_sample_times_comparison.xlsx") %>% 
   select(area, home_winter_id, first_datetime, start_datetime,
-         time_diff, next_steps_time, check_log_time)
-
+         time_diff, next_steps_time, check_log_time) 
+ 
 pm_notes <- read_xlsx("Input/kids_summary_id.xlsx") %>% 
   select(area, home_winter_id, n, further_comments_pm, next_steps_pm, check_log_pm)
 
@@ -491,12 +514,14 @@ kids_ids <- read_rds("Output/kids_linked_ids.rds") %>%
 notes_joined <- pm_notes %>% 
   left_join(time_notes, by = c("area", "home_winter_id")) %>% 
   left_join(kids_ids, by = c("area", "home_winter_id"))
-#write_csv(notes_joined, "Output/pm_notes_check_logs.csv")
+
+# write_csv(notes_joined, "Output/pm_notes_check_logs.csv")
 ```
 
 # Fix dusttrak sample start times
+## Notes from above were used to make the following changes in the data
 ```{r}
-# Load data
+# Load data 
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 # Checking difference between dustrak start datetime and field data log datetime
@@ -574,7 +599,7 @@ kids_pm_new <- kids_pm %>%
 ## Remove extremely high values
 ## Change negative values
 ```{r}
-# Load data
+# Load data 
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 
 kids_pm_new <- kids_pm %>%
@@ -642,7 +667,7 @@ kids_pm_new <- kids_pm %>%
 
 # New variables to use for analysis
 ```{r}
-# Load data
+# Load data 
 kids_pm <- read_rds("Output/kids_pm_new.rds")
 cleaning_summary <- read_xlsx("Input/cleaning_summary.xlsx") %>% 
   select(area, home_winter_id, final_cleaning_pm, sensitivity_analysis_pm)
@@ -692,6 +717,7 @@ kids_pm_new <- kids_pm %>%
 test <- kids_pm_new %>% 
   filter(percent_daily_obs_pm >= 0.9) %>% 
   summarise(n()/2241695)
+
 # write_rds(kids_pm_new, "Output/kids_pm_new.rds")
 # write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
