@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 19 Dec 2019"
+date: "Started 22 Nov 2019, Updated 13 Jan 2020"
 output: pdf_document
 ---
 
@@ -29,7 +29,7 @@ kids_pm <- read_rds("Output/kids_pm_new.rds")
 ```{r}
 pm_summary <- kids_pm %>% 
   # group by: area, treatment, dtid, day_of_week, Sampling_day
-  group_by(area) %>% 
+  group_by(treatment) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
