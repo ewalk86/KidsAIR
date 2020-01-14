@@ -1,0 +1,58 @@
+---
+title: "KidsAIR: Join data and format full dataset"
+author: "Ethan Walker"
+date: "Started 14 Jan 2020, Updated 14 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+# Use this Markdown to join datasets for analysis
+
+# Load individual datasets
+```{r}
+# These files are millions of observations long and take time to load/edit
+# Make a separate way to join these data and only use when necessary
+# Also consider how to join/analyze these data since they were collected
+# at different frequencies (20 or 25 min for SUMs; 1 min for PM)
+pm_clean <- read_rds("Output/pm_clean.rds")
+sums_clean <- read_rds("Output/sums_clean.rds")
+
+# These other files have fewer observations and are easier to work with
+# Make a full dataset by joining these datasets together
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds")
+moisture_clean <- read_rds("Output/moisture_clean.rds")
+indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
+stove_use_clean <- read_rds("Output/stove_use_clean.rds")
+stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
+home_char_clean <- read_rds("Output/home_char_clean.rds")
+home_act_clean <- read_rds("Output/home_act_clean.rds")
+```
+
+# Join small datasets
+```{r}
+
+```
+
+# Format small dataset
+```{r}
+
+```
+
+# Join large datasets
+```{r}
+
+```
+
+
+

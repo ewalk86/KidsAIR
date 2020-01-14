@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 13 Jan 2020"
+date: "Started 22 Nov 2019, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -22,12 +22,12 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load data
-kids_pm <- read_rds("Output/kids_pm_new.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 # Summary stats
 ```{r}
-pm_summary <- kids_pm %>% 
+pm_summary <- pm_clean %>% 
   # group by: area, treatment, dtid, day_of_week, Sampling_day
   group_by(treatment) %>% 
   summarize("n" = n(),
@@ -44,7 +44,7 @@ pm_summary <- kids_pm %>%
 
 # Boxplots for PM by study area
 ```{r, fig.height=6, fig.width=5}
-boxplots_kids_pm <- kids_pm %>% 
+boxplots_kids_pm <- pm_clean %>% 
   #filter(pm < 500) %>% 
   ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 

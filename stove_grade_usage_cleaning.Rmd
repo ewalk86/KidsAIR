@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR wood stove grades and usage"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 13 Jan 2020"
+date: "Started 13 Jan 2020, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -90,11 +90,33 @@ kids_stove_grades <- rbind(wmt_stove_grades, nn_stove_grades, ak_stove_grades)
 # Clean up all stove grade data
 ```{r}
 kids_stove_grades <- read_rds("Output/kids_stove_grades.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
-kids_stove_grades_clean <- kids_stove_grades 
+stove_grades_clean <- kids_stove_grades %>% 
+  filter(home_id != 0) %>% 
+  rename(stove_grade_comments = comments) %>% 
+  select(-home_id) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(kids_stove_grades_clean, "Output/kids_stove_grades_clean.rds")
+# write_rds(stove_grades_clean, "Output/stove_grades_clean.rds")
+
+# Dataset showing home with no stove grade
+stove_grades_na <- stove_grades_clean %>% 
+  filter(is.na(stove_grade)) %>% 
+  distinct(home_id) 
 ```
+
+# Summary data for stove grades
+```{r}
+# Load dataset
+stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
+
+stove_grade_summary <- stove_grades_clean %>% 
+  group_by(area, stove_grade) %>% 
+  summarize(n())
+stove_grade_summary
+```
+
 
 ###############################################
 
@@ -183,9 +205,36 @@ kids_stove_use <- rbind(wmt_stove_use, nn_stove_use, ak_stove_use)
 # Clean up all stove use data
 ```{r}
 kids_stove_use <- read_rds("Output/kids_stove_use.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
-kids_stove_use_clean <- kids_stove_use %>% 
-  replace_with_na(replace = list(wood_cords = -999, wood_cords = 0)) 
+stove_use_clean <- kids_stove_use %>% 
+  replace_with_na(replace = list(wood_cords = -999, wood_cords = 0)) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(kids_stove_use_clean, "Output/kids_stove_use_clean.rds")
+# write_rds(stove_use_clean, "Output/stove_use_clean.rds")
+```
+
+# Summary data for stove use
+```{r}
+# Load dataset
+stove_use_clean <- read_rds("Output/stove_use_clean.rds")
+
+# Summarize numeric vars
+stove_use_summary <- stove_use_clean %>% 
+  group_by(area) %>% 
+  summarize(mean(wood_cords, na.rm = TRUE), 
+            min(wood_cords, na.rm = TRUE), 
+            median(wood_cords, na.rm = TRUE), 
+            max(wood_cords, na.rm = TRUE))
+stove_use_summary
+
+# Summarize factor vars
+## Use this as a quick look at all vars
+table_list <- stove_use_clean %>% 
+  #filter(area == "WMT") %>% 
+  select(-home_winter_id, -wood_cords) 
+lapply(table_list, table)
+
+## Select specific var to assess individually/group by area
+table(stove_use_clean$burn_level, stove_use_clean$area, useNA = "ifany")
 ```

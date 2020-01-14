@@ -297,8 +297,22 @@ wmt_demographics <- read_rds("Output/wmt_demographic_data.rds")
 
 kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics)
 
-#write_rds(kids_demographics, "Output/kids_combined_demographics.rds")
+# write_rds(kids_demographics, "Output/kids_combined_demographics.rds")
 
 kids_demographics <- read_rds("Output/kids_combined_demographics.rds")
+```
+
+# Clean demographics data
+```{r}
+kids_demographics <- read_rds("Output/kids_combined_demographics.rds")
+
+demographics_clean <- kids_demographics %>% 
+  separate(intervention_time, c("trash", "intervention_time"), sep = " ") %>% 
+  unite(intervention_datetime, c("intervention_date", "intervention_time"),
+        sep = " ", remove = FALSE) %>% 
+  mutate(intervention_datetime = ymd_hms(intervention_datetime)) %>% 
+  select(-trash)
+
+# write_rds(demographics_clean, "Output/demographics_clean.rds")
 ```
 

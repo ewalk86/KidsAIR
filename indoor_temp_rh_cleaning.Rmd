@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR indoor temp and humidity cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 13 Jan 2020"
+date: "Started 13 Jan 2020, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -126,9 +126,23 @@ kids_indoor_temp_rh <- rbind(wmt_temp_rh, nn_temp_rh, ak_temp_rh)
 # Clean up all temp/rh data
 ```{r}
 kids_indoor_temp_rh <- read_rds("Output/kids_indoor_temp_rh.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
-kids_indoor_temp_rh_clean <- kids_indoor_temp_rh  
+indoor_temp_rh_clean <- kids_indoor_temp_rh %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(kids_indoor_temp_rh_clean, "Output/kids_indoor_temp_rh_clean.rds")
+# write_rds(indoor_temp_rh_clean, "Output/indoor_temp_rh_clean.rds")
+```
+
+# Summarize temp/rh data
+```{r}
+indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
+
+temp_rh_summary <- indoor_temp_rh_clean %>%
+  group_by(area) %>% 
+  summarize_if(is.numeric, list(mean = mean, sd = sd, min = min, 
+                                med = median, max = max), na.rm = TRUE) %>% 
+  t()
+temp_rh_summary
 ```
 

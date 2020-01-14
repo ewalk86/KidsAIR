@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial moisture content data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 13 Jan 2020"
+date: "Started 19 Nov 2019, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -138,9 +138,11 @@ kids_moisture <- rbind(wmt_moisture, nn_moisture, ak_moisture)
 # Clean up all moisture data
 ```{r}
 kids_moisture <- read_rds("Output/kids_moisture.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
-kids_moisture_clean <- kids_moisture  
+moisture_clean <- kids_moisture %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(kids_moisture_clean, "Output/kids_moisture_clean.rds")
+# write_rds(moisture_clean, "Output/moisture_clean.rds")
 ```
 

@@ -1,7 +1,7 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019"
+date: "Started 22 Nov 2019, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -17,22 +17,23 @@ library(knitr)
 
 ```{r}
 # Load data
-kids_moisture <- read_rds("Output/kids_moisture.rds")
+moisture_clean <- read_rds("Output/moisture_clean.rds")
 ```
 
 # Summary stats
 ```{r}
-summary_kids_moisture <- kids_moisture %>% 
+summary_moisture <- moisture_clean %>% 
+  group_by(area) %>% 
   summarize(mean(moisture_ave, na.rm = TRUE), sd(moisture_ave, na.rm = TRUE),
             median(moisture_ave, na.rm = TRUE),
             min(moisture_ave, na.rm = TRUE), max(moisture_ave, na.rm = TRUE)) %>% 
   t()
-summary_kids_moisture
+summary_moisture
 ```
 
 # Boxplots
 ```{r, fig.height=6, fig.width=5}
-boxplots_kids_moisture <- kids_moisture %>% 
+boxplots_moisture <- moisture_clean %>% 
   select(area, moisture_ave) %>% 
   na.exclude() %>% 
   ggplot(aes(area, moisture_ave)) +
@@ -52,6 +53,6 @@ boxplots_kids_moisture <- kids_moisture %>%
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank())
-boxplots_kids_moisture
+boxplots_moisture
 ```
 

@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 10 Jan 2020"
+date: "Started 23 Dec 2019, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -1032,16 +1032,20 @@ all_sums_filtered <- rbind(wmt_sums_filtered, nn_sums_filtered, ak_sums_filtered
 # Continue cleaning up SUMs data
 ```{r}
 all_sums_filtered <- read_rds("Output/all_sums_filtered.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+  select(home_winter_id, area, treatment)
 
 sums_clean <- all_sums_filtered %>% 
    mutate(temp_c_sums = as.numeric(temp_c_sums),
           winter_id = as.factor(winter_id),
-          home_winter_id = as.factor(home_winter_id),
+          home_winter_id = as.character(home_winter_id),
           home_id = as.factor(home_id),
           day_of_week = weekdays(date_sums),
           month_sums = as.factor(month(date_sums, label = TRUE, abbr = TRUE))) %>% 
   select(-filter_var) %>% 
-  arrange(area, home, winter_id, datetime_sums)
+  arrange(area, home, winter_id, datetime_sums) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  
 
 # write_rds(sums_clean, "Output/sums_clean.rds")
 ```

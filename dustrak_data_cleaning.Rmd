@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 10 Jan 2020"
+date: "Started 19 Nov 2019, Updated 14 Jan 2020"
 output: pdf_document
 ---
 
@@ -722,4 +722,16 @@ test <- kids_pm_new %>%
 # write_csv(kids_pm_new, "Output/kids_pm_new.csv")
 ```
 
+# Save cleaned dataset
+```{r}
+kids_pm_new <- read_rds("Output/kids_pm_new.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+
+pm_clean <- kids_pm_new %>% 
+  mutate(home_winter_id = as.character(home_winter_id)) %>% 
+  select(-home, -treatment) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+# write_rds(pm_clean, "Output/pm_clean.rds")
+```
 
