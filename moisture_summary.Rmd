@@ -1,12 +1,13 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 14 Jan 2020"
+date: "Started 22 Nov 2019, Updated 15 Jan 2020"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -20,15 +21,29 @@ library(knitr)
 moisture_clean <- read_rds("Output/moisture_clean.rds")
 ```
 
-# Summary stats
+# Moisture content summary stats
+## Average of 3 measurements
 ```{r}
-summary_moisture <- moisture_clean %>% 
+summary_moisture <- moisture_clean %>%
   group_by(area) %>% 
-  summarize(mean(moisture_ave, na.rm = TRUE), sd(moisture_ave, na.rm = TRUE),
-            median(moisture_ave, na.rm = TRUE),
-            min(moisture_ave, na.rm = TRUE), max(moisture_ave, na.rm = TRUE)) %>% 
-  t()
-summary_moisture
+  summarize(mean = mean(moisture_ave, na.rm = TRUE), 
+            SD = sd(moisture_ave, na.rm = TRUE),
+            median = median(moisture_ave, na.rm = TRUE),
+            min = min(moisture_ave, na.rm = TRUE), 
+            max = max(moisture_ave, na.rm = TRUE)) %>%
+  select(-area) %>% 
+  t() 
+kable(summary_moisture, col.names = c("Alaska", "Navajo", "Montana"), 
+      digits = 1, align = "c")
+```
+
+# Was wood split?
+```{r}
+wood_split <- moisture_clean %>% 
+  filter(!is.na(moisture_split)) %>% 
+  group_by(area, moisture_split) %>% 
+  summarise(n = n())
+kable(wood_split, align = "c")
 ```
 
 # Boxplots

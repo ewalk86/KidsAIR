@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR home activity and characteristics cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 14 Jan 2020"
+date: "Started 13 Jan 2020, Updated 15 Jan 2020"
 output: pdf_document
 ---
 
@@ -182,31 +182,6 @@ home_char_clean <- kids_home_char %>%
 # write_rds(home_char_clean, "Output/home_char_clean.rds")
 ```
 
-# Summary data for home characteristics
-```{r}
-# Load dataset
-home_char_clean <- read_rds("Output/home_char_clean.rds")
-
-# Summarize numeric vars
-home_char_summary <- home_char_clean %>% 
-  group_by(area) %>% 
-  summarize(mean(home_sqft, na.rm = TRUE), 
-            min(home_sqft, na.rm = TRUE), 
-            median(home_sqft, na.rm = TRUE), 
-            max(home_sqft, na.rm = TRUE))
-home_char_summary
-
-# Summarize factor vars
-## Use this as a quick look at all vars
-table_list <- home_char_clean %>% 
-  #filter(area == "WMT") %>% 
-  select(-home_winter_id, -home_sqft, -stove_model) 
-lapply(table_list, table)
-
-## Select specific var to assess individually/group by area
-table(table_list$residents_total, table_list$area, useNA = "ifany")
-```
-
 ###############################################
 
 # Load, format, and save home activity data
@@ -335,18 +310,3 @@ home_act_clean <- kids_home_act %>%
 # write_rds(home_act_clean, "Output/home_act_clean.rds")
 ```
 
-# Summary data for home characteristics
-```{r}
-# Load dataset
-home_act_clean <- read_rds("Output/home_act_clean.rds")
-
-# Summarize factor vars
-## Use this as a quick look at all vars
-table_list <- home_act_clean %>% 
-  #filter(area == "WMT") %>% 
-  select(-home_winter_id, -home_act_comments) 
-lapply(table_list, table)
-
-## Select specific var to assess individually/group by area
-table(table_list$home_act_sweep, table_list$area, useNA = "ifany")
-```

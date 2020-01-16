@@ -1,12 +1,13 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 14 Jan 2020"
+date: "Started 22 Nov 2019, Updated 15 Jan 2020"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -29,7 +30,7 @@ pm_clean <- read_rds("Output/pm_clean.rds")
 ```{r}
 pm_summary <- pm_clean %>% 
   # group by: area, treatment, dtid, day_of_week, Sampling_day
-  group_by(treatment) %>% 
+  group_by(area) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
@@ -38,7 +39,12 @@ pm_summary <- pm_clean %>%
             "Max PM" = max(pm, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
             "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
-            "Mean % Daily Obs" = mean(percent_daily_obs_pm, na.rm = TRUE))
+            "Mean % Daily Obs" = mean(percent_daily_obs_pm, na.rm = TRUE)) %>% 
+  select(-area) %>% 
+  t() 
+
+kable(pm_summary, col.names = c("Alaska", "Navajo", "Montana"), 
+      digits = 1, align = "c")
 ```
 
 
