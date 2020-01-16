@@ -5,5 +5,7 @@
 *.PDF
 *.RDS
 *.csv
+*.docx
+*.tex
 Input
 Output
