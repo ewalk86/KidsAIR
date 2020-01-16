@@ -2,9 +2,13 @@
 title: "Kids home characteristics/activity summary"
 author: "Ethan Walker"
 date: "Started 15 Jan 2020, Updated 15 Jan 2020"
+<<<<<<< HEAD
 output:
   word_document: default
   pdf_document: default
+=======
+output: pdf_document
+>>>>>>> d3239db535b5f83ec6ae3808712b992022052fa8
 ---
 
 ```{r setup, include=FALSE}
