@@ -1,0 +1,148 @@
+---
+title: "KidsAIR initial moisture content data work"
+author: "Ethan Walker"
+date: "Started 19 Nov 2019, Updated 14 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load, format, and save fuel moisture content data
+```{r}
+##### WMT #####
+# Load data
+moisture_initial_wmt <- read_xlsx("Input/WMT/wmt_kids_moisture_20191122.xlsx")
+
+wmt_moisture <- moisture_initial_wmt %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         moisture_date = ymd(CompletedDate),
+         moisture_1 = as.numeric(Moisture1),
+         moisture_2 = as.numeric(Moisture2),
+         moisture_3 = as.numeric(Moisture3),
+         moisture_ave = as.numeric(MoistureAve),
+         moisture_split = as.factor(Split),
+         area = "WMT") %>% 
+  # replace 0 and -999 values with NA
+  replace_with_na(replace = list(moisture_1 = 0, moisture_2 = 0,
+                                 moisture_3 = 0, moisture_ave = 0)) %>% 
+  replace_with_na(replace = list(moisture_1 = -999, moisture_2 = -999,
+                                 moisture_3 = -999)) %>% 
+  # gather 3 moisture samples to calculate average
+  gather("sample", "value", c("moisture_1":"moisture_3")) %>% 
+  group_by(home_winter_id, moisture_date) %>% 
+  mutate(moisture_ave = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>% 
+  select(home_winter_id, area, moisture_date, 
+         moisture_1, moisture_2, moisture_3, 
+         moisture_ave, moisture_split) %>% 
+  arrange(home_winter_id, moisture_date)
+  
+# Save as RDS 
+# write_rds(wmt_moisture, "Output/wmt_moisture.rds")
+
+
+##### NN #####
+# Load data
+moisture_initial_nn <- read_xlsx("Input/NN/nn_moisture_20200113.xlsx")
+
+nn_moisture <- moisture_initial_nn %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         moisture_date = ymd(CompletedDate),
+         moisture_1 = as.numeric(Moisture1),
+         moisture_2 = as.numeric(Moisture2),
+         moisture_3 = as.numeric(Moisture3),
+         moisture_ave = as.numeric(MoistureAve),
+         moisture_split = as.factor(Split),
+         area = "NN") %>% 
+  # replace 0 and -999 values with NA
+  replace_with_na(replace = list(moisture_1 = 0, moisture_2 = 0,
+                                 moisture_3 = 0, moisture_ave = 0)) %>% 
+  replace_with_na(replace = list(moisture_1 = -999, moisture_2 = -999,
+                                 moisture_3 = -999)) %>% 
+  # gather 3 moisture samples to calculate average
+  gather("sample", "value", c("moisture_1":"moisture_3")) %>% 
+  group_by(home_winter_id, moisture_date) %>% 
+  mutate(moisture_ave = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>% 
+  select(home_winter_id, area, moisture_date, 
+         moisture_1, moisture_2, moisture_3, 
+         moisture_ave, moisture_split) %>% 
+  arrange(home_winter_id, moisture_date)
+  
+# Save as RDS 
+# write_rds(nn_moisture, "Output/nn_moisture.rds")
+
+
+##### AK #####
+# Load data
+moisture_initial_ak <- read_xlsx("Input/AK/ak_moisture_20200113.xlsx")
+
+ak_moisture <- moisture_initial_ak %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         moisture_date = ymd(CompletedDate),
+         moisture_1 = as.numeric(Moisture1),
+         moisture_2 = as.numeric(Moisture2),
+         moisture_3 = as.numeric(Moisture3),
+         moisture_ave = as.numeric(MoistureAve),
+         moisture_split = as.factor(Split),
+         area = "AK") %>% 
+  # replace 0 and -999 values with NA
+  replace_with_na(replace = list(moisture_1 = 0, moisture_2 = 0,
+                                 moisture_3 = 0, moisture_ave = 0)) %>% 
+  replace_with_na(replace = list(moisture_1 = -999, moisture_2 = -999,
+                                 moisture_3 = -999)) %>% 
+  # gather 3 moisture samples to calculate average
+  gather("sample", "value", c("moisture_1":"moisture_3")) %>% 
+  group_by(home_winter_id, moisture_date) %>% 
+  mutate(moisture_ave = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>% 
+  select(home_winter_id, area, moisture_date, 
+         moisture_1, moisture_2, moisture_3, 
+         moisture_ave, moisture_split) %>% 
+  arrange(home_winter_id, moisture_date)
+  
+# Save as RDS 
+# write_rds(ak_moisture, "Output/ak_moisture.rds")
+```
+
+# Join moisture data from different areas
+```{r}
+wmt_moisture <- read_rds("Output/wmt_moisture.rds")
+nn_moisture <- read_rds("Output/nn_moisture.rds")
+ak_moisture <- read_rds("Output/ak_moisture.rds")
+
+kids_moisture <- rbind(wmt_moisture, nn_moisture, ak_moisture)
+
+# write_rds(kids_moisture, "Output/kids_moisture.rds")
+```
+
+# Clean up all moisture data
+```{r}
+kids_moisture <- read_rds("Output/kids_moisture.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+
+moisture_clean <- kids_moisture %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+# write_rds(moisture_clean, "Output/moisture_clean.rds")
+```
+

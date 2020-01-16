@@ -1,0 +1,312 @@
+---
+title: "KidsAIR home activity and characteristics cleaning"
+author: "Ethan Walker"
+date: "Started 13 Jan 2020, Updated 15 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load, format, and save home char data
+```{r}
+##### WMT #####
+# Load data
+home_char_initial_wmt <- read_csv("Input/WMT/wmt_home_char_20200113.csv")
+
+wmt_home_char <- home_char_initial_wmt %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         residents_total = as.factor(Residents),
+         residents_under5 = as.factor(Under5),
+         residents_under18 = as.factor(Under18),
+         residents_smoke = as.factor(Smoke),
+         residents_smoke_inside = as.factor(SmokeInside),
+         home_type = as.factor(HomeType),
+         home_year_built = as.factor(YearHomeBuilt),
+         home_sqft = as.numeric(SqFootage),
+         home_floors = as.factor(NumFloors),
+         home_bedrooms = as.factor(NumBedrooms),
+         home_windows = as.factor(NumWindows),
+         home_pets = as.factor(NumPets),
+         home_furry = as.factor(NumFurryPets),
+         primary_heat = as.factor(PrimaryHeat),
+         secondary_heat = as.factor(SecondaryHeat),
+         stove_model = as.character(WoodstoveModel),
+         stove_age = as.factor(WoodstoveAge),
+         stove_cert = as.factor(WoodstoveEPACert),
+         chimney_clean = as.factor(ChimneyCleaned),
+         home_damp = as.factor(Damp),
+         home_mold = as.factor(Mold),
+         home_fireplace = as.factor(ExistingFireplace),
+         home_furnace = as.factor(ExistingFurnace),
+         home_woodstove = as.factor(ExistingWoodstove),
+         home_insert = as.factor(ExistingInsert),
+         area = "WMT") %>% 
+  select(home_winter_id, area, residents_total, residents_under5,
+         residents_under18, residents_smoke, residents_smoke_inside,
+         home_type, home_year_built, home_sqft, home_floors, home_bedrooms,
+         home_windows, home_pets, home_furry, primary_heat,
+         secondary_heat, stove_model, stove_age, stove_cert, chimney_clean,
+         home_damp, home_mold, home_fireplace, home_furnace,
+         home_woodstove, home_insert) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(wmt_home_char, "Output/wmt_home_char.rds")
+
+
+##### NN #####
+# Load data
+home_char_initial_nn <- read_xlsx("Input/NN/nn_home_char_20200113.xlsx")
+
+nn_home_char <- home_char_initial_nn %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         residents_total = as.factor(Residents),
+         residents_under5 = as.factor(Under5),
+         residents_under18 = as.factor(Under18),
+         residents_smoke = as.factor(Smoke),
+         residents_smoke_inside = as.factor(SmokeInside),
+         home_type = as.factor(HomeType),
+         home_year_built = as.factor(YearHomeBuilt),
+         home_sqft = as.numeric(SqFootage),
+         home_floors = as.factor(NumFloors),
+         home_bedrooms = as.factor(NumBedrooms),
+         home_windows = as.factor(NumWindows),
+         home_pets = as.factor(NumPets),
+         home_furry = as.factor(NumFurryPets),
+         primary_heat = as.factor(PrimaryHeat),
+         secondary_heat = as.factor(SecondaryHeat),
+         stove_model = as.character(WoodstoveModel),
+         stove_age = as.factor(WoodstoveAge),
+         stove_cert = as.factor(WoodstoveEPACert),
+         chimney_clean = as.factor(ChimneyCleaned),
+         home_damp = as.factor(Damp),
+         home_mold = as.factor(Mold),
+         home_fireplace = as.factor(ExistingFireplace),
+         home_furnace = as.factor(ExistingFurnace),
+         home_woodstove = as.factor(ExistingWoodstove),
+         home_insert = as.factor(ExistingInsert),
+         area = "NN") %>% 
+  select(home_winter_id, area, residents_total, residents_under5,
+         residents_under18, residents_smoke, residents_smoke_inside,
+         home_type, home_year_built, home_sqft, home_floors, home_bedrooms,
+         home_windows, home_pets, home_furry, primary_heat,
+         secondary_heat, stove_model, stove_age, stove_cert, chimney_clean,
+         home_damp, home_mold, home_fireplace, home_furnace,
+         home_woodstove, home_insert) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(nn_home_char, "Output/nn_home_char.rds")
+
+
+##### AK #####
+# Load data
+home_char_initial_ak <- read_xlsx("Input/AK/ak_home_char_20200113.xlsx")
+
+ak_home_char <- home_char_initial_ak %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         residents_total = as.factor(Residents),
+         residents_under5 = as.factor(Under5),
+         residents_under18 = as.factor(Under18),
+         residents_smoke = as.factor(Smoke),
+         residents_smoke_inside = as.factor(SmokeInside),
+         home_type = as.factor(HomeType),
+         home_year_built = as.factor(YearHomeBuilt),
+         home_sqft = as.numeric(SqFootage),
+         home_floors = as.factor(NumFloors),
+         home_bedrooms = as.factor(NumBedrooms),
+         home_windows = as.factor(NumWindows),
+         home_pets = as.factor(NumPets),
+         home_furry = as.factor(NumFurryPets),
+         primary_heat = as.factor(PrimaryHeat),
+         secondary_heat = as.factor(SecondaryHeat),
+         stove_model = as.character(WoodstoveModel),
+         stove_age = as.factor(WoodstoveAge),
+         stove_cert = as.factor(WoodstoveEPACert),
+         chimney_clean = as.factor(ChimneyCleaned),
+         home_damp = as.factor(Damp),
+         home_mold = as.factor(Mold),
+         home_fireplace = as.factor(ExistingFireplace),
+         home_furnace = as.factor(ExistingFurnace),
+         home_woodstove = as.factor(ExistingWoodstove),
+         home_insert = as.factor(ExistingInsert),
+         area = "AK") %>% 
+  select(home_winter_id, area, residents_total, residents_under5,
+         residents_under18, residents_smoke, residents_smoke_inside,
+         home_type, home_year_built, home_sqft, home_floors, home_bedrooms,
+         home_windows, home_pets, home_furry, primary_heat,
+         secondary_heat, stove_model, stove_age, stove_cert, chimney_clean,
+         home_damp, home_mold, home_fireplace, home_furnace,
+         home_woodstove, home_insert) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(ak_home_char, "Output/ak_home_char.rds")
+```
+
+# Join home characteristic data from different areas
+```{r}
+wmt_home_char <- read_rds("Output/wmt_home_char.rds")
+nn_home_char <- read_rds("Output/nn_home_char.rds")
+ak_home_char <- read_rds("Output/ak_home_char.rds")
+
+kids_home_char <- rbind(wmt_home_char, nn_home_char, ak_home_char)
+
+# write_rds(kids_home_char, "Output/kids_home_char.rds")
+```
+
+# Clean up all home characteristics data
+```{r}
+kids_home_char <- read_rds("Output/kids_home_char.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+
+home_char_clean <- kids_home_char %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+# write_rds(home_char_clean, "Output/home_char_clean.rds")
+```
+
+###############################################
+
+# Load, format, and save home activity data
+```{r}
+##### WMT #####
+# Load data
+home_act_initial_wmt <- read_csv("Input/WMT/wmt_home_activity_20200113.csv")
+
+wmt_home_act <- home_act_initial_wmt %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         home_act_day = as.factor(Day),
+         home_act_gas = as.factor(Gas),
+         home_act_elect = as.factor(Electrical),
+         home_act_propane = as.factor(Propane),
+         home_act_oil = as.factor(Oil),
+         home_act_other = as.factor(Other),
+         home_act_smoking = as.factor(Smoking),
+         home_act_incense = as.factor(Incense),
+         home_act_candle = as.factor(Candle),
+         home_act_kerosene = as.factor(Kerosene),
+         home_act_windows = as.factor(OpenWindows),
+         home_act_door = as.factor(OpenDoor),
+         home_act_sweep = as.factor(Sweeping),
+         home_act_comments = as.character(Comments),
+         area = "WMT") %>% 
+  select(home_winter_id, area, home_act_day,
+         home_act_gas, home_act_elect, home_act_propane,
+         home_act_oil, home_act_other, home_act_smoking,
+         home_act_incense, home_act_candle, home_act_kerosene,
+         home_act_windows, home_act_door, home_act_sweep, home_act_comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, home_act_day)
+
+# Save as RDS
+# write_rds(wmt_home_act, "Output/wmt_home_act.rds")
+
+
+##### NN #####
+# Load data
+home_act_initial_nn <- read_xlsx("Input/NN/nn_home_activity_20200113.xlsx")
+
+nn_home_act <- home_act_initial_nn %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         home_act_day = as.factor(Day),
+         home_act_gas = as.factor(Gas),
+         home_act_elect = as.factor(Electrical),
+         home_act_propane = as.factor(Propane),
+         home_act_oil = as.factor(Oil),
+         home_act_other = as.factor(Other),
+         home_act_smoking = as.factor(Smoking),
+         home_act_incense = as.factor(Incense),
+         home_act_candle = as.factor(Candle),
+         home_act_kerosene = as.factor(Kerosene),
+         home_act_windows = as.factor(OpenWindows),
+         home_act_door = as.factor(OpenDoor),
+         home_act_sweep = as.factor(Sweeping),
+         home_act_comments = as.character(IgnoreReason),
+         area = "NN") %>% 
+  select(home_winter_id, area, home_act_day,
+         home_act_gas, home_act_elect, home_act_propane,
+         home_act_oil, home_act_other, home_act_smoking,
+         home_act_incense, home_act_candle, home_act_kerosene,
+         home_act_windows, home_act_door, home_act_sweep, home_act_comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, home_act_day)
+
+# Save as RDS
+# write_rds(nn_home_act, "Output/nn_home_act.rds")
+
+
+##### AK #####
+# Load data
+home_act_initial_ak <- read_xlsx("Input/AK/ak_home_activity_20200113.xlsx")
+
+ak_home_act <- home_act_initial_ak %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         home_act_day = as.factor(Day),
+         home_act_gas = as.factor(Gas),
+         home_act_elect = as.factor(Electrical),
+         home_act_propane = as.factor(Propane),
+         home_act_oil = as.factor(Oil),
+         home_act_other = as.factor(Other),
+         home_act_smoking = as.factor(Smoking),
+         home_act_incense = as.factor(Incense),
+         home_act_candle = as.factor(Candle),
+         home_act_kerosene = as.factor(Kerosene),
+         home_act_windows = as.factor(OpenWindows),
+         home_act_door = as.factor(OpenDoor),
+         home_act_sweep = as.factor(Sweeping),
+         home_act_comments = as.character(IgnoreReason),
+         area = "AK") %>% 
+  select(home_winter_id, area, home_act_day,
+         home_act_gas, home_act_elect, home_act_propane,
+         home_act_oil, home_act_other, home_act_smoking,
+         home_act_incense, home_act_candle, home_act_kerosene,
+         home_act_windows, home_act_door, home_act_sweep, home_act_comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, home_act_day)
+
+# Save as RDS
+# write_rds(ak_home_act, "Output/ak_home_act.rds")
+```
+
+# Join home activity data from different areas
+```{r}
+wmt_home_act <- read_rds("Output/wmt_home_act.rds")
+nn_home_act <- read_rds("Output/nn_home_act.rds")
+ak_home_act <- read_rds("Output/ak_home_act.rds")
+
+kids_home_act <- rbind(wmt_home_act, nn_home_act, ak_home_act)
+
+# write_rds(kids_home_act, "Output/kids_home_act.rds")
+```
+
+# Clean up all home activity data
+```{r}
+kids_home_act <- read_rds("Output/kids_home_act.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+
+home_act_clean <- kids_home_act %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+# write_rds(home_act_clean, "Output/home_act_clean.rds")
+```
+

@@ -1,0 +1,217 @@
+---
+title: "KidsAIR wood stove grades and usage"
+author: "Ethan Walker"
+date: "Started 13 Jan 2020, Updated 15 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load, format, and save wood stove grade data
+```{r}
+##### WMT #####
+# Load data
+stove_grades_initial_wmt <- read_csv("Input/WMT/wmt_stove_grades_20200113.csv")
+
+wmt_stove_grades <- stove_grades_initial_wmt %>% 
+  # rename variables
+  mutate(home_id = as.factor(HomeID),
+         home_winter_id = as.factor(HomeWinterID),
+         stove_grade = as.factor(Score1),
+         comments = as.character(`REPLACE(REPLACE(Notes`),
+         area = "WMT") %>% 
+  select(home_id, home_winter_id, area, stove_grade, comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(wmt_stove_grades, "Output/wmt_stove_grades.rds")
+
+
+##### NN #####
+# Load data
+stove_grades_initial_nn <- read_xlsx("Input/NN/nn_stove_grades_20200113.xlsx")
+
+nn_stove_grades <- stove_grades_initial_nn %>% 
+  # rename variables
+  mutate(home_id = as.factor(HomeID),
+         home_winter_id = as.factor(HomeWinterID),
+         stove_grade = as.factor(Score1),
+         comments = as.character(IgnoreReason),
+         area = "NN") %>% 
+  select(home_id, home_winter_id, area, stove_grade, comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(nn_stove_grades, "Output/nn_stove_grades.rds")
+
+
+##### AK #####
+# Load data
+stove_grades_initial_ak <- read_xlsx("Input/AK/ak_stove_grades_20200113.xlsx")
+
+ak_stove_grades <- stove_grades_initial_ak %>% 
+  # rename variables
+  mutate(home_id = as.factor(HomeID),
+         home_winter_id = as.factor(HomeWinterID),
+         stove_grade = as.factor(Score1),
+         comments = as.character(IgnoreReason),
+         area = "AK") %>% 
+  select(home_id, home_winter_id, area, stove_grade, comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(ak_stove_grades, "Output/ak_stove_grades.rds")
+```
+
+# Join stove grade data from different areas
+```{r}
+wmt_stove_grades <- read_rds("Output/wmt_stove_grades.rds")
+nn_stove_grades <- read_rds("Output/nn_stove_grades.rds")
+ak_stove_grades <- read_rds("Output/ak_stove_grades.rds")
+
+kids_stove_grades <- rbind(wmt_stove_grades, nn_stove_grades, ak_stove_grades)
+
+# write_rds(kids_stove_grades, "Output/kids_stove_grades.rds")
+```
+
+# Clean up all stove grade data
+```{r}
+kids_stove_grades <- read_rds("Output/kids_stove_grades.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+
+stove_grades_clean <- kids_stove_grades %>% 
+  filter(home_id != 0) %>% 
+  rename(stove_grade_comments = comments) %>% 
+  select(-home_id) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+# write_rds(stove_grades_clean, "Output/stove_grades_clean.rds")
+
+# Dataset showing home with no stove grade
+stove_grades_na <- stove_grades_clean %>% 
+  filter(is.na(stove_grade)) %>% 
+  distinct(home_id) 
+```
+
+###############################################
+
+# Load, format, and save wood stove use data
+```{r}
+##### WMT #####
+# Load data
+stove_use_initial_wmt <- read_csv("Input/WMT/wmt_stove_use_20200113.csv")
+
+wmt_stove_use <- stove_use_initial_wmt %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         burn_level = as.factor(Burning),
+         wood_type = as.factor(Wood),
+         wood_type_other = as.character(WhOtherWood),
+         wood_collect = as.factor(WhenGet),
+         wood_collect_method = as.factor(HowGet),
+         wood_cords = as.numeric(Cords),
+         area = "WMT") %>% 
+  select(home_winter_id, area, burn_level, wood_type, wood_type_other,
+         wood_collect, wood_collect_method, wood_cords) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(wmt_stove_use, "Output/wmt_stove_use.rds")
+
+
+##### NN #####
+# Load data
+stove_use_initial_nn <- read_xlsx("Input/NN/nn_stove_use_20200113.xlsx")
+
+nn_stove_use <- stove_use_initial_nn %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         burn_level = as.factor(Burning),
+         wood_type = as.factor(Wood),
+         wood_type_other = as.character(WhOtherWood),
+         wood_collect = as.factor(WhenGet),
+         wood_collect_method = as.factor(HowGet),
+         wood_cords = as.numeric(Cords),
+         area = "NN") %>% 
+  select(home_winter_id, area, burn_level, wood_type, wood_type_other,
+         wood_collect, wood_collect_method, wood_cords) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(nn_stove_use, "Output/nn_stove_use.rds")
+
+
+##### AK #####
+# Load data
+stove_use_initial_ak <- read_xlsx("Input/AK/ak_stove_use_20200113.xlsx")
+
+ak_stove_use <- stove_use_initial_ak %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         burn_level = as.factor(Burning),
+         wood_type = as.factor(Wood),
+         wood_type_other = as.character(WhOtherWood),
+         wood_collect = as.factor(WhenGet),
+         wood_collect_method = as.factor(HowGet),
+         wood_cords = as.numeric(Cords),
+         area = "AK") %>% 
+  select(home_winter_id, area, burn_level, wood_type, wood_type_other,
+         wood_collect, wood_collect_method, wood_cords) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+# Save as RDS
+# write_rds(ak_stove_use, "Output/ak_stove_use.rds")
+```
+
+# Join stove use data from different areas
+```{r}
+wmt_stove_use <- read_rds("Output/wmt_stove_use.rds")
+nn_stove_use <- read_rds("Output/nn_stove_use.rds")
+ak_stove_use <- read_rds("Output/ak_stove_use.rds")
+
+kids_stove_use <- rbind(wmt_stove_use, nn_stove_use, ak_stove_use)
+
+# write_rds(kids_stove_use, "Output/kids_stove_use.rds")
+```
+
+# Clean up all stove use data
+```{r}
+kids_stove_use <- read_rds("Output/kids_stove_use.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+
+stove_use_clean <- kids_stove_use %>% 
+  replace_with_na(replace = list(wood_cords = -999, wood_cords = 0)) %>% 
+  mutate(wood_collect = factor(wood_collect,
+                               levels = c("Less than 1 week",
+                                          "Between 1 week and 1 month",
+                                          "Between 1 month and 3 months",
+                                          "Between 3 months and 6 months",
+                                          "Between 6 months and 1 year",
+                                          "More than 1 year"),
+                               labels = c("< 1 week",
+                                          "1 week to 1 mo",
+                                          "1 mo to 3 mo",
+                                          "3 mo to 6 mo",
+                                          "6 mo to 1 year",
+                                          "> 1 yr"))) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+# write_rds(stove_use_clean, "Output/stove_use_clean.rds")
+```
+
