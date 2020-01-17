@@ -30,6 +30,7 @@ pm_clean <- read_rds("Output/pm_clean.rds")
 ```{r}
 pm_summary <- pm_clean %>% 
   # group by: area, treatment, dtid, day_of_week, Sampling_day
+  filter(pm < 500) %>% 
   group_by(area) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
@@ -51,13 +52,13 @@ kable(pm_summary, col.names = c("Alaska", "Navajo", "Montana"),
 # Boxplots for PM by study area
 ```{r, fig.height=6, fig.width=5}
 boxplots_kids_pm <- pm_clean %>% 
-  #filter(pm < 500) %>% 
+  filter(pm < 500) %>% 
   ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
     theme_minimal() +
-    ylim(0, 100) +
+    ylim(0, 500) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
     #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
