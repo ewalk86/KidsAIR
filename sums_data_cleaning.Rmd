@@ -1074,3 +1074,30 @@ sums_time_trends_plot <- sums_clean %>%
 sums_time_trends_plot
 ```
 
+# Check to see if there are missing files to search for
+```{r}
+# Load SUMs data
+sums_clean <- read_rds("Output/sums_clean.rds")
+# Load SUMs data logs
+wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds") %>% 
+  mutate(area = "WMT")
+nn_sums_log <- read_rds("Output/nn_sums_data_log.rds") %>% 
+  mutate(area = "NN")
+ak_sums_log <- read_rds("Output/ak_sums_data_log.rds") %>% 
+  mutate(area = "AK")
+
+# Combine SUMs logs from all areas
+all_sums_log <- rbind(wmt_sums_log, nn_sums_log, ak_sums_log) %>% 
+  mutate(winter_id = as.character(winter_id),
+         sums_log = "true")  
+  
+sums_check <- sums_clean %>% 
+  group_by(area, home, winter_id) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  full_join(all_sums_log, by = c("area", "home", "winter_id")) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+write_csv(sums_check, "Output/sums_check.csv")
+```
+

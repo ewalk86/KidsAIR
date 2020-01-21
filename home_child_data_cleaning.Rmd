@@ -286,7 +286,12 @@ kids_ids <- rbind(ak_ids, nn_ids, wmt_ids)
 
 #write_rds(kids_ids, "Output/kids_linked_ids.rds")
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+  mutate(winter_id = as.numeric(winter_id),
+         winter_id = if_else(home == "CH218", winter_id + 1, winter_id)) %>% 
+  filter(winter_id > 0)
+
+#write_rds(kids_linked_ids, "Output/kids_linked_ids.rds")
 ```
 
 # Combine demographic data for WMT, NN, AK

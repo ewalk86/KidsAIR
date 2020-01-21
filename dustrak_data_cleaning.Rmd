@@ -251,9 +251,8 @@ kids_pm <- rbind(wmt_pm_csv, wmt_pm_txt, wmt_pm_other,
                 ak_pm_csv)
 
 
-# Save pm dataset as RDS and CSV
+# Save pm dataset as RDS 
 # write_rds(kids_pm, "Output/kids_pm_full_raw.rds")
-# write_csv(kids_pm, "Output/kids_pm_full.csv")
 ```
 
 # Load Dusttrak data and do initial clean-up
@@ -299,7 +298,7 @@ kids_pm_joined <- kids_pm_full %>%
 
 
 ##### Add new variables to Kids PM data #####
-kids_pm_new <- kids_pm_joined %>%  
+kids_pm_new1 <- kids_pm_joined %>%  
   #filter(area == "AK") %>% 
   # apply correction factor to pm and change to ug
   mutate(pm = pm/1.65,
@@ -353,9 +352,8 @@ kids_pm_new <- kids_pm_joined %>%
          -datetime, -trash1, -trash2) 
 
 
-# Save pm dataset as RDS and CSV
-# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
-# write_csv(kids_pm_new, "Output/kids_pm_new.csv")
+# Save pm dataset as RDS 
+# write_rds(kids_pm_new1, "Output/kids_pm_new1.rds")
 ```
 
 # Summarize by ID and Dusttrak ID to look for trends
@@ -522,10 +520,10 @@ notes_joined <- pm_notes %>%
 ## Notes from above were used to make the following changes in the data
 ```{r}
 # Load data 
-kids_pm <- read_rds("Output/kids_pm_new.rds")
+kids_pm <- read_rds("Output/kids_pm_new1.rds")
 
 # Checking difference between dustrak start datetime and field data log datetime
-kids_pm_new <- kids_pm %>% 
+kids_pm_new2 <- kids_pm %>% 
   #filter(area == "NN") %>% 
   group_by(area, home_winter_id) %>% 
   arrange(pm_datetime) %>% 
@@ -591,7 +589,7 @@ kids_pm_new <- kids_pm %>%
   ungroup() %>% 
   arrange(area, home_winter_id, pm_datetime_new)
 
-# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+# write_rds(kids_pm_new2, "Output/kids_pm_new2.rds")
 ```
 
 # Further cleaning:
@@ -600,9 +598,9 @@ kids_pm_new <- kids_pm %>%
 ## Change negative values
 ```{r}
 # Load data 
-kids_pm <- read_rds("Output/kids_pm_new.rds")
+kids_pm <- read_rds("Output/kids_pm_new2.rds")
 
-kids_pm_new <- kids_pm %>%
+kids_pm_new3 <- kids_pm %>%
   # filtering out specific homes where PM data is not suitable for analysis
   # removes 119,520 obs
          # YKC06_105: only 12 hours of data
@@ -662,17 +660,17 @@ kids_pm_new <- kids_pm %>%
   # 291,490 obs less than 1; 56,684 obs less than 0 
   mutate(pm = if_else(pm < 1, 0.5, pm))
 
-# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
+# write_rds(kids_pm_new3, "Output/kids_pm_new3.rds")
 ```
 
 # New variables to use for analysis
 ```{r}
 # Load data 
-kids_pm <- read_rds("Output/kids_pm_new.rds")
+kids_pm <- read_rds("Output/kids_pm_new3.rds")
 cleaning_summary <- read_xlsx("Input/cleaning_summary.xlsx") %>% 
   select(area, home_winter_id, final_cleaning_pm, sensitivity_analysis_pm)
 
-kids_pm_new <- kids_pm %>% 
+kids_pm_new4 <- kids_pm %>% 
   mutate(home_winter_id = as.numeric(home_winter_id)) %>% 
   left_join(cleaning_summary, by = c("area", "home_winter_id")) %>% 
   select(-samplingdate, -samplingtime, -pickupdate, -pickuptime,
@@ -718,20 +716,19 @@ test <- kids_pm_new %>%
   filter(percent_daily_obs_pm >= 0.9) %>% 
   summarise(n()/2241695)
 
-# write_rds(kids_pm_new, "Output/kids_pm_new.rds")
-# write_csv(kids_pm_new, "Output/kids_pm_new.csv")
+# write_rds(kids_pm_new4, "Output/kids_pm_new4.rds")
 ```
 
 # Save cleaned dataset
 ```{r}
-kids_pm_new <- read_rds("Output/kids_pm_new.rds")
+kids_pm <- read_rds("Output/kids_pm_new4.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
-pm_clean <- kids_pm_new %>% 
+kids_pm_new5 <- kids_pm %>% 
   mutate(home_winter_id = as.character(home_winter_id)) %>% 
   select(-home, -treatment) %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(pm_clean, "Output/pm_clean.rds")
+# write_rds(kids_pm_new5, "Output/pm_clean.rds")
 ```
 
