@@ -92,16 +92,14 @@ wmt_home_ids_linked <- joined1 %>%
   
 # create dataset of child demographic data
 wmt_child_demographics <- joined1 %>% 
-  distinct(child_id_num, .keep_all = TRUE) %>% 
+  #distinct(child_id_num, .keep_all = TRUE) %>% 
   arrange(home_id, child_id_num, winter_id) %>% 
-  filter(enrolled == 1)
+  filter(winter_id == 1 | winter_id == 2) 
 
 
 # Save as RDS and CSV
 write_rds(wmt_home_ids_linked, "Output/wmt_ids_linked.rds")
 write_rds(wmt_child_demographics, "Output/wmt_demographic_data.rds")
-write_csv(wmt_home_ids_linked, "Output/wmt_ids_linked.csv")
-write_csv(wmt_child_demographics, "Output/wmt_demographic_data.csv")
 ``` 
 
 # Load, format, and save home and child overview/demographic data for NN
@@ -178,16 +176,14 @@ nn_home_ids_linked <- joined1 %>%
   
 # create dataset of child demographic data
 nn_child_demographics <- joined1 %>% 
-  distinct(child_id_num, .keep_all = TRUE) %>% 
+  #distinct(child_id_num, .keep_all = TRUE) %>% 
   arrange(home_id, child_id_num, winter_id) %>% 
-  filter(enrolled == 1)
+  filter(winter_id == 1 | winter_id == 2) 
 
 
 # Save as RDS and CSV
 write_rds(nn_home_ids_linked, "Output/nn_ids_linked.rds")
 write_rds(nn_child_demographics, "Output/nn_demographic_data.rds")
-write_csv(nn_home_ids_linked, "Output/nn_ids_linked.csv")
-write_csv(nn_child_demographics, "Output/nn_demographic_data.csv")
 ```
 
 # Load, format, and save home and child overview/demographic data for AK
@@ -264,16 +260,14 @@ ak_home_ids_linked <- joined1 %>%
   
 # create dataset of child demographic data
 ak_child_demographics <- joined1 %>% 
-  distinct(child_id_num, .keep_all = TRUE) %>% 
+  #distinct(child_id_num, .keep_all = TRUE) %>% 
   arrange(home_id, child_id_num, winter_id) %>% 
-  filter(enrolled == 1) 
+  filter(winter_id == 1 | winter_id == 2) 
 
 
 # Save as RDS and CSV
 write_rds(ak_home_ids_linked, "Output/ak_ids_linked.rds")
 write_rds(ak_child_demographics, "Output/ak_demographic_data.rds")
-write_csv(ak_home_ids_linked, "Output/ak_ids_linked.csv")
-write_csv(ak_child_demographics, "Output/ak_demographic_data.csv")
 ```
 
 # Combine linked id data for WMT, NN, AK

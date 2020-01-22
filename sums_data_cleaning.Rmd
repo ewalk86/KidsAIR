@@ -1013,7 +1013,7 @@ wmt_sums_filtered <- read_rds("Output/wmt_sums_filtered.rds")
 nn_sums_filtered <- read_rds("Output/nn_sums_filtered.rds")
 ak_sums_filtered <- read_rds("Output/ak_sums_filtered.rds")
 
-check_dates <- ak_sums_filtered %>% 
+check_dates <- wmt_sums_filtered %>% 
   group_by(home) %>% 
   distinct(datetime_sums, .keep_all = TRUE)
 ```
@@ -1075,9 +1075,15 @@ sums_time_trends_plot
 ```
 
 # Check to see if there are missing files to search for
+## Through 22 Jan 2020, all files are accounted for that are not documented as missing
+## Update once data collection is finished in April 2020
 ```{r}
 # Load SUMs data
-sums_clean <- read_rds("Output/sums_clean.rds")
+sums_clean <- read_rds("Output/sums_clean.rds") 
+
+check <- sums_clean %>% 
+  filter(home_winter_id == 82 & area == "AK")
+
 # Load SUMs data logs
 wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds") %>% 
   mutate(area = "WMT")
@@ -1098,6 +1104,6 @@ sums_check <- sums_clean %>%
   ungroup() %>% 
   arrange(area, home, winter_id)
 
-write_csv(sums_check, "Output/sums_check.csv")
+#write_csv(sums_check, "Output/sums_check.csv")
 ```
 
