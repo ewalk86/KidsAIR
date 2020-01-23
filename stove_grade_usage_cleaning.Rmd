@@ -196,7 +196,8 @@ kids_stove_use <- read_rds("Output/kids_stove_use.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
 stove_use_clean <- kids_stove_use %>% 
-  replace_with_na(replace = list(wood_cords = -999, wood_cords = 0)) %>% 
+  replace_with_na(replace = list(wood_cords = -999)) %>%
+  replace_with_na(replace = list(wood_cords = 0)) %>%
   mutate(wood_collect = factor(wood_collect,
                                levels = c("Less than 1 week",
                                           "Between 1 week and 1 month",

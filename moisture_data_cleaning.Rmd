@@ -141,7 +141,8 @@ kids_moisture <- read_rds("Output/kids_moisture.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
 moisture_clean <- kids_moisture %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  replace_with_na(replace = list(moisture_ave = "NaN"))
 
 # write_rds(moisture_clean, "Output/moisture_clean.rds")
 ```

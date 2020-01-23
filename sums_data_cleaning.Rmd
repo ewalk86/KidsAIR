@@ -1055,13 +1055,13 @@ sums_clean <- all_sums_filtered %>%
 sums_clean <- read_rds("Output/sums_clean.rds")
 
 sums_time_trends_plot <- sums_clean %>% 
-  filter(home == "WMA102") %>% 
+  filter(home == "CH405") %>% 
   ggplot() + 
     geom_point(aes(datetime_sums, temp_c_sums, color = month_sums), size = 1.5) +
     theme_classic() +
     labs(y = "Temperature (degrees C)",
          x = "Datetime",
-         color = "Month of Year") +
+         color = "Logtag ID") +
     theme(axis.title.y = element_text(size = 12,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),
           axis.title.x = element_text(size = 12),
@@ -1105,5 +1105,30 @@ sums_check <- sums_clean %>%
   arrange(area, home, winter_id)
 
 #write_csv(sums_check, "Output/sums_check.csv")
+```
+
+# Thresholds for heating events
+```{r}
+# Load SUMs data
+sums_clean <- read_rds("Output/sums_clean.rds") 
+
+thresholds <- sums_clean %>% 
+  group_by(area, home, winter_id) %>%
+  mutate(temp_sums_40 = if_else(temp_c_sums >= 40, 1, 0),
+         temp_sums_40_event = if_else(temp_sums_40 == 1 & lag(temp_sums_40) == 0, "Start", "Null"),
+         temp_sums_40_event = if_else(is.na(temp_sums_40_event), "Start", temp_sums_40_event),
+         temp_sums_40_event = if_else(temp_sums_40 == 1 & temp_sums_40_event == "Null",
+                                      "Event", temp_sums_40_event),
+         temp_sums_40_event = if_else(temp_sums_40_event == "Event" &
+                                      lead(temp_sums_40_event) == "Null" &
+                                      lead(temp_sums_40_event, 2) == "Null" &
+                                      lead(temp_sums_40_event, 3) == "Null", "End", temp_sums_40_event)) %>% 
+  group_by(area, home, winter_id, date_sums, temp_sums_40_event) %>% 
+  summarize(n = n()) %>% 
+  group_by(temp_sums_40_event) %>% 
+  summarize(mean(n))
+
+
+table(thresholds$temp_sums_40_event)
 ```
 

@@ -1,7 +1,7 @@
 ---
 title: "Kids indoor temp/RH summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 16 Jan 2020"
+date: "Started 15 Jan 2020, Updated 23 Jan 2020"
 output: pdf_document
 ---
 
@@ -24,6 +24,7 @@ indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
 # Summary stats
 ```{r}
 temp_rh_summary <- indoor_temp_rh_clean %>%
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area) %>% 
   summarize_if(is.numeric, list(mean = mean, sd = sd, min = min, 
                                 med = median, max = max), na.rm = TRUE) %>% 
@@ -39,7 +40,7 @@ kable(temp_rh_summary, col.names = c("Alaska", "Navajo", "Montana"),
 boxplots_temp_rh_function <- function(data, variable){
 
 boxplots_temp_rh <- data %>% 
-  # change input to plot different temp/RH variable
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, variable) %>% 
   rename(plot_var = variable) %>% 
   na.exclude() %>% 
@@ -48,10 +49,6 @@ boxplots_temp_rh <- data %>%
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
     theme_minimal() +
-    #ylim(0, 100) +
-    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
-    #labs(y = "Max indoor RH (%)") +
-    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
     theme(axis.text.x = element_text(size = 16, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
           axis.title.y = element_blank(),

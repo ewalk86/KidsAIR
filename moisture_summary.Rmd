@@ -1,7 +1,7 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 15 Jan 2020"
+date: "Started 22 Nov 2019, Updated 23 Jan 2020"
 output: pdf_document
 ---
 
@@ -25,6 +25,7 @@ moisture_clean <- read_rds("Output/moisture_clean.rds")
 ## Average of 3 measurements
 ```{r}
 summary_moisture <- moisture_clean %>%
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area) %>% 
   summarize(mean = mean(moisture_ave, na.rm = TRUE), 
             SD = sd(moisture_ave, na.rm = TRUE),
@@ -40,6 +41,7 @@ kable(summary_moisture, col.names = c("Alaska", "Navajo", "Montana"),
 # Was wood split?
 ```{r}
 wood_split <- moisture_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   filter(!is.na(moisture_split)) %>% 
   group_by(area, moisture_split) %>% 
   summarise(n = n())
@@ -49,6 +51,7 @@ kable(wood_split, align = "c")
 # Boxplots
 ```{r, fig.height=6, fig.width=5}
 boxplots_moisture <- moisture_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, moisture_ave) %>% 
   na.exclude() %>% 
   ggplot(aes(area, moisture_ave)) +

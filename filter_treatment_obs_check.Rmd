@@ -1,0 +1,372 @@
+---
+title: "KidsAIR: treatment filtering and missing data check"
+author: "Ethan Walker"
+date: "Started 21 Jan 2020, Updated 23 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load individual datasets
+```{r}
+pm_clean <- read_rds("Output/pm_clean.rds")
+sums_clean <- read_rds("Output/sums_clean.rds")
+
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds")
+moisture_clean <- read_rds("Output/moisture_clean.rds")
+indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
+stove_use_clean <- read_rds("Output/stove_use_clean.rds")
+stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
+home_char_clean <- read_rds("Output/home_char_clean.rds")
+home_act_clean <- read_rds("Output/home_act_clean.rds")
+```
+
+# Filter winter 1 and specific treatment homes from PM dataset
+## These homes will be the focus of the initial exposure abstract/paper
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+# 88 Winter 1 education homes have PM data
+pm_homes_education <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Education") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+# 86 Winter 1 filter homes have PM data
+pm_homes_filter <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Filter") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+
+#### Join selected homes from above with other datasets and filter homes of interest ####
+
+# PM data
+## 93 placebo homes from Winter 1 have PM data
+## 88 education homes from Winter 1 have PM data
+## 86 filter homes from Winter 1 have PM data
+## All data is accounted for; missing data is truly missing from data collection issues
+```{r}
+pm_filtered <- pm_clean %>% 
+  left_join(pm_homes_placebo, by = c("area", "home")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  ungroup() %>% 
+  arrange(area, home)
+  
+pm_obs <- pm_clean %>% 
+  left_join(pm_homes_placebo, by = c("area", "home")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>% 
+  summarize(n())
+```
+
+# SUMs data
+## 80/93 placebo homes from Winter 1 have SUMs data
+## 77/88 education homes from Winter 1 have SUMs data
+## 70/86 filter homes from Winter 1 have SUMs data
+## All data is accounted for; missing data is truly missing from data collection issues
+```{r}
+sums_check <- sums_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>% 
+  summarize(n()) 
+
+
+sums_filtered <- sums_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+
+# Demographics data
+## 93/93 placebo homes from Winter 1 have demographic data
+## 88/88 education homes from Winter 1 have demographic data
+## 86/86 filter homes from Winter 1 have demographic data
+#### Some missing data within individual homes/rows; will be assessed in further data cleaning ####
+#### Check for different answers across Winter 1 and Winter 2 ####
+```{r}
+demographics_check1 <- demographics_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>% 
+  summarize(n()) 
+
+
+demographics_check2 <- demographics_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>% 
+  summarize(n()) %>% 
+  mutate(dem_filtered = "true") %>% 
+  # change to correct joining data of interest
+  full_join(pm_homes_placebo, by = c("area", "home"))
+  
+
+demographics_filtered <- demographics_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+
+# Moisture data
+## 91/93 placebo homes from Winter 1 have moisture data
+## 83/88 education homes from Winter 1 have moisture data
+## 83/86 filter homes from Winter 1 have moisture data
+```{r}
+moisture_check <- moisture_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(moisture_ave)) %>% 
+  group_by(area, home) %>% 
+  summarize(n())
+
+
+moisture_filtered <- moisture_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(moisture_ave)) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+# Quick data check for odd values
+min(moisture_filtered$moisture_ave)
+max(moisture_filtered$moisture_ave)
+```
+
+
+# Indoor temp/rh data
+## 75/93 placebo homes from Winter 1 have temp/rh data
+## 70/88 education homes from Winter 1 have temp/rh data
+## 76/86 filter homes from Winter 1 have temp/rh data
+#### Some further missing data within individual homes/rows ####
+```{r}
+indoor_temp_rh_check <- indoor_temp_rh_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  mutate(na_filter = if_else(is.na(rh_indoor_current) & is.na(rh_indoor_max) & is.na(rh_indoor_min) &
+                             is.na(temp_indoor_current) & is.na(temp_indoor_max) & is.na(temp_indoor_min),
+                             1, 0)) %>% 
+  filter(na_filter == 0) %>% 
+  group_by(area, home) %>% 
+  summarize(n())
+
+
+indoor_temp_rh_filtered <- indoor_temp_rh_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  mutate(na_filter = if_else(is.na(rh_indoor_current) & is.na(rh_indoor_max) & is.na(rh_indoor_min) &
+                             is.na(temp_indoor_current) & is.na(temp_indoor_max) & is.na(temp_indoor_min),
+                             1, 0)) %>% 
+  filter(na_filter == 0) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+# Quick data check for odd values
+check_vars <- list(indoor_temp_rh_filtered$rh_indoor_current, indoor_temp_rh_filtered$rh_indoor_max, 
+                   indoor_temp_rh_filtered$rh_indoor_min, indoor_temp_rh_filtered$temp_indoor_current, 
+                   indoor_temp_rh_filtered$temp_indoor_max, indoor_temp_rh_filtered$temp_indoor_min)
+
+lapply(check_vars, min, na.rm = TRUE)
+lapply(check_vars, max, na.rm = TRUE)
+```
+  
+  
+# Stove use data
+## 92/93 placebo homes from Winter 1 have stove use data
+## 86/88 education homes from Winter 1 have stove use data
+## 85/86 filter homes from Winter 1 have stove use data
+#### Some further missing data within individual homes/rows ####
+#### 5 homes reported using 20+ cords per year; confirmed by checking paper logs ####
+```{r}
+stove_use_check <- stove_use_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  mutate(na_filter = if_else(is.na(burn_level) & is.na(wood_type) & 
+                             is.na(wood_collect) & is.na(wood_collect_method),
+                             1, 0)) %>% 
+  filter(na_filter == 0) %>%
+  group_by(area, home) %>% 
+  summarize(n())
+
+
+stove_use_filtered <- stove_use_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  mutate(na_filter = if_else(is.na(burn_level) & is.na(wood_type) & 
+                             is.na(wood_collect) & is.na(wood_collect_method),
+                             1, 0)) %>% 
+  filter(na_filter == 0) %>%
+  ungroup() %>% 
+  arrange(area, home)
+
+# Quick data check for odd values
+min(stove_use_filtered$wood_cords, na.rm = TRUE)
+max(stove_use_filtered$wood_cords, na.rm = TRUE)
+```
+
+
+# Stove grades data
+## 90/93 placebo homes have stove grades data
+## 83/88 education homes have stove grades data
+## 79/86 filter homes have stove grades data
+#### If Winter 1 was missing, the grade for Winter 2 was used ####
+```{r}
+stove_grades_check <- stove_grades_clean %>% 
+  # change to correct joining data of interest
+ left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(home) %>% 
+  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  filter(!is.na(stove_grade)) %>% 
+  group_by(area, home) %>% 
+  summarize(n())
+
+
+stove_grades_filtered <- stove_grades_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(home) %>% 
+  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  filter(!is.na(stove_grade)) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+table(stove_grades_filtered$stove_grade)
+```
+
+
+# Home characteristics data
+## Using answers from Winter 2 if Winter 1 = NA
+## 92/93 placebo homes have home characteristics data
+## 86/88 education homes have home characteristics data
+## 85/86 filter homes have home characteristics data
+#### Need to assess differences between Winter 1 and Winter 2 ####
+```{r}
+home_char_check <- home_char_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  group_by(area, home) %>% 
+  mutate_all(funs(if_else(is.na(.), lead(.), .))) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  mutate(na_filter = if_else(is.na(residents_smoke) & is.na(home_type) & 
+                             is.na(primary_heat) & is.na(stove_age),
+                             1, 0)) %>%
+  filter(na_filter == 0) %>%
+  group_by(area, home) %>% 
+  summarize(n())
+
+
+home_char_filtered <- home_char_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(area, home) %>% 
+  mutate_all(funs(if_else(is.na(.), lead(.), .))) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  mutate(na_filter = if_else(is.na(residents_smoke) & is.na(home_type) & 
+                             is.na(primary_heat) & is.na(stove_age),
+                             1, 0)) %>%
+  filter(na_filter == 0) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+
+# Home activity data
+## 93/93 placebo homes from Winter 1 have home activity data
+### 92/93 have 6 observations; 1 has 5 observations
+## 88/88 education homes from Winter 1 have home activity data
+### 84/88 have 6 observations; 4 have 5 observations
+## 86/86 filter homes from Winter 1 have home activity data
+### 85/86 have 6 observations; 1 has 5 observations
+```{r}
+home_act_check <- home_act_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  group_by(area, home) %>% 
+  summarize(n())
+
+
+home_act_filtered <- home_act_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  ungroup() %>% 
+  arrange(area, home, home_act_day)
+```
+
+

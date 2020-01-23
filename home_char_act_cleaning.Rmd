@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR home activity and characteristics cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 15 Jan 2020"
+date: "Started 13 Jan 2020, Updated 23 Jan 2020"
 output: pdf_document
 ---
 
@@ -26,19 +26,19 @@ home_char_initial_wmt <- read_csv("Input/WMT/wmt_home_char_20200113.csv")
 wmt_home_char <- home_char_initial_wmt %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
-         residents_total = as.factor(Residents),
-         residents_under5 = as.factor(Under5),
-         residents_under18 = as.factor(Under18),
+         residents_total = as.numeric(Residents),
+         residents_under5 = as.numeric(Under5),
+         residents_under18 = as.numeric(Under18),
          residents_smoke = as.factor(Smoke),
          residents_smoke_inside = as.factor(SmokeInside),
          home_type = as.factor(HomeType),
-         home_year_built = as.factor(YearHomeBuilt),
+         home_year_built = as.numeric(YearHomeBuilt),
          home_sqft = as.numeric(SqFootage),
-         home_floors = as.factor(NumFloors),
-         home_bedrooms = as.factor(NumBedrooms),
-         home_windows = as.factor(NumWindows),
-         home_pets = as.factor(NumPets),
-         home_furry = as.factor(NumFurryPets),
+         home_floors = as.numeric(NumFloors),
+         home_bedrooms = as.numeric(NumBedrooms),
+         home_windows = as.numeric(NumWindows),
+         home_pets = as.numeric(NumPets),
+         home_furry = as.numeric(NumFurryPets),
          primary_heat = as.factor(PrimaryHeat),
          secondary_heat = as.factor(SecondaryHeat),
          stove_model = as.character(WoodstoveModel),
@@ -72,20 +72,20 @@ home_char_initial_nn <- read_xlsx("Input/NN/nn_home_char_20200113.xlsx")
 
 nn_home_char <- home_char_initial_nn %>% 
   # rename variables
-  mutate(home_winter_id = as.factor(HomeWinterID),
-         residents_total = as.factor(Residents),
-         residents_under5 = as.factor(Under5),
-         residents_under18 = as.factor(Under18),
+   mutate(home_winter_id = as.factor(HomeWinterID),
+         residents_total = as.numeric(Residents),
+         residents_under5 = as.numeric(Under5),
+         residents_under18 = as.numeric(Under18),
          residents_smoke = as.factor(Smoke),
          residents_smoke_inside = as.factor(SmokeInside),
          home_type = as.factor(HomeType),
-         home_year_built = as.factor(YearHomeBuilt),
+         home_year_built = as.numeric(YearHomeBuilt),
          home_sqft = as.numeric(SqFootage),
-         home_floors = as.factor(NumFloors),
-         home_bedrooms = as.factor(NumBedrooms),
-         home_windows = as.factor(NumWindows),
-         home_pets = as.factor(NumPets),
-         home_furry = as.factor(NumFurryPets),
+         home_floors = as.numeric(NumFloors),
+         home_bedrooms = as.numeric(NumBedrooms),
+         home_windows = as.numeric(NumWindows),
+         home_pets = as.numeric(NumPets),
+         home_furry = as.numeric(NumFurryPets),
          primary_heat = as.factor(PrimaryHeat),
          secondary_heat = as.factor(SecondaryHeat),
          stove_model = as.character(WoodstoveModel),
@@ -120,19 +120,19 @@ home_char_initial_ak <- read_xlsx("Input/AK/ak_home_char_20200113.xlsx")
 ak_home_char <- home_char_initial_ak %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
-         residents_total = as.factor(Residents),
-         residents_under5 = as.factor(Under5),
-         residents_under18 = as.factor(Under18),
+         residents_total = as.numeric(Residents),
+         residents_under5 = as.numeric(Under5),
+         residents_under18 = as.numeric(Under18),
          residents_smoke = as.factor(Smoke),
          residents_smoke_inside = as.factor(SmokeInside),
          home_type = as.factor(HomeType),
-         home_year_built = as.factor(YearHomeBuilt),
+         home_year_built = as.numeric(YearHomeBuilt),
          home_sqft = as.numeric(SqFootage),
-         home_floors = as.factor(NumFloors),
-         home_bedrooms = as.factor(NumBedrooms),
-         home_windows = as.factor(NumWindows),
-         home_pets = as.factor(NumPets),
-         home_furry = as.factor(NumFurryPets),
+         home_floors = as.numeric(NumFloors),
+         home_bedrooms = as.numeric(NumBedrooms),
+         home_windows = as.numeric(NumWindows),
+         home_pets = as.numeric(NumPets),
+         home_furry = as.numeric(NumFurryPets),
          primary_heat = as.factor(PrimaryHeat),
          secondary_heat = as.factor(SecondaryHeat),
          stove_model = as.character(WoodstoveModel),
@@ -177,7 +177,35 @@ kids_home_char <- read_rds("Output/kids_home_char.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
 home_char_clean <- kids_home_char %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  # cleaning based on checking odd values with paper logs
+  mutate(residents_under5 = if_else(residents_under5 == 10, 1, residents_under5)) %>% 
+  replace_with_na(replace = list(home_year_built = 0)) %>% 
+  replace_with_na(replace = list(home_floors = 0)) %>% 
+  replace_with_na(replace = list(home_windows = 0)) %>% 
+  replace_with_na(replace = list(residents_total = 0)) %>% 
+  replace_with_na(replace = list(residents_under5 = 0)) %>% 
+  replace_with_na(replace = list(residents_under18 = 0)) %>% 
+  replace_with_na(replace = list(home_sqft = 0)) %>% 
+  mutate(home_year_built = if_else(home_year_built == 15, 2002, home_year_built),
+         home_year_built = if_else(home_year_built == 874, 1980, home_year_built)) %>% 
+  replace_with_na(replace = list(home_year_built = 1400)) %>% 
+  mutate(home_sqft = if_else(home_sqft == 14 & home == "CH102", 360, home_sqft),
+         home_sqft = if_else(home_sqft == 14 & home == "CH107", 1152, home_sqft)) %>% 
+  replace_with_na(replace = list(home_sqft = 12)) %>% 
+  replace_with_na(replace = list(home_sqft = 14)) %>% 
+  replace_with_na(replace = list(home_sqft = 20)) %>% 
+  replace_with_na(replace = list(home_sqft = 24)) %>% 
+  replace_with_na(replace = list(home_sqft = 90)) %>% 
+  mutate(home_furry = if_else(home_furry == 4 & home == "WMA368", 1, home_furry),
+         home_furry = if_else(home_furry == 10 & home == "WMA345", 14, home_furry),
+         home_furry = if_else(home == "WMA309", 3, home_furry),
+         home_pets = if_else(home == "WMA309", 3, home_pets),
+         home_pets = if_else(home == "WMA437", 3, home_pets),
+         home_furry = if_else(home == "WMA437", 3, home_furry)) %>% 
+  replace_with_na(replace = list(home_furry = 14)) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
 
 # write_rds(home_char_clean, "Output/home_char_clean.rds")
 ```

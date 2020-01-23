@@ -1,7 +1,7 @@
 ---
 title: "Kids stove grades and usage summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 15 Jan 2020"
+date: "Started 15 Jan 2020, Updated 23 Jan 2020"
 output: pdf_document
 ---
 
@@ -32,7 +32,7 @@ stove_use_clean <- read_rds("Output/stove_use_clean.rds")
 ## Use this as a quick look at all vars
 table_list <- stove_use_clean %>% 
   #filter(area == "WMT") %>% 
-  filter(winter_id == 1) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>%  
   select(-home_winter_id, -wood_cords, -wood_type_other,
          -home_id, -home, -treatment) 
 lapply(table_list, table)
@@ -42,9 +42,9 @@ lapply(table_list, table)
 ```{r}
 ## Look further into NA values? ##
 stove_grade_summary <- stove_grades_clean %>% 
-  filter(winter_id == 1 | winter_id == 2) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, home, stove_grade) %>% 
-  filter(!is.na(stove_grade)) %>% 
+  #filter(!is.na(stove_grade)) %>% 
   group_by(area, stove_grade) %>% 
   distinct(home) %>% 
   summarize(n())
@@ -69,6 +69,7 @@ kable(multiple_grades)
 ```{r}
 # Summarize numeric vars
 stove_use_summary <- stove_use_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area) %>% 
   summarize("N" = n(),
             "Mean Cords" = mean(wood_cords, na.rm = TRUE),
@@ -90,6 +91,7 @@ table(stove_use_clean$wood_collect_method, stove_use_clean$area, useNA = "ifany"
 stove_use_plot_function <- function(data, variable) {
 
 stove_use_plot <- data %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, variable) %>% 
   rename(plot_var = variable) %>% 
   #na.exclude() %>% 

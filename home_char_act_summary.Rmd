@@ -1,7 +1,7 @@
 ---
 title: "Kids home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 15 Jan 2020"
+date: "Started 15 Jan 2020, Updated 23 Jan 2020"
 output:
   pdf_document: default
   word_document: default
@@ -33,9 +33,9 @@ home_act_clean <- read_rds("Output/home_act_clean.rds")
 ```{r}
 # Summarize numeric vars
 home_char_summary <- home_char_clean %>% 
-  filter(winter_id == 1 | winter_id == 2) %>% 
-  filter(home_sqft != 0) %>% 
-  group_by(area, winter_id) %>% 
+  #filter(winter_id == 1 | winter_id == 2) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area) %>% 
   summarize("N" = n(),
             "Mean Sqft" = mean(home_sqft, na.rm = TRUE), 
             "SD Sqft" = sd(home_sqft, na.rm = TRUE), 
@@ -76,8 +76,7 @@ table_list <- home_act_clean %>%
 home_char_function <- function(data, variable) {
 
 home_plot <- data %>% 
-  filter(winter_id == 1) %>% 
-  filter(home_sqft != 0) %>%
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, variable) %>% 
   rename(plot_var = variable) %>% 
   #na.exclude() %>% 
@@ -131,7 +130,7 @@ home_char_function(home_char_clean, "home_insert")
 home_act_function <- function(data, variable) {
 
 home_plot <- data %>% 
-  filter(winter_id == 1) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, variable) %>% 
   rename(plot_var = variable) %>% 
   #na.exclude() %>% 
