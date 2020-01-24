@@ -1,7 +1,7 @@
 ---
 title: "Kids SUMs Summary"
 author: "Ethan Walker"
-date: "Started 9 Jan 2020, Updated 23 Jan 2020"
+date: "Started 9 Jan 2020, Updated 24 Jan 2020"
 output: pdf_document
 ---
 
@@ -110,3 +110,69 @@ boxplots_kids_sums <- sums_clean %>%
           axis.ticks = element_blank())
 boxplots_kids_sums
 ```
+
+# Function for calculating heating events using specified threshold temps
+## Also specify the "gap" time between events
+```{r}
+thresholds_function <- function(data, temp, gap) {
+
+thresholds <- data %>% 
+  mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
+  group_by(area, home, winter_id) %>%
+  mutate(threshold_temp = if_else(temp_c_sums >= temp, 1, 0),
+         threshold_temp_event = if_else(threshold_temp == 1 & lag(threshold_temp) == 0, 
+                                        "start", "Temp < threshold"),
+         threshold_temp_event = if_else(is.na(threshold_temp_event), "start", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp == 1 & threshold_temp_event == "Temp < threshold",
+                                      "Temp >= threshold", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp_event == "Temp >= threshold" &
+                                      lead(threshold_temp_event) == "Temp < threshold", 
+                                      "event", threshold_temp_event)) %>% 
+  filter(threshold_temp_event == "event" | threshold_temp_event == "start") %>% 
+  spread(threshold_temp_event, datetime_sums) %>% 
+  mutate(event = lead(event),
+         time_diff_min = (event - start),
+         time_diff_min = as.numeric(time_diff_min/60)) %>% 
+  filter(!is.na(time_diff_min)) %>% 
+  mutate(next_event = (lead(start)-event),
+         next_event = as.numeric(next_event)/3600,
+         event2 = if_else(next_event <= gap, lead(event), event),
+         time_diff_min2 = (event - start),
+         time_diff_min2 = as.numeric(time_diff_min2/60),
+         event3 = if_else(next_event <= gap & lead(next_event) <= gap, lead(event, 2), event2),
+         time_diff_min3 = (event3 - start),
+         time_diff_min3 = as.numeric(time_diff_min3/60)) %>% 
+  distinct(event3, .keep_all = TRUE) %>% 
+  mutate(time_diff_min4 = (event3 - start),
+         time_diff_min4 = as.numeric(time_diff_min4/60)) %>% 
+  filter(!is.na(time_diff_min4)) %>% 
+  group_by(area, home, winter_id, date_sums) %>% 
+  summarize(n = n(), mean_time = mean(time_diff_min4)) %>% 
+  group_by(area) %>% 
+  summarize("Mean events per day" = round(mean(n), digits = 2),
+            "Mean event length (min)" = round(mean(mean_time), digits = 0))
+thresholds
+
+}
+
+thresholds_function(sums_clean, 40, 2)
+```
+
+
+# Function to look at percentage of time spent above a threshold
+```{r}
+thresholds_percent <- function(data, temp) {
+
+thresholds <- data %>% 
+  group_by(area, home, winter_id, date_sums) %>%
+  mutate(threshold_temp = if_else(temp_c_sums >= temp, 1, 0)) %>% 
+  summarize(percent_above = sum(threshold_temp)/n()*100) %>% 
+  group_by(area) %>% 
+  summarize("% time/day > threshold" = round(mean(percent_above), digits = 2))
+thresholds
+
+}
+
+thresholds_percent(sums_clean, 40)
+```
+

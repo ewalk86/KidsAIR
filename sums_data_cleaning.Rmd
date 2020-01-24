@@ -1110,25 +1110,107 @@ sums_check <- sums_clean %>%
 # Thresholds for heating events
 ```{r}
 # Load SUMs data
-sums_clean <- read_rds("Output/sums_clean.rds") 
+sums_clean <- read_rds("Output/sums_clean.rds")
 
-thresholds <- sums_clean %>% 
+
+thresholds_test <- sums_clean %>% 
+  mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
   group_by(area, home, winter_id) %>%
-  mutate(temp_sums_40 = if_else(temp_c_sums >= 40, 1, 0),
-         temp_sums_40_event = if_else(temp_sums_40 == 1 & lag(temp_sums_40) == 0, "Start", "Null"),
-         temp_sums_40_event = if_else(is.na(temp_sums_40_event), "Start", temp_sums_40_event),
-         temp_sums_40_event = if_else(temp_sums_40 == 1 & temp_sums_40_event == "Null",
-                                      "Event", temp_sums_40_event),
-         temp_sums_40_event = if_else(temp_sums_40_event == "Event" &
-                                      lead(temp_sums_40_event) == "Null" &
-                                      lead(temp_sums_40_event, 2) == "Null" &
-                                      lead(temp_sums_40_event, 3) == "Null", "End", temp_sums_40_event)) %>% 
-  group_by(area, home, winter_id, date_sums, temp_sums_40_event) %>% 
-  summarize(n = n()) %>% 
-  group_by(temp_sums_40_event) %>% 
-  summarize(mean(n))
+  mutate(threshold_temp = if_else(temp_c_sums >= 40, 1, 0),
+         threshold_temp_event = if_else(threshold_temp == 1 & lag(threshold_temp) == 0, 
+                                        "start", "Temp < threshold"),
+         threshold_temp_event = if_else(is.na(threshold_temp_event), "start", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp == 1 & threshold_temp_event == "Temp < threshold",
+                                      "Temp >= threshold", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp_event == "Temp >= threshold" &
+                                      lead(threshold_temp_event) == "Temp < threshold", 
+                                      "event", threshold_temp_event)) %>% 
+  filter(threshold_temp_event == "event" | threshold_temp_event == "start") %>% 
+  spread(threshold_temp_event, datetime_sums) %>% 
+  mutate(event = lead(event),
+         time_diff_min = (event - start),
+         time_diff_min = as.numeric(time_diff_min/60)) %>% 
+  filter(!is.na(time_diff_min)) %>% 
+  mutate(next_event = (lead(start)-event),
+         next_event = as.numeric(next_event)/3600,
+         event2 = if_else(next_event <= 1.5, lead(event), event),
+         time_diff_min2 = (event - start),
+         time_diff_min2 = as.numeric(time_diff_min2/60),
+         event3 = if_else(next_event <= 1.5 & lead(next_event) <= 1.5, lead(event, 2), event2),
+         time_diff_min3 = (event3 - start),
+         time_diff_min3 = as.numeric(time_diff_min3/60)) %>% 
+  distinct(event3, .keep_all = TRUE) %>% 
+  mutate(time_diff_min4 = (event3 - start),
+         time_diff_min4 = as.numeric(time_diff_min4/60)) %>% 
+  filter(!is.na(time_diff_min4)) %>% 
+  group_by(area, home, winter_id, date_sums) %>% 
+  summarize(n = n(), mean_time = mean(time_diff_min4)) %>% 
+  group_by(area) %>% 
+  summarize("Mean events per day" = round(mean(n), digits = 2),
+            "Mean event length (min)" = round(mean(mean_time), digits = 0))
+thresholds_test
 
 
-table(thresholds$temp_sums_40_event)
+# Function for calculating heating events using specified threshold temps
+# Also specify the "gap" time between events
+# Try another function for % day above threshold
+thresholds_function <- function(data, temp, gap) {
+
+thresholds <- data %>% 
+  mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
+  group_by(area, home, winter_id) %>%
+  mutate(threshold_temp = if_else(temp_c_sums >= temp, 1, 0),
+         threshold_temp_event = if_else(threshold_temp == 1 & lag(threshold_temp) == 0, 
+                                        "start", "Temp < threshold"),
+         threshold_temp_event = if_else(is.na(threshold_temp_event), "start", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp == 1 & threshold_temp_event == "Temp < threshold",
+                                      "Temp >= threshold", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp_event == "Temp >= threshold" &
+                                      lead(threshold_temp_event) == "Temp < threshold", 
+                                      "event", threshold_temp_event)) %>% 
+  filter(threshold_temp_event == "event" | threshold_temp_event == "start") %>% 
+  spread(threshold_temp_event, datetime_sums) %>% 
+  mutate(event = lead(event),
+         time_diff_min = (event - start),
+         time_diff_min = as.numeric(time_diff_min/60)) %>% 
+  filter(!is.na(time_diff_min)) %>% 
+  mutate(next_event = (lead(start)-event),
+         next_event = as.numeric(next_event)/3600,
+         event2 = if_else(next_event <= gap, lead(event), event),
+         time_diff_min2 = (event - start),
+         time_diff_min2 = as.numeric(time_diff_min2/60),
+         event3 = if_else(next_event <= gap & lead(next_event) <= gap, lead(event, 2), event2),
+         time_diff_min3 = (event3 - start),
+         time_diff_min3 = as.numeric(time_diff_min3/60)) %>% 
+  distinct(event3, .keep_all = TRUE) %>% 
+  mutate(time_diff_min4 = (event3 - start),
+         time_diff_min4 = as.numeric(time_diff_min4/60)) %>% 
+  filter(!is.na(time_diff_min4)) %>% 
+  group_by(area, home, winter_id, date_sums) %>% 
+  summarize(n = n(), mean_time = mean(time_diff_min4)) %>% 
+  group_by(area) %>% 
+  summarize("Mean events per day" = round(mean(n), digits = 2),
+            "Mean event length (min)" = round(mean(mean_time), digits = 0))
+thresholds
+
+}
+
+thresholds_function(sums_clean, 40, 2)
+
+
+# Function to look at percentage of time spent above a threshold
+thresholds_percent <- function(data, temp) {
+
+thresholds <- data %>% 
+  group_by(area, home, winter_id, date_sums) %>%
+  mutate(threshold_temp = if_else(temp_c_sums >= temp, 1, 0)) %>% 
+  summarize(percent_above = sum(threshold_temp)/n()*100) %>% 
+  group_by(area) %>% 
+  summarize("% time/day > threshold" = round(mean(percent_above), digits = 2))
+thresholds
+
+}
+
+thresholds_percent(sums_clean, 40)
 ```
 
