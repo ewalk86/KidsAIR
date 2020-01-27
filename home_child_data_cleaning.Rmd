@@ -310,7 +310,11 @@ demographics_clean <- kids_demographics %>%
   unite(intervention_datetime, c("intervention_date", "intervention_time"),
         sep = " ", remove = FALSE) %>% 
   mutate(intervention_datetime = ymd_hms(intervention_datetime)) %>% 
-  select(-trash)
+  select(-trash) %>% 
+  mutate(home_winter_id = as.numeric(home_winter_id),
+         home_winter_id = if_else(home == "CH218" & winter_id == 1, 77, home_winter_id),
+         home_winter_id = if_else(home == "CH218" & winter_id == 2, 111, home_winter_id),
+         home_winter_id = as.factor(home_winter_id)) 
 
 # write_rds(demographics_clean, "Output/demographics_clean.rds")
 ```

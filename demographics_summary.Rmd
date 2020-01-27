@@ -1,0 +1,92 @@
+---
+title: "KidsAIR: household demographics summary"
+author: "Ethan Walker"
+date: "Started 27 Jan 2020, Updated 27 Jan 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load individual datasets
+```{r}
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
+```
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+demographics_filtered <- demographics_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+# Summarize demographics data
+```{r}
+# Summarize numeric vars
+kids_dems <- demographics_filtered %>%  
+  mutate(total_residents = as.numeric(total_residents),
+         residents_under_five = as.numeric(residents_under_five)) %>% 
+  distinct(home, .keep_all = TRUE) %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(total_residents, na.rm = TRUE), 
+            "SD" = sd(total_residents, na.rm = TRUE),
+            "min" = min(total_residents, na.rm = TRUE), 
+            "max" = max(total_residents, na.rm = TRUE))
+kable(kids_dems, digits = 1, align = "c")
+
+# Summarize factor vars
+alaska_dems <- demographics_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "AK") %>% 
+  group_by(age_child_nov) %>% 
+  #summarize(n = n(), percent = (n()/10)*100)
+  summarize(n = n(), percent = (n()/18)*100)
+alaska_dems
+
+navajo_dems <- demographics_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "NN") %>% 
+  group_by(age_child_nov) %>% 
+  #summarize(n = n(), percent = (n()/23)*100)
+  summarize(n = n(), percent = (n()/32)*100)
+navajo_dems
+
+montana_dems <- demographics_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "WMT") %>% 
+  group_by(age_child_nov) %>% 
+  #summarize(n = n(), percent = (n()/60)*100)
+  summarize(n = n(), percent = (n()/87)*100)
+montana_dems
+
+## Select specific var to assess individually/group by area
+table(demographics_filtered$education, demographics_filtered$area, useNA = "ifany")
+```
+

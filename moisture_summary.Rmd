@@ -1,7 +1,7 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 23 Jan 2020"
+date: "Started 22 Nov 2019, Updated 27 Jan 2020"
 output: pdf_document
 ---
 
@@ -19,6 +19,8 @@ library(knitr)
 ```{r}
 # Load data
 moisture_clean <- read_rds("Output/moisture_clean.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 # Moisture content summary stats
@@ -72,5 +74,47 @@ boxplots_moisture <- moisture_clean %>%
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank())
 boxplots_moisture
+```
+
+
+#### Abstract/manuscript tables ####
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+moisture_filtered <- moisture_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+# Summarize home data
+```{r}
+# Summarize numeric vars
+kids_moisture <- moisture_filtered %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(moisture_ave, na.rm = TRUE), 
+            "SD" = sd(moisture_ave, na.rm = TRUE),
+            "min" = min(moisture_ave, na.rm = TRUE), 
+            "med" = median(moisture_ave, na.rm = TRUE), 
+            "max" = max(moisture_ave, na.rm = TRUE))
+kable(kids_moisture, digits = 1, align = "c")
+
+
+table(moisture_filtered$area, moisture_filtered$moisture_split)
 ```
 

@@ -1,7 +1,7 @@
 ---
 title: "Kids indoor temp/RH summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 23 Jan 2020"
+date: "Started 15 Jan 2020, Updated 27 Jan 2020"
 output: pdf_document
 ---
 
@@ -19,6 +19,8 @@ library(knitr)
 ```{r}
 # Load data
 indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 # Summary stats
@@ -90,3 +92,45 @@ boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_max")
 ```{r}
 boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_min")
 ```
+
+
+#### Abstract/manuscript tables ####
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+temp_rh_filtered <- indoor_temp_rh_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+# Summarize home data
+```{r}
+# Summarize numeric vars
+kids_temp_rh <- temp_rh_filtered %>%  
+  distinct(home, .keep_all = TRUE) %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(rh_indoor_min, na.rm = TRUE), 
+            "SD" = sd(rh_indoor_min, na.rm = TRUE),
+            "min" = min(rh_indoor_min, na.rm = TRUE), 
+            "med" = median(rh_indoor_min, na.rm = TRUE), 
+            "max" = max(rh_indoor_min, na.rm = TRUE))
+kable(kids_temp_rh, digits = 1, align = "c")
+
+```
+

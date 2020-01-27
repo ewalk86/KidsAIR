@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 23 Jan 2020"
+date: "Started 22 Nov 2019, Updated 27 Jan 2020"
 output: pdf_document
 ---
 
@@ -37,7 +37,9 @@ pm_summary <- pm_clean %>%
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
             "Min PM" = min(pm, na.rm = TRUE), 
+            "25%" = quantile(pm, 0.25),
             "Median PM" = median(pm, na.rm = TRUE),
+            "75%" = quantile(pm, 0.75),
             "Max PM" = max(pm, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
             "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),

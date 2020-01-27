@@ -1,7 +1,7 @@
 ---
 title: "Kids home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 23 Jan 2020"
+date: "Started 15 Jan 2020, Updated 27 Jan 2020"
 output:
   pdf_document: default
   word_document: default
@@ -25,8 +25,9 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```{r}
 # Load dataset
 home_char_clean <- read_rds("Output/home_char_clean.rds") 
-  
 home_act_clean <- read_rds("Output/home_act_clean.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 # Summary data for home characteristics
@@ -167,3 +168,78 @@ home_act_function(home_act_clean, "home_act_windows")
 home_act_function(home_act_clean, "home_act_door")
 home_act_function(home_act_clean, "home_act_sweep")
 ```
+
+#### Abstract/manuscript tables ####
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+home_char_filtered <- home_char_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+home_act_filtered <- home_act_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+# Summarize home data
+```{r}
+# Summarize numeric vars
+kids_char <- home_char_filtered %>%  
+  distinct(home, .keep_all = TRUE) %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(home_furry, na.rm = TRUE), 
+            "SD" = sd(home_furry, na.rm = TRUE),
+            "min" = min(home_furry, na.rm = TRUE), 
+            "max" = max(home_furry, na.rm = TRUE))
+kable(kids_char, digits = 1, align = "c")
+
+# Summarize factor vars
+alaska_char <- home_act_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "AK") %>% 
+  group_by(home_act_sweep) %>% 
+  #summarize(n = n(), percent = (n()/10)*100)
+  summarize(n = n(), percent = (n()/60)*100)
+alaska_char
+
+navajo_char <- home_act_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "NN") %>% 
+  group_by(home_act_sweep) %>% 
+  #summarize(n = n(), percent = (n()/23)*100)
+  summarize(n = n(), percent = (n()/138)*100)
+navajo_char
+
+montana_char <- home_act_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "WMT") %>% 
+  group_by(home_act_sweep) %>% 
+  #summarize(n = n(), percent = (n()/60)*100)
+  summarize(n = n(), percent = (n()/360)*100)
+montana_char
+
+kids_char <- rbind(alaska_char, navajo_char, montana_char)
+kids_char
+```
+

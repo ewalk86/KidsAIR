@@ -1,7 +1,7 @@
 ---
 title: "Kids stove grades and usage summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 23 Jan 2020"
+date: "Started 15 Jan 2020, Updated 27 Jan 2020"
 output: pdf_document
 ---
 
@@ -23,6 +23,8 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 # Load data
 stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
 stove_use_clean <- read_rds("Output/stove_use_clean.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 ```{r, eval=FALSE}
@@ -120,5 +122,97 @@ stove_use_plot_function(stove_use_clean, "burn_level")
 stove_use_plot_function(stove_use_clean, "wood_type")
 stove_use_plot_function(stove_use_clean, "wood_collect")
 stove_use_plot_function(stove_use_clean, "wood_collect_method")
+```
+
+
+#### Abstract/manuscript tables ####
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+stove_use_filtered <- stove_use_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+stove_grades_filtered <- stove_grades_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+# Summarize home data
+```{r}
+# Summarize numeric vars
+kids_use <- stove_use_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(wood_cords, na.rm = TRUE), 
+            "SD" = sd(wood_cords, na.rm = TRUE),
+            "min" = min(wood_cords, na.rm = TRUE), 
+            "med" = median(wood_cords, na.rm = TRUE), 
+            "max" = max(wood_cords, na.rm = TRUE))
+kable(kids_use, digits = 1, align = "c")
+
+# Summarize factor vars
+alaska_use <- stove_use_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "AK") %>% 
+  group_by(wood_collect_method) %>% 
+  summarize(n = n(), percent = (n()/10)*100)
+  #summarize(n = n(), percent = (n()/60)*100)
+alaska_use
+
+navajo_use <- stove_use_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "NN") %>% 
+  group_by(wood_collect_method) %>% 
+  summarize(n = n(), percent = (n()/23)*100)
+  #summarize(n = n(), percent = (n()/138)*100)
+navajo_use
+
+montana_use <- stove_use_filtered %>%  
+  #distinct(home, .keep_all = TRUE) %>% 
+  filter(area == "WMT") %>% 
+  group_by(wood_collect_method) %>% 
+  summarize(n = n(), percent = (n()/60)*100)
+  #summarize(n = n(), percent = (n()/360)*100)
+montana_use
+
+kids_use <- rbind(alaska_use, navajo_use, montana_use)
+kable(kids_use)
+
+
+# stove grade table
+stove_grades_filtered <- stove_grades_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(home) %>% 
+  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>%
+  filter(!is.na(stove_grade)) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+table(stove_grades_filtered$stove_grade, stove_grades_filtered$area)
 ```
 
