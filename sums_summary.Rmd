@@ -1,7 +1,7 @@
 ---
 title: "Kids SUMs Summary"
 author: "Ethan Walker"
-date: "Started 9 Jan 2020, Updated 24 Jan 2020"
+date: "Started 9 Jan 2020, Updated 28 Jan 2020"
 output: pdf_document
 ---
 
@@ -111,6 +111,41 @@ boxplots_kids_sums <- sums_clean %>%
 boxplots_kids_sums
 ```
 
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home, pm_datetime_new) %>% 
+  separate(pm_datetime_new, c("sample_date", "sample_time"), sep = " ", remove = TRUE) %>% 
+  mutate(sample_date = ymd(sample_date)) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+sums_filtered <- sums_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+sums_filtered_date <- sums_clean %>% 
+  mutate(sample_date = date_sums,
+         sample_date = ymd(sample_date)) %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id", "sample_date")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
 # Function for calculating heating events using specified threshold temps
 ## Also specify the "gap" time between events
 ```{r}
@@ -150,12 +185,19 @@ thresholds <- data %>%
   summarize(n = n(), mean_time = mean(time_diff_min4)) %>% 
   group_by(area) %>% 
   summarize("Mean events per day" = round(mean(n), digits = 2),
+            "SD events per day" = round(sd(n), digits = 2),
             "Mean event length (min)" = round(mean(mean_time), digits = 0))
 thresholds
 
 }
 
-thresholds_function(sums_clean, 40, 2)
+thresholds_function(sums_filtered_date, 25, 1.5)
+thresholds_function(sums_filtered_date, 30, 1.5)
+thresholds_function(sums_filtered_date, 35, 1.5)
+thresholds_function(sums_filtered_date, 40, 1.5)
+thresholds_function(sums_filtered_date, 45, 1.5)
+thresholds_function(sums_filtered_date, 50, 1.5)
+thresholds_function(sums_filtered_date, 55, 1.5)
 ```
 
 
@@ -173,6 +215,12 @@ thresholds
 
 }
 
-thresholds_percent(sums_clean, 40)
+thresholds_percent(sums_filtered_date, 25)
+thresholds_percent(sums_filtered_date, 30)
+thresholds_percent(sums_filtered_date, 35)
+thresholds_percent(sums_filtered_date, 40)
+thresholds_percent(sums_filtered_date, 45)
+thresholds_percent(sums_filtered_date, 50)
+thresholds_percent(sums_filtered_date, 55)
 ```
 

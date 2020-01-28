@@ -1,7 +1,7 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 27 Jan 2020"
+date: "Started 22 Nov 2019, Updated 28 Jan 2020"
 output: pdf_document
 ---
 
@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE,
 
 ```{r, message=FALSE}
 library(tidyverse)
+library(lubridate)
 library(readr)
 library(knitr)
 ```
@@ -89,7 +90,8 @@ pm_homes_placebo <- pm_clean %>%
   mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
   filter(initial_obs == 1) %>% 
   mutate(pm_home = "true") %>% 
-  select(area, home, home_winter_id, pm_home) %>% 
+  select(area, home, home_winter_id, pm_home, first_datetime_new) %>% 
+  separate(first_datetime_new, c("first_date", "first_time"), sep = " ", remove = TRUE) %>% 
   ungroup() %>% 
   arrange(area, home)
 
@@ -98,8 +100,23 @@ moisture_filtered <- moisture_clean %>%
   left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
   filter(pm_home == "true") %>% 
   filter(winter_id == 1) %>% 
-  ungroup() %>% 
+  ungroup() %>%
   arrange(area, home)
+
+moisture_filtered_time <- moisture_filtered %>% 
+  # fix wrong date
+  mutate(moisture_date = as.character(moisture_date),
+         moisture_date = if_else(home == "CH220" & moisture_date == "2014-04-10",
+                                 "2017-04-10", moisture_date),
+         moisture_date = ymd(moisture_date)) %>% 
+  mutate(moisture_date = ymd(moisture_date),
+         first_date = ymd(first_date),
+         time_diff = moisture_date - first_date,
+         time_diff = as.numeric(abs(time_diff))) %>% 
+  group_by(home) %>% 
+  mutate(time_diff_rank = if_else(time_diff == min(time_diff, na.rm = TRUE), 1, 0)) %>%
+  ungroup() %>% 
+  filter(time_diff_rank == 1)
 ```
 
 # Summarize home data
@@ -114,6 +131,15 @@ kids_moisture <- moisture_filtered %>%
             "max" = max(moisture_ave, na.rm = TRUE))
 kable(kids_moisture, digits = 1, align = "c")
 
+# Summarize numeric vars
+kids_moisture <- moisture_filtered_time %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(time_diff, na.rm = TRUE), 
+            "SD" = sd(time_diff, na.rm = TRUE),
+            "min" = min(time_diff, na.rm = TRUE), 
+            "med" = median(time_diff, na.rm = TRUE), 
+            "max" = max(time_diff, na.rm = TRUE))
+kable(kids_moisture, digits = 1, align = "c")
 
 table(moisture_filtered$area, moisture_filtered$moisture_split)
 ```

@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 27 Jan 2020"
+date: "Started 22 Nov 2019, Updated 28 Jan 2020"
 output: pdf_document
 ---
 
@@ -29,7 +29,6 @@ pm_clean <- read_rds("Output/pm_clean.rds")
 # Summary stats
 ```{r}
 pm_summary <- pm_clean %>% 
-  # group by: area, treatment, dtid, day_of_week, Sampling_day
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   filter(pm < 500) %>% 
   group_by(area) %>% 
@@ -42,6 +41,7 @@ pm_summary <- pm_clean %>%
             "75%" = quantile(pm, 0.75),
             "Max PM" = max(pm, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
+            "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
             "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
             "Mean % Daily Obs" = mean(percent_daily_obs_pm, na.rm = TRUE)) %>% 
   select(-area) %>% 
@@ -49,6 +49,25 @@ pm_summary <- pm_clean %>%
 
 kable(pm_summary, col.names = c("Alaska", "Navajo", "Montana"), 
       digits = 1, align = "c")
+
+
+pm_by_day <- pm_clean %>% 
+  mutate(sampling_month = month(pm_datetime_new, abbr = TRUE)) %>% 
+  mutate(day_of_week = factor(day_of_week,
+                                 levels = c("Monday", "Tuesday", "Wednesday", "Thursday",
+                                            "Friday", "Saturday", "Sunday"),
+                                 labels = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"))) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(pm < 500) %>% 
+  group_by(area, sampling_month) %>% 
+  summarize("Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "25%" = quantile(pm, 0.25),
+            "Median PM" = median(pm, na.rm = TRUE),
+            "75%" = quantile(pm, 0.75),
+            "Max PM" = max(pm, na.rm = TRUE))
+pm_by_day
 ```
 
 
