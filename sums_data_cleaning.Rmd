@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 14 Jan 2020"
+date: "Started 23 Dec 2019, Updated 30 Jan 2020"
 output: pdf_document
 ---
 
@@ -206,16 +206,19 @@ wmt_sums_csv <- initial_data %>%
   filter(temp_c != "Paused") %>% 
   # separate temp to remove instances of ">" in the temp data
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
-  mutate(datetime_sums = datetime,
-         date_sums = date,
-         time_sums = time,
+  mutate(datetime_sums = ymd_hms(datetime),
+         date_sums = ymd(date),
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          file_type = "logtag") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -244,14 +247,19 @@ wmt_sums_csv_2 <- initial_data %>%
   unite("home", c("home2", "home"), sep = "") %>% 
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
-  mutate(date_sums = ymd(date_sums),
+  mutate(datetime_sums = ymd_hms(datetime_sums),
+         date_sums = ymd(date_sums),
+         time_sums = hms(time_sums),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          file_type = "temp_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -284,15 +292,20 @@ wmt_sums_csv_3 <- initial_data %>%
   separate(temp_f, c("trash2", "temp_f"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = mdy_hms(datetime),
          date_sums = mdy(date),
-         time_sums = time,
+         time_sums = hms(time),
          temp_f = if_else(is.na(temp_f), trash2, temp_f),
          temp_f = as.numeric(temp_f),
          temp_c_sums = (temp_f-32)/1.8,
          file_type = "temp_f") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
+  mutate(datetime_sums = ymd_hms(datetime_sums),
+         date_sums = ymd(date_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 ##### Read in sums xlsx files (from WMT) #####
@@ -321,17 +334,20 @@ wmt_sums_xlsx <- initial_data %>%
   unite("home", c("home2", "home"), sep = "") %>% 
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
-  mutate(datetime_sums = datetime,
-         date_sums = date,
-         time_sums = time,
+  mutate(datetime_sums = ymd_hms(datetime),
+         date_sums = ymd(date),
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums) 
 
 
 # List files
@@ -358,17 +374,20 @@ wmt_sums_xlsx2 <- initial_data %>%
   unite("home", c("home2", "home"), sep = "") %>% 
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>%
-  mutate(datetime_sums = datetime,
-         date_sums = date,
-         time_sums = time,
+  mutate(datetime_sums = ymd_hms(datetime),
+         date_sums = ymd(date),
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -395,17 +414,20 @@ wmt_sums_xlsx3 <- initial_data %>%
   unite("home", c("home2", "home"), sep = "") %>% 
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>%
-  mutate(datetime_sums = datetime,
-         date_sums = date,
-         time_sums = time,
+  mutate(datetime_sums = ymd_hms(datetime),
+         date_sums = ymd(date),
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -428,22 +450,29 @@ wmt_sums_xlsx4 <- initial_data %>%
          area = "WMT",
          home2 = "WMA") %>% 
   separate("time", c("trash", "time"), sep = " ") %>%
-  unite("time", c("time", "am_pm"), sep = " ") %>% 
+  unite("time", c("time", "am_pm"), sep = " ") %>%
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   unite("home", c("home2", "home"), sep = "") %>% 
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>%
   mutate(datetime_sums = ymd_hms(datetime),
          date_sums = ymd(date),
-         time_sums = time,
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          home = as.factor(home),
          file_type = "xlsx_c") %>% 
-  select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
+  select(home, area, datetime_sums, temp_c_sums, file_type) %>% 
+  separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
+  mutate(datetime_sums = ymd_hms(datetime_sums),
+         date_sums = ymd(date_sums),
+         time_sums = hms(time_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -471,38 +500,38 @@ wmt_sums_xlsx5 <- initial_data %>%
   unite("home", c("home2", "home"), sep = "") %>% 
   mutate(datetime_sums = ymd_hms(datetime),
          date_sums = ymd(date),
-         time_sums = time,
+         time_sums = hms(time),
          temp_c_sums = (temp_f-32)/1.8,
          home = as.factor(home),
          file_type = "xlsx_f") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
+  separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
+  mutate(datetime_sums = ymd_hms(datetime_sums),
+         date_sums = ymd(date_sums),
+         time_sums = hms(time_sums)) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  arrange(home, datetime_sums)
 
 
 # Bind all WMT SUMs data together
 wmt_sums_raw <- rbind(wmt_sums_csv, wmt_sums_csv_2, wmt_sums_csv_3,
                       wmt_sums_xlsx, wmt_sums_xlsx2, wmt_sums_xlsx3,
                       wmt_sums_xlsx4, wmt_sums_xlsx5) %>% 
-  select(-datetime_sums) %>% 
-  unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
-  filter(!is.na(date_sums)) %>% 
-  arrange(home, datetime_sums) %>% 
-  distinct() %>% # remove duplicate lines that have same info from different files
+  filter(!is.na(datetime_sums)) %>% 
   mutate(file_type = factor(file_type, levels = c("logtag", "temp_c",
                                                   "temp_f", "xlsx_c",
-                                                  "xlsx_f")))
-
-# This filtering will keep only the first instance when there are multiple
-# observations for a specific datetime_sums
-wmt_sums_filter <- wmt_sums_raw %>% 
+                                                  "xlsx_f"))) %>% 
+  arrange(home, datetime_sums, file_type) %>% 
   group_by(home) %>% 
-  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
   ungroup() %>% 
   arrange(home, datetime_sums)
 
-# write_rds(wmt_sums_filter, "Output/wmt_sums_raw.rds")
+
+# write_rds(wmt_sums_raw, "Output/wmt_sums_raw.rds")
 ```
 
 # Initial load, format, and save KidsAIR NN SUMs data
@@ -538,16 +567,19 @@ nn_sums_csv <- initial_data %>%
   unite("datetime", c("date", "time"), sep = " ", remove = FALSE) %>% 
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
-  mutate(datetime_sums = datetime,
-         date_sums = date,
-         time_sums = time,
+  mutate(datetime_sums = ymd_hms(datetime),
+         date_sums = ymd(date),
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          file_type = "logtag") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -570,19 +602,26 @@ nn_sums_csv_2 <- initial_data %>%
   separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>%
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
-  mutate(date_sums = ymd(date_sums),
+  mutate(datetime_sums = ymd_hms(datetime_sums),
+         date_sums = ymd(date_sums),
+         time_sums = hms(time_sums),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          file_type = "temp_c") %>%
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums)) 
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums) 
 
 
 # List files
 ## Numerous files had this format
 ## No header, 3 columns: date, time, temp (F)
+##### NO LONGER USING THESE FILES!
+##### COMPARED TO CORRESPONDING LOGTAG FILES, THE TIMESTAMPS ARE OFF
 list_csv_files_3 <- list.files("Input/NN/sums_csv_old/3col-f")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -619,24 +658,17 @@ nn_sums_csv_3 <- initial_data %>%
 
 
 # Bind all WMT SUMs data together
-nn_sums_raw <- rbind(nn_sums_csv, nn_sums_csv_2, nn_sums_csv_3) %>% 
-  select(-datetime_sums) %>% 
-  unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
-  filter(!is.na(date_sums)) %>% 
-  arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  mutate(file_type = factor(file_type, levels = c("logtag", "temp_c",
-                                                  "temp_f")))
-
-# This filtering will keep only the first instance when there are multiple
-# observations for a specific datetime_sums
-nn_sums_filter <- nn_sums_raw %>% 
+nn_sums_raw <- rbind(nn_sums_csv, nn_sums_csv_2) %>% 
+  filter(!is.na(datetime_sums)) %>% 
+  mutate(file_type = factor(file_type, levels = c("logtag", "temp_c"))) %>% 
+  arrange(home, datetime_sums, file_type) %>% 
   group_by(home) %>% 
-  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
   ungroup() %>% 
   arrange(home, datetime_sums)
+  
 
-# write_rds(nn_sums_filter, "Output/nn_sums_raw.rds")
+# write_rds(nn_sums_raw, "Output/nn_sums_raw.rds")
 ```
 
 # Initial load, format, and save KidsAIR AK SUMs data
@@ -672,20 +704,25 @@ ak_sums_csv <- initial_data %>%
   filter(temp_c != "Paused") %>% 
   separate(temp_c, c("trash2", "temp_c"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime),
-         date_sums = date,
-         time_sums = time,
+         date_sums = ymd(date),
+         time_sums = hms(time),
          temp_c = if_else(is.na(temp_c), trash2, temp_c),
          temp_c_sums = as.numeric(temp_c),
          file_type = "logtag") %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
 ## Numerous files had this format with no header
 ## 5 columns: line, date, time, temp (F), notes
+##### NO LONGER USING THESE FILES!
+##### COMPARED TO CORRESPONDING LOGTAG FILES, THE TIMESTAMPS ARE OFF
 list_csv_files_2 <- list.files("Input/AK/sums_csv_old")
 
 # Set working directory and load files in list; extract file name and add as column
@@ -756,10 +793,16 @@ ak_sums_xlsx <- initial_data %>%
          file_type = "xlsx_c") %>% 
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
+  separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
+  mutate(date_sums = ymd(date_sums),
+         time_sums = hms(time_sums)) %>% 
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # List files
@@ -790,32 +833,32 @@ ak_sums_xlsx2 <- initial_data %>%
          file_type = "xlsx_f") %>% 
   unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_sums = ymd_hms(datetime_sums)) %>% 
+  separate("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
+  mutate(date_sums = ymd(date_sums),
+         time_sums = hms(time_sums)) %>%
   select(home, area, datetime_sums, date_sums, time_sums, temp_c_sums, file_type) %>% 
   arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  filter(!is.na(temp_c_sums))
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
+  ungroup() %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  arrange(home, datetime_sums)
 
 
 # Bind all AK SUMs data together
-ak_sums_raw <- rbind(ak_sums_csv, ak_sums_csv_2, 
+ak_sums_raw <- rbind(ak_sums_csv,  
                      ak_sums_xlsx, ak_sums_xlsx2) %>% 
-  select(-datetime_sums) %>% 
-  unite("datetime_sums", c("date_sums", "time_sums"), sep = " ", remove = FALSE) %>% 
-  filter(!is.na(date_sums)) %>% 
-  arrange(home, datetime_sums) %>% 
-  distinct() %>% 
-  mutate(file_type = factor(file_type, levels = c("logtag", "temp_f",
-                                                  "xlsx_c", "xlsx_f")))
-
-# This filtering will keep only the first instance when there are multiple
-# observations for a specific datetime_sums
-ak_sums_filter <- ak_sums_raw %>% 
+  filter(!is.na(datetime_sums)) %>% 
+  mutate(file_type = factor(file_type, levels = c("logtag",
+                                                  "xlsx_c", "xlsx_f"))) %>% 
+  arrange(home, datetime_sums, file_type) %>% 
   group_by(home) %>% 
-  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>%  # remove duplicate lines that have same info from different files
   ungroup() %>% 
-  arrange(home, datetime_sums)
+  arrange(home, datetime_sums)  
+  
 
-# write_rds(ak_sums_filter, "Output/ak_sums_raw.rds")
+# write_rds(ak_sums_raw, "Output/ak_sums_raw.rds")
 ```
 
 # Bind all SUMs files together after initial upload
@@ -1034,6 +1077,7 @@ all_sums_filtered <- rbind(wmt_sums_filtered, nn_sums_filtered, ak_sums_filtered
 all_sums_filtered <- read_rds("Output/all_sums_filtered.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
   select(home_winter_id, area, treatment)
+
 
 sums_clean <- all_sums_filtered %>% 
    mutate(temp_c_sums = as.numeric(temp_c_sums),

@@ -1,7 +1,7 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 28 Jan 2020"
+date: "Started 22 Nov 2019, Updated 30 Jan 2020"
 output: pdf_document
 ---
 
@@ -122,7 +122,7 @@ moisture_filtered_time <- moisture_filtered %>%
 # Summarize home data
 ```{r}
 # Summarize numeric vars
-kids_moisture <- moisture_filtered %>%  
+kids_moisture <- moisture_filtered_time %>%  
   group_by(area) %>% 
   summarize("Mean" = mean(moisture_ave, na.rm = TRUE), 
             "SD" = sd(moisture_ave, na.rm = TRUE),

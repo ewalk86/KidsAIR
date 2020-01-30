@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial moisture content data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 14 Jan 2020"
+date: "Started 19 Nov 2019, Updated 30 Jan 2020"
 output: pdf_document
 ---
 
@@ -142,7 +142,13 @@ kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 
 moisture_clean <- kids_moisture %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
-  replace_with_na(replace = list(moisture_ave = "NaN"))
+  replace_with_na(replace = list(moisture_ave = "NaN")) %>% 
+  # lower range on instrument = 5%
+  # therefore, changing values < 5 to 5
+  mutate(moisture_1 = if_else(moisture_1 < 5, 5, moisture_1),
+         moisture_2 = if_else(moisture_2 < 5, 5, moisture_2),
+         moisture_3 = if_else(moisture_3 < 5, 5, moisture_3),
+         moisture_ave = if_else(moisture_ave < 5, 5, moisture_ave))
 
 # write_rds(moisture_clean, "Output/moisture_clean.rds")
 ```
