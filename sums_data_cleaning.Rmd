@@ -1092,6 +1092,22 @@ sums_clean <- all_sums_filtered %>%
   
 
 # write_rds(sums_clean, "Output/sums_clean.rds")
+
+
+sums_clean <- read_rds("Output/sums_clean.rds")
+
+time_diff_check <- sums_clean %>% 
+  group_by(area, home) %>% 
+  mutate(time_diff = lead(datetime_sums) - datetime_sums,
+         time_diff_indicator = if_else(time_diff < 20, 1, 0)) %>% 
+  filter(time_diff_indicator == 1) %>% 
+  summarise(n())
+
+time_diff_check_home <- sums_clean %>% 
+  group_by(area, home) %>% 
+  mutate(time_diff = lead(datetime_sums) - datetime_sums,
+         time_diff_indicator = if_else(time_diff < 20, 1, 0)) %>% 
+  filter(home == "WMA238")
 ```
 
 # Plot temp over time for individual home to check for trends visually

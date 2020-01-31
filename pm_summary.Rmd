@@ -29,9 +29,9 @@ pm_clean <- read_rds("Output/pm_clean.rds")
 # Summary stats
 ```{r}
 pm_summary <- pm_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  #filter(winter_id == 1 & treatment == "Placebo") %>% 
   filter(pm < 500) %>% 
-  group_by(area) %>% 
+  group_by(treatment) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
@@ -44,10 +44,10 @@ pm_summary <- pm_clean %>%
             "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
             "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
             "Mean % Daily Obs" = mean(percent_daily_obs_pm, na.rm = TRUE)) %>% 
-  select(-area) %>% 
+  #select(-treatment) %>% 
   t() 
 
-kable(pm_summary, col.names = c("Alaska", "Navajo", "Montana"), 
+kable(pm_summary, 
       digits = 1, align = "c")
 
 
