@@ -1,7 +1,7 @@
 ---
 title: "Kids SUMs Summary"
 author: "Ethan Walker"
-date: "Started 9 Jan 2020, Updated 30 Jan 2020"
+date: "Started 9 Jan 2020, Updated 7 Feb 2020"
 output: pdf_document
 ---
 
@@ -145,7 +145,7 @@ sums_filtered <- sums_clean %>%
   filter(pm_home == "true") %>% 
   filter(winter_id == 1) %>% 
   ungroup() %>% 
-  arrange(area, home)
+  arrange(area, home) 
 
 sums_filtered_date <- sums_clean %>% 
   mutate(sample_date = date_sums,
@@ -216,9 +216,9 @@ thresholds_by_area
 
 }
 
+thresholds_function(sums_filtered_date, 25, 1.5)
+thresholds_function(sums_filtered_date, 27, 1.5)
 thresholds_function(sums_filtered_date, 30, 1.5)
-thresholds_function(sums_filtered_date, 40, 1.5)
-thresholds_function(sums_filtered_date, 50, 1.5)
 ```
 
 
@@ -226,9 +226,9 @@ thresholds_function(sums_filtered_date, 50, 1.5)
 ```{r}
 thresholds_percent <- function(data, temp) {
 
-thresholds <- sums_filtered_date %>% 
+thresholds <- data %>% 
   group_by(area, home, winter_id, date_sums) %>%
-  mutate(threshold_temp = if_else(temp_c_sums >= 40, 1, 0)) %>% 
+  mutate(threshold_temp = if_else(temp_c_sums >= temp, 1, 0)) %>% 
   summarize(percent_above = sum(threshold_temp)/n()*100) %>% 
   group_by(area) %>% 
   summarize("% time/day > threshold" = round(mean(percent_above), digits = 2))
@@ -237,11 +237,7 @@ thresholds
 }
 
 thresholds_percent(sums_filtered_date, 25)
+thresholds_percent(sums_filtered_date, 27)
 thresholds_percent(sums_filtered_date, 30)
-thresholds_percent(sums_filtered_date, 35)
-thresholds_percent(sums_filtered_date, 40)
-thresholds_percent(sums_filtered_date, 45)
-thresholds_percent(sums_filtered_date, 50)
-thresholds_percent(sums_filtered_date, 55)
 ```
 

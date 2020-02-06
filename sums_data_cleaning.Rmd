@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 30 Jan 2020"
+date: "Started 23 Dec 2019, Updated 6 Feb 2020"
 output: pdf_document
 ---
 
@@ -1094,20 +1094,45 @@ sums_clean <- all_sums_filtered %>%
 # write_rds(sums_clean, "Output/sums_clean.rds")
 
 
+########## New cleaning on 6 Feb 2020 ##########
+
 sums_clean <- read_rds("Output/sums_clean.rds")
 
-time_diff_check <- sums_clean %>% 
-  group_by(area, home) %>% 
-  mutate(time_diff = lead(datetime_sums) - datetime_sums,
-         time_diff_indicator = if_else(time_diff < 20, 1, 0)) %>% 
-  filter(time_diff_indicator == 1) %>% 
-  summarise(n())
+# This cleaning is a bit of a desperation attempt to try and salvage most of the
+# SUMs data. Because of the way data was collected and files were saved, it
+# became very difficult ot piece files together for each home. For some of the homes,
+# data is fine - particularly if they used LogTags for the entire Winter and there
+# is one continuous file from one instrument for the whole Winter. However, if an
+# IButton was used (which held only around 1 month of data), or if a LogTag was
+# switched out during sampling, piecing the various files together becomes a nightmare.
+# All of the files had heads and tails of pre- or post-sampling data that needed
+# to be cut off, but there wasn't a good indication of when the sampling exactly
+# stopped and started when an instrument was switched out in the field. There was
+# typically overlap in the files when an instrument was switched out: a tail from
+# the old instrument before it was turned off, and a head from the new instrument
+# from the time it was turned on, but prior to sampling. During these overlap
+# periods in the data, there was no good indication of what instrument was actually
+# sampling within the home. I tried to write some rules/algorithms to pull out what
+# I thought was the correct data, but there inconsistencies were inconsistent. 
+# Nothing I did made the data seem trustworthy for most of the homes, so here I have
+# resorted to cutting out those overlapping periods in the data. I am filtering out
+# around 161,000 observations (of 3.5 million, so < 5% of the data), but I can't come
+# up with any other way to have cleaned data that I actually trust, short of 
+# pasting each individual file together by hand. Even then, there are formatting
+# issues that would take days to resolve. So, this is the best way I have found
+# to get what I think is reliable SUMs data: filtering out the observations
+# with overlapping datapoints by pulling out instances when the time between
+# sampling points is not consistent.
 
-time_diff_check_home <- sums_clean %>% 
+sums_new <- sums_clean %>% 
   group_by(area, home) %>% 
   mutate(time_diff = lead(datetime_sums) - datetime_sums,
-         time_diff_indicator = if_else(time_diff < 20, 1, 0)) %>% 
-  filter(home == "WMA238")
+         time_diff_indicator = if_else(time_diff != rollmean(time_diff, 4), 1, 0)) %>% 
+  filter(time_diff_indicator != 1) %>%
+  ungroup() %>% 
+  arrange(area, home, winter_id, datetime_sums)
+
+# write_rds(sums_new, "Output/sums_clean.rds")
 ```
 
 # Plot temp over time for individual home to check for trends visually

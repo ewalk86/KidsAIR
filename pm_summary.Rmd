@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 28 Jan 2020"
+date: "Started 22 Nov 2019, Updated 2 Feb 2020"
 output: pdf_document
 ---
 
@@ -29,16 +29,17 @@ pm_clean <- read_rds("Output/pm_clean.rds")
 # Summary stats
 ```{r}
 pm_summary <- pm_clean %>% 
-  #filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(pm < 500) %>% 
-  group_by(treatment) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  #filter(pm < 500) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  group_by(area) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
             "Min PM" = min(pm, na.rm = TRUE), 
-            "25%" = quantile(pm, 0.25),
+            "25%" = quantile(pm, 0.25, na.rm = TRUE),
             "Median PM" = median(pm, na.rm = TRUE),
-            "75%" = quantile(pm, 0.75),
+            "75%" = quantile(pm, 0.75, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
             "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
@@ -58,14 +59,15 @@ pm_by_day <- pm_clean %>%
                                             "Friday", "Saturday", "Sunday"),
                                  labels = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"))) %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(pm < 500) %>% 
-  group_by(area, sampling_month) %>% 
+  #filter(pm < 500) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  group_by(area, day_of_week) %>% 
   summarize("Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
             "Min PM" = min(pm, na.rm = TRUE), 
-            "25%" = quantile(pm, 0.25),
+            "25%" = quantile(pm, 0.25, na.rm = TRUE),
             "Median PM" = median(pm, na.rm = TRUE),
-            "75%" = quantile(pm, 0.75),
+            "75%" = quantile(pm, 0.75, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE))
 pm_by_day
 ```
@@ -95,4 +97,5 @@ boxplots_kids_pm <- pm_clean %>%
           axis.ticks = element_blank())
 boxplots_kids_pm
 ```
+
 
