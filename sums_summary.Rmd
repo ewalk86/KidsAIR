@@ -156,6 +156,12 @@ sums_filtered_date <- sums_clean %>%
   filter(winter_id == 1) %>% 
   ungroup() %>% 
   arrange(area, home)
+
+sums_winter1_placebo <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  ungroup() %>% 
+  arrange(area, home)
 ```
 
 # Function for calculating heating events using specified threshold temps
@@ -174,36 +180,45 @@ thresholds <- data %>%
                                       "Temp >= threshold", threshold_temp_event),
          threshold_temp_event = if_else(threshold_temp_event == "Temp >= threshold" &
                                       lead(threshold_temp_event) == "Temp < threshold", 
-                                      "event", threshold_temp_event)) %>% 
-  filter(threshold_temp_event == "event" | threshold_temp_event == "start") %>% 
+                                      "event_end", threshold_temp_event)) %>% 
+  filter(threshold_temp_event == "event_end" | threshold_temp_event == "start") %>% 
   mutate(time_sums = as.character(time_sums),
          date_sums = as.character(date_sums)) %>%  
   spread(threshold_temp_event, datetime_sums) %>% 
-  mutate(event = lead(event),
-         time_diff_min = (event - start),
-         time_diff_min = as.numeric(time_diff_min/60)) %>% 
-  filter(!is.na(time_diff_min)) %>% 
-  mutate(next_event = (lead(start)-event),
-         next_event = as.numeric(next_event)/3600,
-         event2 = if_else(next_event <= gap, lead(event), event),
-         time_diff_min2 = (event - start),
-         time_diff_min2 = as.numeric(time_diff_min2/60),
-         event3 = if_else(next_event <= gap & lead(next_event) <= gap, lead(event, 2), event2),
-         time_diff_min3 = (event3 - start),
-         time_diff_min3 = as.numeric(time_diff_min3/60)) %>% 
-  distinct(event3, .keep_all = TRUE) %>% 
-  mutate(time_diff_min4 = (event3 - start),
-         time_diff_min4 = as.numeric(time_diff_min4/60)) %>% 
-  filter(!is.na(time_diff_min4)) %>% 
+  mutate(event_end = lead(event_end),
+         event_length_min = (event_end - start),
+         event_length_min = as.numeric(event_length_min/60)) %>% 
+  filter(!is.na(event_length_min)) %>% 
+  mutate(hrs_till_next_event = (lead(start)-event_end),
+         hrs_till_next_event = as.numeric(hrs_till_next_event)/3600,
+         event_end2 = if_else(hrs_till_next_event <= gap, lead(event_end), event_end),
+         event_end3 = if_else(hrs_till_next_event <= gap & lead(hrs_till_next_event) <= gap, 
+                              lead(event_end, 2), event_end2),
+         event_end4 = if_else(hrs_till_next_event <= gap & lead(hrs_till_next_event) <= gap
+                              & lead(hrs_till_next_event, 2) <= gap, 
+                              lead(event_end, 3), event_end3),
+         event_end5 = if_else(hrs_till_next_event <= gap & lead(hrs_till_next_event) <= gap
+                              & lead(hrs_till_next_event, 2) <= gap & lead(hrs_till_next_event, 3) <= gap, 
+                              lead(event_end, 4), event_end4),
+         event_end6 = if_else(hrs_till_next_event <= gap & lead(hrs_till_next_event) <= gap
+                              & lead(hrs_till_next_event, 2) <= gap & lead(hrs_till_next_event, 3) <= gap
+                              & lead(hrs_till_next_event, 4) <= gap, 
+                              lead(event_end, 5), event_end5)) %>% 
+  distinct(event_end6, .keep_all = TRUE) %>% 
+  mutate(event_length_min = (event_end6 - start),
+         event_length_min = as.numeric(event_length_min/60),
+         hrs_till_next_event = (lead(start)-event_end),
+         hrs_till_next_event = as.numeric(hrs_till_next_event)/3600) %>% 
+  filter(!is.na(event_length_min)) %>% 
   group_by(area, home, winter_id, date_sums) %>% 
-  summarize(n = n(), mean_time = mean(time_diff_min4))
+  summarize(n = n(), mean_time = mean(event_length_min))
 
 thresholds_by_home <<- thresholds %>% 
   group_by(home) %>% 
   summarize("Mean events per day" = round(mean(n), digits = 2),
             "SD events per day" = round(sd(n), digits = 2),
             "Mean event length (min)" = round(mean(mean_time), digits = 0),
-            "SD event length (min)" = round(sd(mean_time), digits = 2))
+            "SD event length (min)" = round(sd(mean_time), digits = 2)) 
 thresholds_by_home
 
 thresholds_by_area <<- thresholds %>% 
