@@ -65,6 +65,56 @@ kable(sums_summary, col.names = c("Alaska", "Navajo", "Montana"), digits = 1, al
 ```
 
 
+# Closer look at negative temperatures
+```{r}
+total_homes <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  count(home)
+
+home_neg <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  mutate(neg_temp = if_else(temp_c_sums < 0, 1, 0)) %>% 
+  filter(neg_temp == 1) %>% 
+  count(home) %>% 
+  mutate(home_neg_temp = 1) %>% 
+  select(home, home_neg_temp)
+
+total_instruments <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  count(ibid)
+
+instrument_neg <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  mutate(neg_temp = if_else(temp_c_sums < 0, 1, 0)) %>% 
+  filter(neg_temp == 1) %>% 
+  count(ibid) %>% 
+  mutate(instrument_neg_temp = 1) %>% 
+  select(ibid, instrument_neg_temp)
+
+sums_neg_check <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  left_join(home_neg, by = "home") %>% 
+  left_join(instrument_neg, by = "ibid") %>% 
+  mutate(home_neg_temp = if_else(is.na(home_neg_temp), 0, home_neg_temp),
+         instrument_neg_temp = if_else(is.na(instrument_neg_temp), 0, instrument_neg_temp)) %>% 
+  # group by both home_neg_temp and instrument_neg_temp to check summaries
+  group_by(home_neg_temp) %>% 
+  summarize("mean" = mean(temp_c_sums, na.rm = TRUE),
+            "n" = n(),
+            "min" = min(temp_c_sums, na.rm = TRUE),
+            "median" = median(temp_c_sums, na.rm = TRUE),
+            "max" = max(temp_c_sums, na.rm = TRUE))
+sums_neg_check
+```
+
+The summaries above indicate that homes that had negative temperatures have similar
+summary stats to those that did not have negative temps. The same is true for
+the instruments used to measure temperature: instruments that had negative readings
+have similar summary stats to those without negative readings. This gives some
+reassurance that there are not any obvious trends associated with homes or
+instruments that recorded negative temperatures during sampling.
+
+
 # Boxplots for SUMs temp (C) by study area - Winter 1
 ```{r, fig.height=6, fig.width=5}
 boxplots_kids_sums <- sums_clean %>%
@@ -254,5 +304,44 @@ thresholds
 thresholds_percent(sums_filtered_date, 25)
 thresholds_percent(sums_filtered_date, 27)
 thresholds_percent(sums_filtered_date, 30)
+```
+
+
+# Define events by rate of change in temperature
+```{r}
+sums_temp_change <- sums_clean %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>% 
+  mutate(time_diff = lead(datetime_sums) - datetime_sums) %>% 
+  mutate(lead_temp = if_else(time_diff < 20, lead(temp_c_sums, 4), lead(temp_c_sums)),
+         lead_temp = if_else(time_diff > 25, temp_c_sums, lead_temp),
+         temp_diff = lead_temp - temp_c_sums,
+         temp_diff_av = abs(lead_temp - temp_c_sums),
+         temp_diff_check = if_else(temp_diff >= 5, 1, 0),
+         heat_event = if_else(temp_diff_check == 1 & lag(temp_diff_check) == 1, 0,
+                              temp_diff_check)) %>% 
+  ungroup() %>% 
+  arrange(area, home, datetime_sums)
+
+
+summary_by_area <- sums_temp_change %>% 
+  group_by(area, home, date_sums) %>% 
+  summarize("events" = sum(heat_event, na.rm = TRUE)) %>% 
+  group_by(area) %>% 
+  summarize("Mean events" = mean(events),
+            "SD events" = sd(events),
+            "Min events" = min(events),
+            "Median events" = median(events),
+            "Max events" = max(events))
+summary_by_area
+
+
+temp_diff_by_area <- sums_temp_change %>% 
+  mutate(time_diff = as.numeric(time_diff)) %>% 
+  filter(time_diff >= 5 & time_diff < 30) %>% 
+  group_by(area) %>% 
+  summarize("mean temp diff" = mean(temp_diff_av, na.rm = TRUE),
+            "mean time diff" = mean(time_diff, na.rm = TRUE))
+temp_diff_by_area
 ```
 

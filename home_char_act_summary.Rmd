@@ -56,6 +56,8 @@ table_list <- home_char_clean %>%
 
 ## Select specific var to assess individually/group by area
 table(table_list$winter_id, table_list$area, table_list$home_type, useNA = "ifany")
+
+table(home_char_summary$stove_age)
 ```
 
 # Summary data for home activity
@@ -213,6 +215,11 @@ kids_char <- home_char_filtered %>%
             "min" = min(home_furry, na.rm = TRUE), 
             "max" = max(home_furry, na.rm = TRUE))
 kable(kids_char, digits = 1, align = "c")
+
+
+home_char_filtered %>% 
+  count(stove_age)
+
 
 # Summarize factor vars
 alaska_char <- home_act_filtered %>%  
