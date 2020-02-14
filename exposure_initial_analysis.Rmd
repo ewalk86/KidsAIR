@@ -15,6 +15,8 @@ library(readxl)
 library(naniar)
 library(lubridate)
 library(zoo)
+library(lme4)
+library(lmerTest)
 ```
 
 # Load individual datasets
@@ -35,6 +37,7 @@ home_act_clean <- read_rds("Output/home_act_clean.rds")
 
 # Combine datasets
 ```{r}
+# Mean PM for each placebo home over winter 1
 pm_home_mean <- pm_clean %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   #filter(pm < 500) %>% 
@@ -42,6 +45,8 @@ pm_home_mean <- pm_clean %>%
   group_by(area, home) %>% 
   summarize(mean_pm = mean(pm, na.rm = TRUE))
 
+
+# Join demographics with mean PM and format for analysis
 pm_demographics <- pm_home_mean %>% 
   left_join(demographics_clean, by = c("area", "home")) %>% 
   filter(winter_id == 1) %>% 
@@ -57,33 +62,153 @@ pm_demographics <- pm_home_mean %>%
                                        "College degree")))
 
 
+# Join home characteristics with mean PM and format for analysis
 pm_home_char <- pm_home_mean %>% 
   left_join(home_char_clean, by = c("area", "home")) %>% 
   filter(winter_id == 1) %>% 
   mutate(stove_age = factor(stove_age,
                          levels = c("0-5 years old", "6-10 years old",
                                     "11-15 years old", "16 + years old",
-                                    "Do not know")))
+                                    "Do not know")),
+         stove_cert = factor(stove_cert,
+                             levels = c("Yes", "No", "Do not know")),
+         home_sqft_cat = cut(home_sqft, breaks = c(0, 500, 1000, 2000, 3000, 5000),
+                         labels = c("<500", "500-999", "1000-1999", 
+                                    "2000-2999", "3000+"),
+                         right = FALSE),
+         home_floors = factor(home_floors, levels = c(1,2,3)),
+         home_bedrooms_cat = cut(home_bedrooms, breaks = c(0, 2, 4, 10),
+                                 labels = c("0 or 1", "2 or 3", "4+"),
+                                 right = FALSE),
+         home_windows_cat = cut(home_windows, breaks = c(0, 5, 10, 20, 30, 50),
+                                labels = c("0-5", "6-10", "11-20", "21-30", "30+")))
 
 
-pm_home_char <- pm_home_mean %>% 
-  left_join(home_char_clean, by = c("area", "home")) %>% 
+# Join stove use with mean PM and format for analysis
+pm_stove_use <- pm_home_mean %>% 
+  left_join(stove_use_clean, by = c("area", "home")) %>% 
   filter(winter_id == 1) %>% 
-  mutate(stove_age = factor(stove_age,
-                         levels = c("0-5 years old", "6-10 years old",
-                                    "11-15 years old", "16 + years old",
-                                    "Do not know")))
+  mutate(burn_level = factor(burn_level,
+                         levels = c("No burning", "Light burning",
+                                    "Average burning", "Heavy burning"),
+                         labels = c("No burning", "Light", "Average", "Heavy"))) %>% 
+  mutate(wood_cords = if_else(wood_cords > 10, 10, wood_cords))
+
+
+# Join demographics with mean PM and format for analysis
+stove_grades <- stove_grades_clean %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(home) %>% 
+  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade))
+
+pm_stove_grades <- pm_home_mean %>% 
+  left_join(stove_grades, by = c("area", "home")) %>% 
+  filter(winter_id == 1)
+
+
+# Join home activity with mean PM and format for analysis
+pm_home_act <- pm_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  #filter(pm < 500) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  arrange(area, home, sampling_day) %>% 
+  group_by(area, home, sampling_day) %>% 
+  summarize(mean_pm = mean(pm, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(home_act_day = as.factor(sampling_day)) %>% 
+  arrange(area, home, home_act_day) %>% 
+  left_join(home_act_clean, by = c("area", "home", "home_act_day")) %>% 
+  filter(winter_id == 1)
+
+
+# Join moisture content with mean PM and format for analyzis
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home, first_datetime_new) %>% 
+  separate(first_datetime_new, c("first_date", "first_time"), sep = " ", remove = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+moisture_filtered <- moisture_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>%
+  arrange(area, home)
+
+moisture_filtered_time <- moisture_filtered %>% 
+  # fix wrong date
+  mutate(moisture_date = as.character(moisture_date),
+         moisture_date = if_else(home == "CH220" & moisture_date == "2014-04-10",
+                                 "2017-04-10", moisture_date),
+         moisture_date = ymd(moisture_date)) %>% 
+  mutate(moisture_date = ymd(moisture_date),
+         first_date = ymd(first_date),
+         time_diff = moisture_date - first_date,
+         time_diff = as.numeric(abs(time_diff))) %>% 
+  group_by(home) %>% 
+  mutate(time_diff_rank = if_else(time_diff == min(time_diff, na.rm = TRUE), 1, 0)) %>%
+  ungroup() %>% 
+  filter(time_diff_rank == 1)
+
+pm_moisture <- pm_home_mean %>% 
+  left_join(moisture_filtered_time, by = c("area", "home")) %>% 
+  filter(winter_id == 1) %>% 
+  mutate(moisture_ave_5 = moisture_ave/5) %>% 
+  filter(!is.na(moisture_ave_5))
 ```
 
 
 # Simple associations between PM and covariates
 ```{r}
+# *income*, *education*
 pm_demographics_results <- lm(mean_pm ~ education, data = pm_demographics)
 summary(pm_demographics_results)
 
 
-pm_home_char_results <- lm(mean_pm ~ stove_age, data = pm_home_char)
+# stove_age, stove_cert, *home_sqft_cat*, *secondary_heat*, *home_floors*
+# home_pets, home_furry, *home_windows_cat*, *home_bedrooms_cat*, *residents_smoke*
+pm_home_char_results <- lm(mean_pm ~ home_bedrooms_cat, data = pm_home_char)
 summary(pm_home_char_results)
+plot(pm_home_char_results)
+
+
+# burn_level, wood_collect, wood_cords
+pm_stove_use_results <- lm(mean_pm ~ wood_collect, data = pm_stove_use)
+summary(pm_stove_use_results)
+
+pm_stove_use_plot <- pm_stove_use %>% 
+  ggplot() + 
+    geom_boxplot(aes(burn_level, mean_pm))
+pm_stove_use_plot
+
+
+# *stove_grade*
+pm_stove_grades_results <- lm(mean_pm ~ stove_grade, data = pm_stove_grades)
+summary(pm_stove_grades_results)
+anova(pm_stove_grades_results)
+
+pm_stove_grades_plot <- pm_stove_grades %>% 
+  ggplot() + 
+    geom_boxplot(aes(stove_grade, mean_pm))
+pm_stove_grades_plot
+
+
+# home_act_sweep, home_act_windows, home_act_door, *home_act_smoking*
+# home_act_incense, home_act_candle
+pm_home_act_results <- lmer(mean_pm ~ home_act_sweep + (1 | home), data = pm_home_act)
+summary(pm_home_act_results)
+
+
+# *moisture_ave_5*
+pm_moisture_results <- lm(mean_pm ~ moisture_ave_5, data = pm_moisture)
+summary(pm_moisture_results)
 ```
 
 

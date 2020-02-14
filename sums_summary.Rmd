@@ -311,13 +311,15 @@ thresholds_percent(sums_filtered_date, 30)
 ```{r}
 sums_temp_change <- sums_clean %>% 
   filter(winter_id == 1) %>% 
+  #filter(treatment == "Placebo") %>% 
   group_by(area, home) %>% 
   mutate(time_diff = lead(datetime_sums) - datetime_sums) %>% 
   mutate(lead_temp = if_else(time_diff < 20, lead(temp_c_sums, 4), lead(temp_c_sums)),
          lead_temp = if_else(time_diff > 25, temp_c_sums, lead_temp),
          temp_diff = lead_temp - temp_c_sums,
          temp_diff_av = abs(lead_temp - temp_c_sums),
-         temp_diff_check = if_else(temp_diff >= 5, 1, 0),
+         # change temp in the following line
+         temp_diff_check = if_else(temp_diff >= 2, 1, 0),
          heat_event = if_else(temp_diff_check == 1 & lag(temp_diff_check) == 1, 0,
                               temp_diff_check)) %>% 
   ungroup() %>% 
@@ -325,13 +327,15 @@ sums_temp_change <- sums_clean %>%
 
 
 summary_by_area <- sums_temp_change %>% 
-  group_by(area, home, date_sums) %>% 
+  group_by(area, treatment, home, date_sums) %>% 
   summarize("events" = sum(heat_event, na.rm = TRUE)) %>% 
-  group_by(area) %>% 
+  group_by(area, treatment) %>% 
   summarize("Mean events" = mean(events),
             "SD events" = sd(events),
             "Min events" = min(events),
+            "25%" = quantile(events, 0.25),
             "Median events" = median(events),
+            "75%" = quantile(events, 0.75),
             "Max events" = max(events))
 summary_by_area
 
@@ -339,7 +343,7 @@ summary_by_area
 temp_diff_by_area <- sums_temp_change %>% 
   mutate(time_diff = as.numeric(time_diff)) %>% 
   filter(time_diff >= 5 & time_diff < 30) %>% 
-  group_by(area) %>% 
+  group_by(area, treatment) %>% 
   summarize("mean temp diff" = mean(temp_diff_av, na.rm = TRUE),
             "mean time diff" = mean(time_diff, na.rm = TRUE))
 temp_diff_by_area
