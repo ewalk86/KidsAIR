@@ -1,0 +1,369 @@
+---
+title: "Kids health and child data cleaning"
+author: "Ethan Walker"
+date: "Started 27 Feb 2020, Updated 27 Feb 2020"
+output: pdf_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+# Load data
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
+```
+
+
+################# At Home Log ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_athomelog_initial <- read_xlsx("Input/WMT/wmt_athomelog_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         child_id_num = as.factor(ChildID),
+         area = "WMT",
+         at_home_day = as.factor(Day),
+         at_home_7 = as.factor(AtHome1),
+         location_7 = as.factor(Where1),
+         at_home_8 = as.factor(AtHome2),
+         location_8 = as.factor(Where2),
+         at_home_9 = as.factor(AtHome3),
+         location_9 = as.factor(Where3),
+         at_home_10 = as.factor(AtHome4),
+         location_10 = as.factor(Where4),
+         at_home_11 = as.factor(AtHome5),
+         location_11 = as.factor(Where5),
+         at_home_12 = as.factor(AtHome6),
+         location_12 = as.factor(Where6),
+         at_home_13 = as.factor(AtHome7),
+         location_13 = as.factor(Where7),
+         at_home_14 = as.factor(AtHome8),
+         location_14 = as.factor(Where8),
+         at_home_15 = as.factor(AtHome9),
+         location_15 = as.factor(Where9),
+         at_home_16 = as.factor(AtHome10),
+         location_16 = as.factor(Where10),
+         at_home_17 = as.factor(AtHome11),
+         location_17 = as.factor(Where11),
+         at_home_18 = as.factor(AtHome12),
+         location_18 = as.factor(Where12),
+         at_home_19 = as.factor(AtHome13),
+         location_19 = as.factor(Where13),
+         at_home_20 = as.factor(AtHome14),
+         location_20 = as.factor(Where14),
+         at_home_21 = as.factor(AtHome15),
+         location_21 = as.factor(Where15),
+         at_home_22 = as.factor(AtHome16),
+         location_22 = as.factor(Where16)) %>% 
+  select(home_winter_id:location_22)
+
+
+nn_athomelog_initial <- read_xlsx("Input/NN/nn_athomelog_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         child_id_num = as.factor(ChildID),
+         area = "NN",
+         at_home_day = as.factor(Day),
+         at_home_7 = as.factor(AtHome1),
+         location_7 = as.factor(Where1),
+         at_home_8 = as.factor(AtHome2),
+         location_8 = as.factor(Where2),
+         at_home_9 = as.factor(AtHome3),
+         location_9 = as.factor(Where3),
+         at_home_10 = as.factor(AtHome4),
+         location_10 = as.factor(Where4),
+         at_home_11 = as.factor(AtHome5),
+         location_11 = as.factor(Where5),
+         at_home_12 = as.factor(AtHome6),
+         location_12 = as.factor(Where6),
+         at_home_13 = as.factor(AtHome7),
+         location_13 = as.factor(Where7),
+         at_home_14 = as.factor(AtHome8),
+         location_14 = as.factor(Where8),
+         at_home_15 = as.factor(AtHome9),
+         location_15 = as.factor(Where9),
+         at_home_16 = as.factor(AtHome10),
+         location_16 = as.factor(Where10),
+         at_home_17 = as.factor(AtHome11),
+         location_17 = as.factor(Where11),
+         at_home_18 = as.factor(AtHome12),
+         location_18 = as.factor(Where12),
+         at_home_19 = as.factor(AtHome13),
+         location_19 = as.factor(Where13),
+         at_home_20 = as.factor(AtHome14),
+         location_20 = as.factor(Where14),
+         at_home_21 = as.factor(AtHome15),
+         location_21 = as.factor(Where15),
+         at_home_22 = as.factor(AtHome16),
+         location_22 = as.factor(Where16)) %>% 
+  select(home_winter_id:location_22)
+
+
+ak_athomelog_initial <- read_xlsx("Input/AK/ak_athomelog_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         child_id_num = as.factor(ChildID),
+         area = "AK",
+         at_home_day = as.factor(Day),
+         at_home_7 = as.factor(AtHome1),
+         location_7 = as.factor(Where1),
+         at_home_8 = as.factor(AtHome2),
+         location_8 = as.factor(Where2),
+         at_home_9 = as.factor(AtHome3),
+         location_9 = as.factor(Where3),
+         at_home_10 = as.factor(AtHome4),
+         location_10 = as.factor(Where4),
+         at_home_11 = as.factor(AtHome5),
+         location_11 = as.factor(Where5),
+         at_home_12 = as.factor(AtHome6),
+         location_12 = as.factor(Where6),
+         at_home_13 = as.factor(AtHome7),
+         location_13 = as.factor(Where7),
+         at_home_14 = as.factor(AtHome8),
+         location_14 = as.factor(Where8),
+         at_home_15 = as.factor(AtHome9),
+         location_15 = as.factor(Where9),
+         at_home_16 = as.factor(AtHome10),
+         location_16 = as.factor(Where10),
+         at_home_17 = as.factor(AtHome11),
+         location_17 = as.factor(Where11),
+         at_home_18 = as.factor(AtHome12),
+         location_18 = as.factor(Where12),
+         at_home_19 = as.factor(AtHome13),
+         location_19 = as.factor(Where13),
+         at_home_20 = as.factor(AtHome14),
+         location_20 = as.factor(Where14),
+         at_home_21 = as.factor(AtHome15),
+         location_21 = as.factor(Where15),
+         at_home_22 = as.factor(AtHome16),
+         location_22 = as.factor(Where16)) %>% 
+  select(home_winter_id:location_22)
+
+
+# Combine logs from all areas
+kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
+                          ak_athomelog_initial) %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+
+# write_rds(kids_at_home_log, "Output/kids_at_home_log.rds")
+```
+
+
+################# Medical Visit ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "WMT",
+         med_visit_date = ymd(VisitDate),
+         med_visit_ari = as.character(ARI),
+         lethargy = as.character(Lethargy),
+         retractions = as.character(Retractions),
+         temp1 = as.numeric(Temp1),
+         temp2 = as.numeric(Temp2),
+         temp3 = as.numeric(Temp3),
+         resp_rate = as.numeric(RR),
+         heart_rate = as.numeric(HR),
+         wheeze = as.character(Wheeze),
+         stridor = as.character(Stridor),
+         crackles = as.character(Crackles),
+         sp02 = as.numeric(SP02),
+         hr_sp02 = as.numeric(HRPulseOx),
+         referred = as.character(Referred),
+         med_visit_notes = as.character(Notes)) %>% 
+  select(home_winter_id:med_visit_notes) %>% 
+  replace_with_na_all(condition = ~.x == -999)
+
+
+nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "NN",
+         med_visit_date = ymd(VisitDate),
+         med_visit_ari = as.character(ARI),
+         lethargy = as.character(Lethargy),
+         retractions = as.character(Retractions),
+         temp1 = as.numeric(Temp1),
+         temp2 = as.numeric(Temp2),
+         temp3 = as.numeric(Temp3),
+         resp_rate = as.numeric(RR),
+         heart_rate = as.numeric(HR),
+         wheeze = as.character(Wheeze),
+         stridor = as.character(Stridor),
+         crackles = as.character(Crackles),
+         sp02 = as.numeric(SP02),
+         hr_sp02 = as.numeric(HRPulseOx),
+         referred = as.character(Referred),
+         med_visit_notes = as.character(Level)) %>% 
+  select(home_winter_id:med_visit_notes) %>% 
+  replace_with_na_all(condition = ~.x == -999)
+
+
+ak_medicalvisit_initial <- read_xlsx("Input/AK/ak_medicalvisit_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "AK",
+         med_visit_date = ymd(VisitDate),
+         med_visit_ari = as.character(ARI),
+         lethargy = as.character(Lethargy),
+         retractions = as.character(Retractions),
+         temp1 = as.numeric(Temp1),
+         temp2 = as.numeric(Temp2),
+         temp3 = as.numeric(Temp3),
+         resp_rate = as.numeric(RR),
+         heart_rate = as.numeric(HR),
+         wheeze = as.character(Wheeze),
+         stridor = as.character(Stridor),
+         crackles = as.character(Crackles),
+         sp02 = as.numeric(SP02),
+         hr_sp02 = as.numeric(HRPulseOx),
+         referred = as.character(Referred),
+         med_visit_notes = as.character(Level)) %>% 
+  select(home_winter_id:med_visit_notes) %>% 
+  replace_with_na_all(condition = ~.x == -999)
+
+
+
+# Combine logs from all areas
+kids_med_visit <- rbind(wmt_medicalvisit_initial, nn_medicalvisit_initial,
+                          ak_medicalvisit_initial) %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+
+# write_rds(kids_med_visit, "Output/kids_med_visit.rds")
+```
+
+
+
+################# Birth Infancy ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_birthinfancy_initial <- read_xlsx("Input/WMT/wmt_birthinfancy_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "WMT",
+         gender = as.character(Gender),
+         bw_lbs = as.numeric(BirthweightLbs),
+         bw_oz = as.numeric(BirthWeightOz),
+         birth_weight_oz = as.numeric((bw_lbs*16)+bw_oz),
+         mom_age = as.numeric(AgeOfMom),
+         breastfeed_current = as.character(CurrentlyBreastfeeding),
+         breastfeed_past = as.character(DidBreastfeed),
+         bf_years = as.numeric(HowLongYears),
+         bf_months = as.numeric(HowLongMonths),
+         breastfeed_months = as.numeric((bf_years*12)+bf_months),
+         flu_shot = as.character(FluShot),
+         flu_shot_planned = as.character(FluShotPlanned),
+         asthma_meds = as.character(AsthmaMeds),
+         child_school = as.character(Attend),
+         school_hours = as.numeric(HoursDay),
+         school_days = as.numeric(DaysWeek),
+         school_hours_week = as.numeric(school_hours*school_days),
+         sibling_school = as.character(SibSchool)) %>% 
+  select(home_winter_id:sibling_school)
+         
+
+# Waiting on files from NN and AK
+```
+
+
+
+################# Child Home Winter  ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_childhomewinter_initial <- read_xlsx("Input/WMT/wmt_childhomewinter_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         home_id = as.character(HomeID),
+         child_id_num = as.character(ChildID),
+         area = "WMT",
+         dr_relook = DrRelook,
+         ari_status = as.character(Status),
+         symptom_free_date = ymd(SymptomFreeDate),
+         csq_duedate = ymd(CSQDueDate),
+         csq_date = ymd(CSQDate),
+         csq_time = as.character(CSQTime),
+         dr_comments = as.character(DrComments),
+         dr_history = as.character(DrHistory),
+         notify_parents = as.character(NotifyParents),
+         notes_to_parents = as.character(NotesToParents),
+         any_ari = as.character(AnyARI),
+         ari_comments = as.character(WinterARIComments)) %>% 
+  select(home_winter_id:ari_comments)
+         
+
+# Waiting on files from NN and AK
+```
+
+
+
+################# CSQ  ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "WMT",
+         csq_date = ymd(Date),
+         sick_2_weeks = as.character(Illin2Weeks),
+         sick = as.character(Sick),
+         ari = as.character(ARI),
+         still_sick = as.character(StillSick),
+         first_symptom_date = ymd(FirstSymptomDate),
+         see_dr = as.character(SeeDr),
+         dr_diagnosis = as.character(DrDiagnosis),
+         new_meds = as.character(NewMeds),
+         fever = as.character(Fever),
+         temp = as.numeric(Temperature),
+         rapid_breathing = as.character(RapidBreathing),
+         difficult_breathing = as.character(DifficultBreathing),
+         noisy_breathing = as.character(NoisyBreathing),
+         runny_nose = as.character(RunnyNose),
+         cough = as.character(Coughing),
+         wheeze = as.character(Wheezing),
+         symptom_free_date = ymd(SymptomFreeDate),
+         comments = as.character(Comments)) %>% 
+  select(home_winter_id:comments)
+         
+
+# Waiting on files from NN and AK
+```
+
+
+
+################# Medical Records ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_medicalrecords_initial <- read_xlsx("Input/WMT/wmt_medicalrecords_20200227.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "WMT",
+         visit_date = ymd(VisitDate),
+         dr_diagnosis = as.character(DrDiag),
+         ari = as.character(ARI),
+         comments = as.character(DrComments)) %>% 
+  select(home_winter_id:comments)
+         
+
+# Waiting on files from NN and AK
+```

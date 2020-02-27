@@ -1,7 +1,7 @@
 ---
 title: "Kids stove grades and usage summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 27 Jan 2020"
+date: "Started 15 Jan 2020, Updated 27 Feb 2020"
 output: pdf_document 
 ---
 
@@ -23,9 +23,14 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 # Load data
 stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
 stove_use_clean <- read_rds("Output/stove_use_clean.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") 
+demographics_clean <- read_rds("Output/demographics_clean.rds")
 pm_clean <- read_rds("Output/pm_clean.rds")
 ```
+
+
+############ Use only most recent stove grades for analysis ###############
+
 
 ```{r, eval=FALSE}
 # Save this for potential future use
@@ -44,14 +49,83 @@ lapply(table_list, table)
 ```{r}
 ## Look further into NA values? ##
 stove_grade_summary <- stove_grades_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  select(area, home, stove_grade) %>% 
+  #filter(winter_id == 1 & treatment == "Placebo") %>% 
+  select(area, home, stove_grade, winter_id) %>% 
   #filter(!is.na(stove_grade)) %>% 
-  group_by(area, stove_grade) %>% 
+  group_by(area, winter_id, stove_grade) %>% 
   distinct(home) %>% 
-  summarize(n())
+  summarize(n()) %>% 
+  filter(!is.na(stove_grade))
 kable(stove_grade_summary, align = "c")
+
+stove_grades_total <- stove_grades_clean %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(!is.na(home)) %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(area, home, stove_grade) %>% 
+  arrange(area, home) 
 ```
+
+
+# Generate random sample of stoves to re-grade and validate grading methods
+```{r}
+# 10% of homes from each area, earlier winters
+# send new ID linked to new ID to Kathrene
+
+random_sample_wmt <- stove_grades_clean %>% 
+  select(area, home, stove_grade, winter_id) %>% 
+  mutate(winter_id = as.factor(winter_id)) %>% 
+  left_join(demographics_clean, c("area", "home", "winter_id")) %>% 
+  mutate(cutoff_date = if_else(intervention_date < "2018-06-06", 1, 0)) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(!is.na(home)) %>% 
+  filter(cutoff_date == 1) %>% 
+  filter(area == "WMT") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(area, home, home_winter_id, stove_grade, intervention_date) %>% 
+  arrange(area, home) %>% 
+  group_by(area) %>% 
+  sample_n(17)
+write_csv(random_sample_wmt, "Output/random_sample_wmt.csv")
+
+random_sample_nn <- stove_grades_clean %>% 
+  select(area, home, stove_grade, winter_id) %>% 
+  mutate(winter_id = as.factor(winter_id)) %>% 
+  left_join(demographics_clean, c("area", "home", "winter_id")) %>% 
+  mutate(cutoff_date = if_else(intervention_date < "2018-06-06", 1, 0)) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(!is.na(home)) %>% 
+  filter(cutoff_date == 1) %>% 
+  filter(area == "NN") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(area, home, home_winter_id, stove_grade, intervention_date) %>% 
+  arrange(area, home) %>% 
+  group_by(area) %>% 
+  sample_n(8)
+write_csv(random_sample_nn, "Output/random_sample_nn.csv")
+
+random_sample_ak <- stove_grades_clean %>% 
+  select(area, home, stove_grade, winter_id) %>% 
+  mutate(winter_id = as.factor(winter_id)) %>% 
+  left_join(demographics_clean, c("area", "home", "winter_id")) %>% 
+  mutate(cutoff_date = if_else(intervention_date < "2018-06-06", 1, 0)) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(!is.na(home)) %>% 
+  filter(cutoff_date == 1) %>% 
+  filter(area == "AK") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(area, home, home_winter_id, stove_grade, intervention_date) %>% 
+  arrange(area, home) %>% 
+  group_by(area) %>% 
+  sample_n(5)
+write_csv(random_sample_ak, "Output/random_sample_ak.csv")
+```
+
+
 
 ## 18 homes with grades from 2 winters
 ## 4 of the homes were assigned different grades in each winter
