@@ -248,6 +248,14 @@ kids_med_visit <- rbind(wmt_medicalvisit_initial, nn_medicalvisit_initial,
 
 
 # write_rds(kids_med_visit, "Output/kids_med_visit.rds")
+
+
+
+save_var_names <- data.frame(t(kids_med_visit)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/medvisit_var_names.csv")
 ```
 
 
@@ -282,6 +290,14 @@ wmt_birthinfancy_initial <- read_xlsx("Input/WMT/wmt_birthinfancy_20200227.xlsx"
          
 
 # Waiting on files from NN and AK
+
+
+
+save_var_names <- data.frame(t(wmt_birthinfancy_initial)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/birthinfancy_var_names.csv")
 ```
 
 
@@ -315,7 +331,7 @@ wmt_childhomewinter_initial <- read_xlsx("Input/WMT/wmt_childhomewinter_20200227
 
 
 
-################# CSQ  ###############
+################# CSQ - child symptom questionnaire  ###############
 
 # Load and merge files from different locations
 ```{r}
@@ -346,6 +362,14 @@ wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>%
          
 
 # Waiting on files from NN and AK
+
+
+
+save_var_names <- data.frame(t(wmt_csq_initial)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/csq_var_names.csv")
 ```
 
 
