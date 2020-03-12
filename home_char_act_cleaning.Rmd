@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR home activity and characteristics cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 23 Jan 2020"
+date: "Started 13 Jan 2020, Updated 4 March 2020"
 output: pdf_document
 ---
 
@@ -179,7 +179,8 @@ kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 home_char_clean <- kids_home_char %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
   # cleaning based on checking odd values with paper logs
-  mutate(residents_under5 = if_else(residents_under5 == 10, 1, residents_under5)) %>% 
+  mutate(residents_under5 = if_else(residents_under5 == 10, 1, residents_under5),
+         residents_under5 = if_else(home == "CH307" | home == "CH323", 1, residents_under5)) %>% 
   replace_with_na(replace = list(home_year_built = 0)) %>% 
   replace_with_na(replace = list(home_floors = 0)) %>% 
   replace_with_na(replace = list(home_windows = 0)) %>% 
