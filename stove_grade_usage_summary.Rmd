@@ -1,7 +1,7 @@
 ---
 title: "Kids stove grades and usage summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 27 Feb 2020"
+date: "Started 15 Jan 2020, Updated 16 March 2020"
 output: pdf_document 
 ---
 
@@ -13,7 +13,9 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE,
 ```{r, message=FALSE}
 library(tidyverse)
 library(readr)
+library(readxl)
 library(knitr)
+library(lubridate)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -29,9 +31,6 @@ pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 
-############ Use only most recent stove grades for analysis ###############
-
-
 ```{r, eval=FALSE}
 # Save this for potential future use
 
@@ -45,7 +44,7 @@ table_list <- stove_use_clean %>%
 lapply(table_list, table)
 ```
 
-# Summary of stove grades
+
 ```{r}
 ## Look further into NA values? ##
 stove_grade_summary <- stove_grades_clean %>% 
@@ -68,8 +67,10 @@ stove_grades_total <- stove_grades_clean %>%
 ```
 
 
-# Generate random sample of stoves to re-grade and validate grading methods
+
 ```{r}
+# Generate random sample of stoves to re-grade and validate grading methods
+
 # 10% of homes from each area, earlier winters
 # send new ID linked to new ID to Kathrene
 
@@ -88,7 +89,7 @@ random_sample_wmt <- stove_grades_clean %>%
   arrange(area, home) %>% 
   group_by(area) %>% 
   sample_n(17)
-write_csv(random_sample_wmt, "Output/random_sample_wmt.csv")
+#write_csv(random_sample_wmt, "Output/random_sample_wmt.csv")
 
 random_sample_nn <- stove_grades_clean %>% 
   select(area, home, stove_grade, winter_id) %>% 
@@ -105,7 +106,7 @@ random_sample_nn <- stove_grades_clean %>%
   arrange(area, home) %>% 
   group_by(area) %>% 
   sample_n(8)
-write_csv(random_sample_nn, "Output/random_sample_nn.csv")
+#write_csv(random_sample_nn, "Output/random_sample_nn.csv")
 
 random_sample_ak <- stove_grades_clean %>% 
   select(area, home, stove_grade, winter_id) %>% 
@@ -122,15 +123,15 @@ random_sample_ak <- stove_grades_clean %>%
   arrange(area, home) %>% 
   group_by(area) %>% 
   sample_n(5)
-write_csv(random_sample_ak, "Output/random_sample_ak.csv")
+#write_csv(random_sample_ak, "Output/random_sample_ak.csv")
 ```
 
 
-
+```{r, include=FALSE}
 ## 18 homes with grades from 2 winters
 ## 4 of the homes were assigned different grades in each winter
 ### Was there an upgrade/downgrade to the stove? Check for comments/notes.
-```{r}
+
 multiple_grades <- stove_grades_clean %>% 
   select(area, home, stove_grade, winter_id) %>% 
   filter(winter_id == 1 | winter_id == 2) %>% 
@@ -141,8 +142,8 @@ multiple_grades <- stove_grades_clean %>%
 kable(multiple_grades)
 ```
 
-# Summary of stove use
-```{r}
+
+```{r, include=FALSE}
 # Summarize numeric vars
 stove_use_summary <- stove_use_clean %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
@@ -162,8 +163,36 @@ table(stove_use_clean$wood_collect, stove_use_clean$area, useNA = "ifany")
 table(stove_use_clean$wood_collect_method, stove_use_clean$area, useNA = "ifany")
 ```
 
-# Stove use summary plots
 ```{r}
+stove_grade_plot <- stove_grades_clean %>% 
+  filter(winter_id == 1) %>% 
+  select(area, stove_grade) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  ggplot() +
+    geom_bar(aes(stove_grade, fill = area)) +
+    theme_minimal() +
+    labs(title = "Stove grades") +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    scale_fill_manual(values = jv_palette)
+stove_grade_plot
+```
+
+
+```{r}
+stove_use_data <- read_rds("Output/stove_use_clean.rds") %>% 
+  mutate(wood_cords = as.factor(wood_cords))
+
 stove_use_plot_function <- function(data, variable) {
 
 stove_use_plot <- data %>% 
@@ -178,9 +207,9 @@ stove_use_plot <- data %>%
     theme(axis.text.x = element_text(size = 16, colour = "black", 
                                      angle = 40, vjust = 0.7, hjust = 0.7),
           axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
           legend.text = element_text(size = 14, colour = "black"),
           legend.title = element_text(size = 16, colour = "black"),
-          title = element_text(size = 18, colour = "black"),
           axis.title.y = element_blank(),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
@@ -192,17 +221,20 @@ stove_use_plot
 
 }
 
-stove_use_plot_function(stove_use_clean, "burn_level")
-stove_use_plot_function(stove_use_clean, "wood_type")
-stove_use_plot_function(stove_use_clean, "wood_collect")
-stove_use_plot_function(stove_use_clean, "wood_collect_method")
+stove_use_plot_function(stove_use_data, "burn_level")
+stove_use_plot_function(stove_use_data, "wood_type")
+stove_use_plot_function(stove_use_data, "wood_collect")
+stove_use_plot_function(stove_use_data, "wood_collect_method")
+stove_use_plot_function(stove_use_data, "wood_cords")
 ```
 
 
+```{r}
 #### Abstract/manuscript tables ####
 
 # Filter for homes that have PM data
-```{r}
+
+
 # 93 Winter 1 placebo homes have PM data
 pm_homes_placebo <- pm_clean %>% 
   filter(winter_id == 1) %>% 
@@ -232,8 +264,8 @@ stove_grades_filtered <- stove_grades_clean %>%
   arrange(area, home)
 ```
 
-# Summarize home data
-```{r}
+
+```{r, include=FALSE}
 # Summarize numeric vars
 kids_use <- stove_use_filtered %>%  
   #distinct(home, .keep_all = TRUE) %>%  

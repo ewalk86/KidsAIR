@@ -1,22 +1,26 @@
 ---
 title: "Kids home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 27 Jan 2020"
+date: "Started 15 Jan 2020, Updated 16 March 2020"
 output:
   pdf_document: default
+  powerpoint_presentation: default
   word_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
-                      include = TRUE, warning = FALSE)
+                      include = TRUE, warning = FALSE,
+                      fig.height = 5, fig.width = 7)
 ```
 
 ```{r, message=FALSE}
 library(tidyverse)
-library(readr)
-library(knitr)
 library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -24,14 +28,27 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load dataset
-home_char_clean <- read_rds("Output/home_char_clean.rds") 
+home_char_clean <- read_rds("Output/home_char_clean.rds") %>% 
+  mutate(chimney_clean = factor(chimney_clean,
+                                levels = c("Less than 6 months ago",
+                                           "6-12 months ago", "12-18 months ago",
+                                           "More than 18 months ago"),
+                                labels = c("< 6 months ago",
+                                           "6-12 months ago", "12-18 months ago",
+                                           "> 18 months ago")),
+         stove_age = factor(stove_age,
+                            levels = c("0-5 years old", "6-10 years old",
+                                       "11-15 years old", "16 + years old",
+                                       "Do not know")))
+  
+  
 home_act_clean <- read_rds("Output/home_act_clean.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
-# Summary data for home characteristics
-```{r}
+
+```{r, include=FALSE}
 # Summarize numeric vars
 home_char_summary <- home_char_clean %>% 
   #filter(winter_id == 1 | winter_id == 2) %>% 
@@ -60,8 +77,7 @@ table(table_list$winter_id, table_list$area, table_list$home_type, useNA = "ifan
 table(home_char_summary$stove_age)
 ```
 
-# Summary data for home activity
-```{r}
+```{r, include=FALSE}
 # Summarize factor vars
 ## Use this as a quick look at all vars
 table_list <- home_act_clean %>% 
@@ -74,7 +90,32 @@ table_list <- home_act_clean %>%
 #table(table_list$home_act_sweep, table_list$area, useNA = "ifany")
 ```
 
-# Home characteristics summary plots
+
+```{r, fig.height=8}
+home_char_plot <- home_char_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  select(area, residents_smoke, residents_smoke_inside, home_damp:home_insert) %>% 
+  pivot_longer(cols = c("residents_smoke":"home_insert"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  ggplot() +
+    geom_bar(aes(value, fill = area)) +
+    theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 14, colour = "black", 
+                                     angle = 25, vjust = 0.6),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, ncol = 2)
+home_char_plot
+```
+
+
 ```{r}
 home_char_function <- function(data, variable) {
 
@@ -128,7 +169,31 @@ home_char_function(home_char_clean, "home_woodstove")
 home_char_function(home_char_clean, "home_insert")
 ```
 
-# Home activity summary plots
+```{r, fig.height=8}
+home_act_plot <- home_act_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  select(area, home_act_gas:home_act_sweep) %>% 
+  pivot_longer(cols = c("home_act_gas":"home_act_sweep"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  ggplot() +
+    geom_bar(aes(value, fill = area)) +
+    theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 14, colour = "black", 
+                                     angle = 25, vjust = 0.6),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, ncol = 2)
+home_act_plot
+```
+
+
 ```{r}
 home_act_function <- function(data, variable) {
 
@@ -171,10 +236,12 @@ home_act_function(home_act_clean, "home_act_door")
 home_act_function(home_act_clean, "home_act_sweep")
 ```
 
+
+```{r, include=FALSE}
 #### Abstract/manuscript tables ####
 
 # Filter for homes that have PM data
-```{r}
+
 # 93 Winter 1 placebo homes have PM data
 pm_homes_placebo <- pm_clean %>% 
   filter(winter_id == 1) %>% 
@@ -204,8 +271,7 @@ home_act_filtered <- home_act_clean %>%
   arrange(area, home)
 ```
 
-# Summarize home data
-```{r}
+```{r, include=FALSE}
 # Summarize numeric vars
 kids_char <- home_char_filtered %>%  
   distinct(home, .keep_all = TRUE) %>%  

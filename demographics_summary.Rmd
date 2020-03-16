@@ -1,12 +1,15 @@
 ---
 title: "KidsAIR: household demographics summary"
 author: "Ethan Walker"
-date: "Started 27 Jan 2020, Updated 12 March 2020"
-output: pdf_document
+date: "Started 27 Jan 2020, Updated 13 March 2020"
+output: 
+  powerpoint_presentation
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE,
+                      fig.height = 6, fig.width = 8)
 ```
 
 ```{r, message=FALSE}
@@ -21,15 +24,19 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
-# Load individual datasets
+
 ```{r}
+# Load individual datasets
+
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 demographics_clean <- read_rds("Output/demographics_clean.rds")
 pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
-# Filter for homes that have PM data
+
 ```{r}
+# Filter for homes that have PM data
+
 # 93 Winter 1 placebo homes have PM data
 pm_homes_placebo <- pm_clean %>% 
   filter(winter_id == 1) %>% 
@@ -52,7 +59,7 @@ demographics_filtered <- demographics_clean %>%
 ```
 
 # Summarize demographics data
-```{r}
+```{r, include=FALSE}
 # Summarize numeric vars
 kids_dems <- demographics_filtered %>%  
   mutate(total_residents = as.numeric(total_residents),
@@ -109,7 +116,17 @@ demographics_filtered <- demographics_clean %>%
                             levels = c("Less than high school",
                                        "High school diploma or GED",
                                        "Some college",
-                                       "College degree")))
+                                       "College degree")),
+         total_residents = as.numeric(total_residents),
+         race_parent = factor(race_parent,
+                              levels = c("American Indian/Alaskan Native",
+                                         "Asian", "White",
+                                         "More than one race"),
+                              labels = c("AI/AN", "Asian", "White", "Multiple")),
+         race_child = factor(race_child,
+                              levels = c("American Indian/Alaskan Native",
+                                         "White", "More than one race"),
+                              labels = c("AI/AN", "White", "Multiple")))
 ```
 
 
@@ -144,16 +161,63 @@ demographics_function <- function(data, var, title_label, y_label) {
   demographics_plot
   
 }
+```
 
+```{r}
 demographics_function(demographics_filtered, "gender_parent", "Parent sex", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "hispanic_parent", "Parent Hispanic ethnicity", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "race_parent", "Parent race", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "hispanic_child", "Child Hispanic ethnicity", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "race_child", "Child race", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "age_child_nov", "Child age Nov 1st", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "income", "Household income", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "education", "Parent education", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "total_residents", "Total residents", "count")
+```
+
+\pagebreak
+
+```{r}
 demographics_function(demographics_filtered, "residents_under_five", "Residents under 5", "count")
 ```
 

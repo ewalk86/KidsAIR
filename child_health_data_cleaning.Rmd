@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 27 Feb 2020"
+date: "Started 27 Feb 2020, Updated 16 March 2020"
 output: pdf_document 
 ---
 

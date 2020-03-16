@@ -1,0 +1,257 @@
+---
+title: "Kids health and child data summary"
+author: "Ethan Walker"
+date: "Started 16 March 2020, Updated 16 March 2020"
+output: 
+  powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE,
+                      fig.height = 5, fig.width = 7)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+# Load data
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds")
+pm_clean <- read_rds("Output/pm_clean.rds")
+
+kids_med_visit <- read_rds("Output/kids_med_visit.rds") %>% 
+  group_by(area, home_winter_id, child_id_num, med_visit_date) %>% 
+  distinct(med_visit_date, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  mutate(temp1 = if_else(temp1 < 90, 0, temp1)) %>% 
+  mutate(temp2 = if_else(temp2 < 90, 0, temp2)) %>% 
+  mutate(temp3 = if_else(temp3 < 90, 0, temp3)) %>% 
+  mutate(sp02 = if_else(sp02 < 80, 0, sp02)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-9999, -99, 0)) %>% 
+  # gather 3 moisture samples to calculate average
+  gather("sample", "value", c("temp1":"temp3")) %>% 
+  arrange(home_winter_id, med_visit_date) %>% 
+  group_by(area, home_winter_id, med_visit_date) %>% 
+  mutate(temp_ave = mean(value, na.rm = TRUE)) %>% 
+  # spread 3 moisture samples back to wide format
+  group_by(area, home_winter_id, med_visit_date, temp_ave) %>% 
+  spread(sample, value) %>% 
+  ungroup() 
+  
+```
+
+
+```{r}
+medvisit_plot <- kids_med_visit %>% 
+  filter(winter_id == 1) %>% 
+  select(area, resp_rate, heart_rate, sp02, hr_sp02, temp_ave) %>% 
+  pivot_longer(cols = c("resp_rate":"temp_ave"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  ggplot(aes(area, value)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free_y")
+medvisit_plot
+```
+
+
+```{r}
+# Cardio plot function
+medvisit_summary_function <- function(data, var, title_label, y_label) {
+  
+  medvisit_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    #select(var) %>% 
+    select(area, var) %>% 
+    group_by(area) %>% 
+    summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
+  medvisit_summary <<- medvisit_summary
+  
+  medvisit_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>% 
+    ggplot(aes(area, plot_var)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
+    theme_minimal() +
+    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
+    ylab(y_label) +
+    theme(title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) 
+  medvisit_plot
+  
+}
+```
+
+```{r}
+medvisit_summary_function(kids_med_visit, "resp_rate", "Respiratory rate", "breaths/min")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "heart_rate", "Heart rate", "beats/min")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "sp02", "Sp02", "%")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "hr_sp02", "Heart rate from Sp02", "beats/min")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "temp_ave", "Temperature", "Degrees F")
+```
+
+\pagebreak
+
+```{r}
+medvisit_plot <- kids_med_visit %>% 
+  filter(winter_id == 1) %>% 
+  select(area, med_visit_ari, lethargy, retractions, wheeze, stridor, 
+         crackles, referred) %>% 
+  pivot_longer(cols = c("med_visit_ari":"referred"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  ggplot() +
+    geom_bar(aes(value, fill = area)) +
+    theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 14, colour = "black", 
+                                     angle = 25, vjust = 0.6),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free_y")
+medvisit_plot
+```
+
+
+```{r}
+# Cardio plot function
+medvisit_summary_function <- function(data, var, title_label, y_label) {
+  
+  medvisit_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    #select(var) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    group_by(area, plot_var) %>% 
+    summarize("n" = n())
+  medvisit_summary <<- medvisit_summary
+  
+  medvisit_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>% 
+    ggplot() +
+    geom_bar(aes(plot_var, fill = area)) +
+    theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 14, colour = "black", 
+                                     angle = 25, vjust = 0.6),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    labs(title = title_label) +
+    ylab(y_label) +
+    scale_fill_manual(values = jv_palette)
+  medvisit_plot
+  
+}
+```
+
+```{r}
+medvisit_summary_function(kids_med_visit, "med_visit_ari", "Med visit ARI", "count")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "lethargy", "Lethargy", "count")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "retractions", "Retractions", "count")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "wheeze", "Wheeze", "count")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "stridor", "Stridor", "count")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "crackles", "Crackles", "count")
+```
+
+\pagebreak
+
+```{r}
+medvisit_summary_function(kids_med_visit, "referred", "Referred", "count")
+```

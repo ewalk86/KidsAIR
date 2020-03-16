@@ -1,19 +1,28 @@
 ---
 title: "Kids indoor temp/RH summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 27 Jan 2020"
-output: pdf_document
+date: "Started 15 Jan 2020, Updated 16 March 2020"
+output:
+  powerpoint_presentation: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
-                      include = TRUE, warning = FALSE)
+                      include = TRUE, warning = FALSE,
+                      fig.height = 5, fig.width = 7)
 ```
 
 ```{r, message=FALSE}
 library(tidyverse)
-library(readr)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
 library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
 ```
 
 ```{r}
@@ -23,8 +32,7 @@ kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
-# Summary stats
-```{r}
+```{r, include=FALSE}
 temp_rh_summary <- indoor_temp_rh_clean %>%
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area) %>% 
@@ -39,65 +47,78 @@ kable(temp_rh_summary, col.names = c("Alaska", "Navajo", "Montana"),
 
 ```{r, fig.height=6, fig.width=5}
 # Boxplot function
-boxplots_temp_rh_function <- function(data, variable){
+boxplots_temp_rh_function <- function(data, var, title_label, y_label){
 
-boxplots_temp_rh <- data %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  select(area, variable) %>% 
-  rename(plot_var = variable) %>% 
-  na.exclude() %>% 
-  ggplot(aes(area, plot_var)) +
+temp_rh_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>% 
+    ggplot(aes(area, plot_var)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
-    theme(axis.text.x = element_text(size = 16, colour = "black"),
+    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
+    ylab(y_label) +
+    theme(title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_blank(),
+          axis.title.y = element_text(size = 16, colour = "black"),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank())
-boxplots_temp_rh
+          axis.ticks = element_blank()) 
+  temp_rh_plot
 
 }
 ```
 
-## Current indoor humidity (%)
 ```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_current")
+boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_current", 
+                          "Current indoor humidity", "%")
 ```
 
-## Max indoor humidity (%)
 ```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_max")
+boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_max", 
+                          "Max indoor humidity", "%")
 ```
 
-## Min indoor humidity (%)
 ```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_min")
+boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_min", 
+                          "Min indoor humidity", "%")
 ```
 
-## Current indoor temperature (C)
 ```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_current")
+boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_current", 
+                          "Current indoor temperature", "Degrees C")
 ```
 
-## Max indoor temperature (C)
 ```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_max")
+boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_max", 
+                          "Max indoor temperature", "Degrees C")
 ```
 
-## Min indoor temperature (C)
 ```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_min")
+boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_min", 
+                          "Min indoor temperature", "Degrees C")
 ```
 
 
+
+```{r}
 #### Abstract/manuscript tables ####
 
 # Filter for homes that have PM data
-```{r}
+
+
 # 93 Winter 1 placebo homes have PM data
 pm_homes_placebo <- pm_clean %>% 
   filter(winter_id == 1) %>% 
@@ -119,8 +140,8 @@ temp_rh_filtered <- indoor_temp_rh_clean %>%
   arrange(area, home)
 ```
 
-# Summarize home data
-```{r}
+
+```{r, include=FALSE}
 # Summarize numeric vars
 kids_temp_rh <- temp_rh_filtered %>%  
   distinct(home, .keep_all = TRUE) %>%  

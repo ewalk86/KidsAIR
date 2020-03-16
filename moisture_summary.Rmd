@@ -1,8 +1,8 @@
 ---
 title: "Kids Moisture Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 30 Jan 2020"
-output: pdf_document
+date: "Started 22 Nov 2019, Updated 16 March 2020"
+output: powerpoint_presentation
 ---
 
 ```{r setup, include=FALSE}
@@ -12,9 +12,14 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE,
 
 ```{r, message=FALSE}
 library(tidyverse)
+library(readxl)
+library(naniar)
 library(lubridate)
-library(readr)
+library(zoo)
 library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
 ```
 
 ```{r}
@@ -24,9 +29,11 @@ kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
+
+```{r, include=FALSE}
 # Moisture content summary stats
 ## Average of 3 measurements
-```{r}
+
 summary_moisture <- moisture_clean %>%
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area) %>% 
@@ -41,8 +48,8 @@ kable(summary_moisture, col.names = c("Alaska", "Navajo", "Montana"),
       digits = 1, align = "c")
 ```
 
-# Was wood split?
-```{r}
+
+```{r, include=FALSE}
 wood_split <- moisture_clean %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   filter(!is.na(moisture_split)) %>% 
@@ -51,8 +58,8 @@ wood_split <- moisture_clean %>%
 kable(wood_split, align = "c")
 ```
 
-# Boxplots
-```{r, fig.height=6, fig.width=5}
+
+```{r, fig.height=6, fig.width=7}
 boxplots_moisture <- moisture_clean %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, moisture_ave) %>% 
@@ -60,13 +67,20 @@ boxplots_moisture <- moisture_clean %>%
   ggplot(aes(area, moisture_ave)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
     ylim(0, 50) +
-    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
-    labs(y = "Mean moisture content (%)") +
-    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
+    labs(title = "Mean wood moisture content") +
+    labs(y = "%") +
     theme(axis.text.x = element_text(size = 16, colour = "black"),
+          title = element_text(size = 20, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
           axis.title.y = element_text(size = 16,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),
@@ -77,11 +91,36 @@ boxplots_moisture <- moisture_clean %>%
 boxplots_moisture
 ```
 
+```{r, fig.height=6, fig.width=7}
+bar_plot <- moisture_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  select(area, moisture_split) %>% 
+  ggplot() +
+    geom_bar(aes(moisture_split, fill = area)) +
+    theme_minimal() +
+    labs(title = "Was wood split?") +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 20, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    scale_fill_manual(values = jv_palette)
+bar_plot
+```
 
+
+```{r}
 #### Abstract/manuscript tables ####
 
 # Filter for homes that have PM data
-```{r}
+
 # 93 Winter 1 placebo homes have PM data
 pm_homes_placebo <- pm_clean %>% 
   filter(winter_id == 1) %>% 
@@ -119,8 +158,8 @@ moisture_filtered_time <- moisture_filtered %>%
   filter(time_diff_rank == 1)
 ```
 
-# Summarize home data
-```{r}
+
+```{r, include=FALSE}
 # Summarize numeric vars
 kids_moisture <- moisture_filtered_time %>%  
   group_by(area) %>% 
