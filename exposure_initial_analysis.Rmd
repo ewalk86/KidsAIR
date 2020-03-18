@@ -168,7 +168,7 @@ table(pm_home_char$home_insert)
 median(pm_home_char$home_furry, na.rm = TRUE)
 
 
-pm_home_char_results <- lm(mean_pm ~ home_insert, data = pm_home_char)
+pm_home_char_results <- lm(log(mean_pm) ~ home_insert, data = pm_home_char)
 summary(pm_home_char_results)
 plot(pm_home_char_results)
 ```
@@ -207,7 +207,7 @@ table(pm_stove_use$wood_cords_cat)
 median(pm_stove_use$wood_cords, na.rm = TRUE)
 
 
-pm_stove_use_results <- lm(mean_pm ~ wood_cords_cat, data = pm_stove_use)
+pm_stove_use_results <- lm(log(mean_pm) ~ wood_collect_method, data = pm_stove_use)
 summary(pm_stove_use_results)
 plot(pm_stove_use_results)
 pm_stove_use_plot <- pm_stove_use %>% 
@@ -236,7 +236,7 @@ pm_stove_grades <- pm_home_mean %>%
 table(pm_stove_grades$stove_grade)
 
 
-pm_stove_grades_results <- lm(mean_pm ~ stove_grade, data = pm_stove_grades)
+pm_stove_grades_results <- lm(log(mean_pm) ~ stove_grade, data = pm_stove_grades)
 summary(pm_stove_grades_results)
 anova(pm_stove_grades_results)
 plot(pm_stove_grades_results)
@@ -266,9 +266,11 @@ pm_home_act <- pm_clean %>%
 table(pm_home_act$home_act_sweep)
 
 
-pm_home_act_results <- lmer(mean_pm ~ home_act_sweep + (1 | home), data = pm_home_act)
+pm_home_act_results <- lmer(log(mean_pm) ~ home_act_sweep + (1 | home), data = pm_home_act)
 summary(pm_home_act_results)
-plot(pm_home_act_results)
+plot(pm_home_act_results, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(pm_home_act_results), main = "QQ Plot")
 ```
 
 
@@ -323,7 +325,7 @@ table(pm_moisture$moisture_cat)
 median(pm_moisture$moisture_ave, na.rm = TRUE)
 
 
-pm_moisture_results <- lm(mean_pm ~ moisture_ave_5, data = pm_moisture)
+pm_moisture_results <- lm(log(mean_pm) ~ moisture_cat, data = pm_moisture)
 summary(pm_moisture_results)
 plot(pm_moisture_results)
 ```
@@ -357,7 +359,95 @@ median(pm_temp_rh$rh_indoor_min, na.rm = TRUE)
 range(pm_temp_rh$rh_indoor_max, na.rm = TRUE)
 
 
-pm_home_act_results <- lm(mean_pm ~ rh_min_cat, data = pm_temp_rh)
+pm_home_act_results <- lm(log(mean_pm) ~ rh_min_cat, data = pm_temp_rh)
 summary(pm_home_act_results)
 plot(pm_home_act_results)
 ```
+
+
+# SUMs 
+```{r}
+#### Join PM dataset with full SUMs dataset
+
+pm_join <- read_rds("Output/pm_clean.rds") %>% 
+  mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
+  separate(sample_datetime, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
+  group_by(area, home) %>% 
+  arrange(sample_datetime) %>% 
+  mutate(pm_last_datetime = last(sample_datetime),
+         pm_first_datetime = first_datetime_new,
+         sample_datetime = round_date(sample_datetime, unit = "minute"),
+         pm_rolling_20 = rollmean(pm, 20, fill = "extend")) %>% 
+  ungroup() %>% 
+  arrange(area, home, sample_datetime) 
+
+sums_join <- read_rds("Output/sums_clean.rds") %>% 
+  mutate(sample_datetime = ymd_hms(datetime_sums)) %>% 
+  separate(sample_datetime, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
+  mutate(sample_datetime = round_date(sample_datetime, unit = "minute")) %>% 
+  ungroup() %>% 
+  arrange(area, home, sample_datetime)
+
+pm_sums_joined <- sums_join %>% 
+  left_join(pm_join, by = c("area", "home", "sample_datetime")) %>% 
+  filter(pm_rolling_20 < 1000) %>% 
+  filter(!is.na(temp_c_sums)) %>% 
+  filter(!is.na(pm_rolling_20)) %>% 
+  mutate(temp_c_sums_5 = temp_c_sums/5)
+
+pm_sums_count <- pm_sums_joined %>% 
+  count(home)
+
+cor.test(pm_sums_joined$temp_c_sums, pm_sums_joined$pm_rolling_20, method = "spearman")
+pm_sums_model <- lmer(log(pm_rolling_20) ~ temp_c_sums_5 + (1 | home), data = pm_sums_joined)
+
+summary(pm_sums_model)
+exp((0.146291)-1)*100
+plot(pm_sums_model, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(pm_sums_model), main = "QQ Plot")
+
+pm_sums_plot <- pm_sums_joined %>% 
+  ggplot() + 
+    geom_point(aes(log(pm_rolling_20), temp_c_sums)) +
+    geom_smooth(aes(log(pm_rolling_20), temp_c_sums)) +
+    theme_minimal()
+pm_sums_plot
+
+
+#### Join PM dataset with SUMs events datasets
+
+# Mean PM for each placebo home over winter 1
+pm_home_mean_date <- pm_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  separate(pm_datetime_new, c("date_sums", "pm_time"), sep = " ", remove = TRUE) %>% 
+  group_by(area, home, date_sums) %>% 
+  summarize(mean_pm = mean(pm, na.rm = TRUE)) %>% 
+  group_by(area, home, date_sums) %>% 
+  distinct(date_sums, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home, date_sums)
+
+pm_sums_events_joined <- pm_home_mean_date %>% 
+  left_join(sums_events_27, by = c("area", "home", "date_sums")) %>% 
+  filter(sums_event == 1) %>% 
+  arrange(area, home, date_sums) %>% 
+  group_by(area, home, mean_pm) %>% 
+  summarize(sums_events = n()) %>% 
+  #mutate(sums_events = factor(sums_events))
+  mutate(sums_events_cat = cut(sums_events, breaks = c(0, 1, 10),
+                           labels = c("1", ">1")))
+
+median(pm_sums_events_joined$sums_events)
+
+pm_sums_model <- lmer(mean_pm ~ sums_events_cat + (1 | home), data = pm_sums_events_joined)
+pm_sums_model <- lmer(log(mean_pm) ~ sums_events_cat + (1 | home), data = pm_sums_events_joined)
+
+summary(pm_sums_model)
+#exp((0.146291)-1)*100
+plot(pm_sums_model, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(pm_sums_model), main = "QQ Plot")
+```
+
