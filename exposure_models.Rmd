@@ -1,0 +1,49 @@
+---
+title: "KidsAIR: exposure model"
+author: "Ethan Walker"
+date: "Started 19 March 2020, Updated 19 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(pbkrtest)
+library(emmeans)
+library(broom)
+library(MuMIn)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+exposure_analysis_data <- read_rds("Output/exposure_analysis_data.rds")
+```
+
+
+```{r}
+model_results <- lmer(log(pm_mean_daily) ~ education_3level + 
+                        area + sampling_day + day_of_week +
+                        (1 | home), data = exposure_analysis_data)
+
+summary(model_results)
+r.squaredGLMM(model_results)
+
+tidy_results <- tidy(model_results)
+tidy_results
+
+plot(model_results, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(model_results), main = "QQ Plot")
+```
+
