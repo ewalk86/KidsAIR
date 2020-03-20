@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: exposure model"
 author: "Ethan Walker"
-date: "Started 19 March 2020, Updated 19 March 2020"
+date: "Started 19 March 2020, Updated 20 March 2020"
 output: pdf_document
 ---
 
@@ -21,29 +21,85 @@ library(pbkrtest)
 library(emmeans)
 library(broom)
 library(MuMIn)
+library(leaps)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
 ```{r}
-exposure_analysis_data <- read_rds("Output/exposure_analysis_data.rds")
+exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds") %>% 
+  filter(!is.na(pm_mean_daily))
+
+exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds") %>% 
+  filter(!is.na(pm_mean))
 ```
 
-
+# Linear model
 ```{r}
-model_results <- lmer(log(pm_mean_daily) ~ education_3level + 
-                        area + sampling_day + day_of_week +
-                        (1 | home), data = exposure_analysis_data)
+subset_model <- lm(log(pm_mean) ~ 
+                        income_3level + home_act_smoking + 
+                        area, data = exposure_analysis_data_short)
 
-summary(model_results)
-r.squaredGLMM(model_results)
+full_model <- lm(log(pm_mean) ~ 
+                        education_3level + income_3level + 
+                        total_residents_2level + home_floors_2level + home_windows_2level + 
+                        stove_age_3level + chimney_clean_3level + 
+                        wood_collect_2level + 
+                        stove_grade_3level + 
+                        home_act_smoking + 
+                        moisture_2level + 
+                        temp_perc_30_cat +
+                        area, data = exposure_analysis_data_short)
 
-tidy_results <- tidy(model_results)
+summary(subset_model)
+r.squaredGLMM(subset_model)
+
+tidy_results <- tidy(full_model)
 tidy_results
 
-plot(model_results, 
+plot(full_model, 
      xlab = "fitted values", ylab = "residuals")
-qqnorm(residuals(model_results), main = "QQ Plot")
+qqnorm(residuals(full_model), main = "QQ Plot")
 ```
 
+# Best subsets selection using dredge() from MuMIn
+```{r}
+options(na.action = "na.fail")
+
+all_subsets <- dredge(full_model, rank = "AIC", extra = c("R^2"))
+```
+
+
+# Linear mixed model with repeated measures
+```{r}
+subset_model <- lmer(log(pm_mean_daily) ~ 
+                        education_3level + income_3level + race_parent_2level + 
+                        area + sampling_day + day_of_week +
+                        (1 | home), data = exposure_analysis_data_long)
+
+full_model <- lmer(log(pm_mean_daily) ~ 
+                        education_3level + income_3level + race_parent_2level + 
+                        total_residents_2level + residents_smoke + 
+                        home_type_2level + home_floors_2level + home_windows_2level + 
+                        stove_age_3level + chimney_clean_3level + home_mold + 
+                        home_fireplace + 
+                        wood_collect_2level + 
+                        stove_grade_3level + 
+                        home_act_gas + home_act_propane + home_act_smoking + 
+                        moisture_2level + 
+                        temp_max_5 + 
+                        temp_perc_30_cat +
+                        area + sampling_day + day_of_week +
+                        (1 | home), data = exposure_analysis_data_long)
+
+summary(full_model)
+r.squaredGLMM(full_model)
+
+tidy_results <- tidy(full_model)
+tidy_results
+
+plot(full_model, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(full_model), main = "QQ Plot")
+```
