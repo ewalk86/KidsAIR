@@ -28,11 +28,9 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 ```{r}
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds") %>% 
-  filter(!is.na(pm_mean_daily))
+exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds") 
 
-exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds") %>% 
-  filter(!is.na(pm_mean))
+exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds") 
 ```
 
 # Linear model

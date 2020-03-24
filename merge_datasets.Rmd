@@ -1,0 +1,578 @@
+---
+title: "KidsAIR: merge datasets"
+author: "Ethan Walker"
+date: "Started 24 March 2020, Updated 24 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(lme4)
+library(lmerTest)
+```
+
+# Load individual datasets
+```{r}
+pm_clean <- read_rds("Output/pm_clean.rds")
+sums_clean <- read_rds("Output/sums_clean.rds")
+
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds")
+moisture_clean <- read_rds("Output/moisture_clean.rds")
+indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
+stove_use_clean <- read_rds("Output/stove_use_clean.rds")
+stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
+home_char_clean <- read_rds("Output/home_char_clean.rds")
+home_act_clean <- read_rds("Output/home_act_clean.rds")
+```
+
+
+# Create new dataset with mean PM/SUMs; join with covariates
+## Short data averaged over sampling period
+```{r}
+# Prep PM data to join with SUMs data
+pm_join <- pm_clean %>% 
+  group_by(area, home) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm),
+         pm_mean = mean(pm, na.rm = TRUE)) %>% 
+  mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
+  group_by(area, home) %>% 
+  arrange(sample_datetime) %>% 
+  mutate(pm_last_datetime = last(sample_datetime),
+         pm_first_datetime = first(sample_datetime),
+         winter_id = as.character("1")) %>% 
+  ungroup() %>% 
+  arrange(area, home) %>% 
+  separate(pm_first_datetime, c("pm_date_start", "pm_time"), sep = " ", remove = FALSE) %>% 
+  select(area, home, dtid, pm_total_observations, winter_id, home_winter_id, treatment,
+         pm_mean, pm_first_datetime, pm_last_datetime, pm_date_start) %>% 
+  group_by(area, home) %>% 
+  distinct(pm_mean, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+
+# Prep SUMs data to join with PM data
+sums_join <- sums_clean %>% 
+  select(area, home, home_winter_id, winter_id, ibid, treatment, datetime_sums, temp_c_sums) %>% 
+  group_by(area, home, winter_id) %>% 
+  mutate(sums_mean = mean(temp_c_sums, na.rm = TRUE),
+         sums_mean_5 = sums_mean/5,
+         temp_perc_30 = if_else(temp_c_sums >= 30, 1, 0),
+         temp_perc_30 = (sum(temp_perc_30)/n()*100),
+         temp_perc_27 = if_else(temp_c_sums >= 27, 1, 0),
+         temp_perc_27 = (sum(temp_perc_27)/n()*100),
+         temp_perc_25 = if_else(temp_c_sums >= 25, 1, 0),
+         temp_perc_25 = (sum(temp_perc_25)/n()*100)) %>% 
+  arrange(area, home, winter_id) %>%
+  ungroup() %>% 
+  distinct(home_winter_id, .keep_all = TRUE) 
+
+
+# Join PM/SUMs data
+pm_sums_joined <- sums_join %>% 
+  full_join(pm_join, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  arrange(area, home, winter_id) 
+  
+
+# Join PM/SUMs data with other covariate datasets
+analysis_data1 <- home_act_clean %>% 
+  arrange(area, home) %>% 
+  select(-home_act_day, -home_act_comments, -home_id) %>% 
+  group_by(area, home, home_winter_id, treatment, winter_id) %>% 
+  # Sum home activity vars over entire sampling period to make 1 obs per sampling period
+  mutate_if(is.factor, factor, levels = c("Yes", "No"), labels = c(1, 0)) %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate_if(is.character, as.numeric) %>% 
+  summarize_if(is.numeric, sum, na.rm = TRUE) %>% 
+  mutate(winter_id = as.character(winter_id)) %>% 
+  right_join(pm_sums_joined, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+
+analysis_data2 <- demographics_clean %>% 
+  left_join(analysis_data1, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  filter(!is.na(home_winter_id)) %>% 
+  mutate(income_3level = fct_collapse(income,
+                               "Less than $20,000" = "Less than $20,000",
+                               "$20,000-$49,999" = 
+                                 c("$20,000 to $29,999", "$30,000 to $39,999",
+                                   "$40,000 to $49,999"),
+                                "$50,000+" = 
+                                 c("$50,000 to $74,999", "$75,000 to $99,999",
+                                   "$100,000 or more")),
+         income_3level = factor(income_3level, levels = c("Less than $20,000", 
+                                            "$20,000-$49,999", 
+                                            "$50,000+")), 
+         education_3level = fct_collapse(education,
+                                  "High school or less" = 
+                                    c("Less than high school", 
+                                      "High school diploma or GED"),
+                                  "Some college" = "Some college",
+                                  "College degree" = "College degree"),
+         education_3level = factor(education_3level, levels = c("High school or less", 
+                                            "Some college", 
+                                            "College degree")), 
+         race_parent_2level = fct_collapse(race_parent,
+                                    "White" = "White",
+                                    "Non-white" = 
+                                      c("American Indian/Alaskan Native",
+                                        "Asian", "More than one race")),
+         race_parent_2level = factor(race_parent_2level, levels = c("White", "Non-white")), 
+         total_residents_2level = fct_collapse(total_residents,
+                                    "<5" = c("1", "2", "3", "4"),
+                                    "5+" = c("5", "6", "7", "8", "9", "10",
+                                             "11", "12", "13", "14", "15")),
+         total_residents_2level = factor(total_residents_2level, levels = c("<5", "5+")),
+         residents_under5_2level = fct_collapse(residents_under_five,
+                                    "1" = c("0", "1"),
+                                    "2+" = c("2", "3", "4", "5")),
+         residents_under5_2level = factor(residents_under5_2level, levels = c("1", "2+"))) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id) 
+
+
+analysis_data3 <- home_char_clean %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  select(area, home, home_winter_id, winter_id, treatment, residents_smoke:home_insert) %>% 
+  right_join(analysis_data2, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(home_type_2level = fct_collapse(home_type,
+                                  "House" = "House",
+                                  "Other" = c("Duplex/Apt", "Mobile Home", "Other")),
+         home_type_2level = factor(home_type_2level,
+                            levels = c("House", "Other")),
+         home_year_built_2level = cut(home_year_built, breaks = c(0, 1985, 2020),
+                                 labels = c("<1985", "1985+"),
+                                 right = FALSE),
+         stove_age = factor(stove_age,
+                         levels = c("0-5 years old", "6-10 years old",
+                                    "11-15 years old", "16 + years old",
+                                    "Do not know")),
+         stove_age_3level = fct_collapse(stove_age,
+                                  "0-5 years old" = "0-5 years old",
+                                  "6-15 years old" = c("6-10 years old",
+                                                       "11-15 years old"),
+                                  "16 + years old" = "16 + years old",
+                                  "Do not know" = "Do not know"),
+         stove_cert = factor(stove_cert,
+                             levels = c("Yes", "No", "Do not know")),
+         home_sqft_2level = cut(home_sqft, breaks = c(0, 1500, 5000),
+                         labels = c("<1500", "1500+"),
+                         right = FALSE),
+         home_floors_2level = cut(home_floors, breaks = c(0, 2, 10),
+                                 labels = c("1", "2+"),
+                                 right = FALSE),
+         home_bedrooms_2level = cut(home_bedrooms, breaks = c(0, 3, 50),
+                                 labels = c("<3", "3+"),
+                                 right = FALSE),
+         home_windows_2level = cut(home_windows, breaks = c(0, 10, 100),
+                                labels = c("<10", "10+"),
+                                 right = FALSE),
+         home_pets_2level = cut(home_pets, breaks = c(0, 2, 50),
+                                labels = c("<2", "2+"),
+                                 right = FALSE),
+         home_furry_2level = cut(home_furry, breaks = c(0, 2, 50),
+                                labels = c("<2", "2+"),
+                                 right = FALSE),
+         secondary_heat_3level = fct_collapse(secondary_heat,
+                                       "Electric" = "Electrical",
+                                       "Wood stove" = "Wood stove",
+                                       "Other" = c("Natural gas furnace",
+                                                   "Oil", "Other", "Propane")),
+         chimney_clean = factor(chimney_clean,
+                         levels = c("Less than 6 months ago", "6-12 months ago",
+                                    "12-18 months ago", "More than 18 months ago")),
+         chimney_clean_3level = fct_collapse(chimney_clean,
+                                  "Less than 6 months ago" = "Less than 6 months ago",
+                                  "6-12 months ago" = "6-12 months ago",
+                                  "12 + months ago" = c("12-18 months ago",
+                                                        "More than 18 months ago")),
+         home_damp = factor(home_damp, levels = c("Yes", "No", "Do not know")),
+         home_mold = factor(home_mold, levels = c("Yes", "No", "Do not know")),
+         home_fireplace = factor(home_fireplace, levels = c("Yes", "No", "Do not know")),
+         home_furnace = factor(home_furnace, levels = c("Yes", "No", "Do not know")),
+         home_insert = factor(home_insert, levels = c("Yes", "No", "Do not know"))) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+
+analysis_data4 <- indoor_temp_rh_clean %>% 
+  filter(winter_id == 1) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  select(area, home, home_winter_id, winter_id, treatment, rh_indoor_current:temp_indoor_min) %>% 
+  ungroup() %>% 
+  right_join(analysis_data3, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(temp_max_5 = temp_indoor_max/5,
+         temp_min_5 = temp_indoor_min/5,
+         rh_max_5 = rh_indoor_max/5,
+         rh_min_5 = rh_indoor_min/5) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+
+analysis_data5 <- moisture_clean %>% 
+  select(area, home, home_winter_id, winter_id, treatment, moisture_ave, moisture_split) %>% 
+  # Average moisture over entire winter for each house
+  group_by(area, home, winter_id) %>% 
+  mutate(mean_moisture = mean(moisture_ave, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  replace_with_na(replace = list(mean_moisture = "NaN")) %>% 
+  arrange(area, home, winter_id) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  select(-moisture_ave) %>% 
+  right_join(analysis_data4, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(mean_moisture_5 = mean_moisture/5) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+
+analysis_data6 <- stove_grades_clean %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(home) %>% 
+  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  select(area, home, home_winter_id, winter_id, treatment, stove_grade) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  right_join(analysis_data5, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(stove_grade_3level = fct_collapse(stove_grade,
+                                    "A" = "A",
+                                    "C" = "C",
+                                    "D or F" = c("D", "F"))) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+
+analysis_data7 <- stove_use_clean %>% 
+  filter(winter_id == 1) %>% 
+  select(-home_id) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  right_join(analysis_data6, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(burn_level_3level = fct_collapse(burn_level,
+                                   "No/Light burning" = c("No burning", 
+                                                          "Light burning"),
+                                   "Ave burning" = "Average burning",
+                                   "Heavy burning" = "Heavy burning"),
+         burn_level_3level = factor(burn_level_3level,
+                         levels = c("No/Light burning", "Ave burning", "Heavy burning")),
+         wood_collect_2level = fct_collapse(wood_collect,
+                                   "<3 months" = c("< 1 week", "1 week to 1 mo",
+                                                   "1 mo to 3 mo"),
+                                   "3+ months" = c("3 mo to 6 mo", 
+                                                   "6 mo to 1 year", "> 1 yr")),
+         wood_collect_2level = factor(wood_collect_2level,
+                         levels = c("<3 months", "3+ months")),
+         wood_collect_method_2level = fct_collapse(wood_collect_method,
+                                   "Harvest yourself" = "Harvest yourself",
+                                   "Purchase/other" = c("Mix", "Other", 
+                                                        "Purchase it")),
+         wood_cords = if_else(wood_cords > 10, 10, wood_cords)) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+
+
+
+#write_rds(analysis_data7, "Output/exposure_analysis_data_short.rds")
+#write_csv(analysis_data7, "Output/exposure_analysis_data_short.csv")
+```
+
+
+# Create new dataset with mean PM/SUMs; join with covariates
+## Long data averaged over sampling day
+```{r}
+# Prep PM data to join with SUMs data by sampling day
+pm_join <- pm_clean %>% 
+  group_by(area, home) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm),
+         pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
+  group_by(area, home, sampling_day) %>% 
+  mutate(pm_mean_sampling_day = mean(pm, na.rm = TRUE)) %>% 
+  mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
+  separate(sample_datetime, c("sample_date", "sample_time"), sep = " ",
+           remove = FALSE) %>% 
+  group_by(area, home, sample_date) %>% 
+  mutate(pm_mean_daily = mean(pm, na.rm = TRUE),
+         pm_daily_obs = n()) %>% 
+  group_by(area, home, sampling_day) %>% 
+  arrange(sample_datetime) %>% 
+  mutate(pm_last_datetime = last(sample_datetime),
+         pm_first_datetime = first(sample_datetime)) %>% 
+  mutate(winter_id = as.character(winter_id)) %>% 
+  ungroup() %>% 
+  arrange(area, home, sample_date) %>% 
+  select(area, home, home_winter_id, winter_id, treatment, dtid, day_of_week, 
+         pm_total_observations, pm_mean_sampling_period, sampling_day, 
+         pm_mean_sampling_day, pm_first_datetime, pm_last_datetime,
+         sample_date, pm_mean_daily, pm_daily_obs) %>% 
+  group_by(area, home) %>% 
+  distinct(sample_date, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home, sample_date)
+
+
+# Prep SUMs data to join with PM data
+sums_join <- sums_clean %>% 
+  mutate(sample_date = as.character(date_sums)) %>% 
+  select(area, home, home_winter_id, winter_id, ibid, treatment, 
+         datetime_sums, sample_date, temp_c_sums) %>% 
+  group_by(area, home, winter_id) %>% 
+  mutate(sums_mean_winter = mean(temp_c_sums, na.rm = TRUE),
+         sums_mean_5 = sums_mean_winter/5) %>% 
+  group_by(area, home, winter_id, sample_date) %>% 
+  mutate(sums_mean_daily = mean(temp_c_sums, na.rm = TRUE),
+         temp_perc_30 = if_else(temp_c_sums >= 30, 1, 0),
+         temp_perc_30 = (sum(temp_perc_30)/n()*100),
+         temp_perc_27 = if_else(temp_c_sums >= 27, 1, 0),
+         temp_perc_27 = (sum(temp_perc_27)/n()*100),
+         temp_perc_25 = if_else(temp_c_sums >= 25, 1, 0),
+         temp_perc_25 = (sum(temp_perc_25)/n()*100),
+         sums_daily_obs = n()) %>% 
+  #distinct(sums_mean_daily, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home, datetime_sums)
+
+
+# Join PM/SUMs data and filter/arrange by sampling day
+pm_sums_joined1 <- sums_join %>% 
+  left_join(pm_join, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  arrange(area, home, datetime_sums) %>% 
+  mutate(filter_var = if_else(datetime_sums >= pm_first_datetime &
+                              datetime_sums <= pm_last_datetime, 1, 0)) %>% 
+  filter(filter_var == 1) %>% 
+  group_by(area, home, winter_id) %>%
+  mutate(sums_mean_sampling_period = mean(temp_c_sums, na.rm = TRUE)) %>% 
+  group_by(area, home, winter_id, sampling_day) %>% 
+  mutate(sums_mean_sampling_day = mean(temp_c_sums, na.rm = TRUE)) %>% 
+  distinct(sampling_day, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home, sampling_day) %>% 
+  select(area, home, home_winter_id, winter_id, treatment, sampling_day, 
+         sums_mean_sampling_day, sums_mean_sampling_period)
+
+
+pm_sums_joined2 <- pm_join %>% 
+  left_join(pm_sums_joined1, 
+            by = c("area", "home", "home_winter_id", "winter_id", "treatment", "sampling_day"))
+
+
+# Join SUMs data with original PM data, by sampling day
+pm_sums_joined3 <- sums_join %>% 
+  select(-datetime_sums, -temp_c_sums) %>% 
+  group_by(area, home, winter_id) %>% 
+  distinct(sample_date, .keep_all = TRUE) %>% 
+  arrange(area, home, winter_id, sample_date) %>% 
+  full_join(pm_sums_joined2, by = c("area", "home", "home_winter_id", "winter_id", 
+                                    "treatment", "sample_date")) %>% 
+  mutate(sampling_day = as.character(sampling_day)) %>% 
+  ungroup() %>% 
+  arrange(area, home, sample_date)
+
+
+# Join PM/SUMs data with other covariate datasets
+analysis_data1 <- home_act_clean %>% 
+  mutate(sampling_day = home_act_day) %>% 
+  mutate(winter_id = as.character(winter_id)) %>% 
+  select(-home_act_day, -home_act_comments, -home_id) %>% 
+  full_join(pm_sums_joined3, by = c("area", "home", "home_winter_id", 
+                                    "winter_id", "treatment", "sampling_day")) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id, sample_date)
+
+
+analysis_data2 <- demographics_clean %>% 
+  full_join(analysis_data1, by = c("area", "home", "home_winter_id", 
+                                    "winter_id", "treatment")) %>% 
+  filter(!is.na(home_winter_id)) %>% 
+  mutate(income_3level = fct_collapse(income,
+                               "Less than $20,000" = "Less than $20,000",
+                               "$20,000-$49,999" = 
+                                 c("$20,000 to $29,999", "$30,000 to $39,999",
+                                   "$40,000 to $49,999"),
+                                "$50,000+" = 
+                                 c("$50,000 to $74,999", "$75,000 to $99,999",
+                                   "$100,000 or more")),
+         income_3level = factor(income_3level, levels = c("Less than $20,000", 
+                                            "$20,000-$49,999", 
+                                            "$50,000+")), 
+         education_3level = fct_collapse(education,
+                                  "High school or less" = 
+                                    c("Less than high school", 
+                                      "High school diploma or GED"),
+                                  "Some college" = "Some college",
+                                  "College degree" = "College degree"),
+         education_3level = factor(education_3level, levels = c("High school or less", 
+                                            "Some college", 
+                                            "College degree")), 
+         race_parent_2level = fct_collapse(race_parent,
+                                    "White" = "White",
+                                    "Non-white" = 
+                                      c("American Indian/Alaskan Native",
+                                        "Asian", "More than one race")),
+         race_parent_2level = factor(race_parent_2level, levels = c("White", "Non-white")), 
+         total_residents_2level = fct_collapse(total_residents,
+                                    "<5" = c("1", "2", "3", "4"),
+                                    "5+" = c("5", "6", "7", "8", "9", "10",
+                                             "11", "12", "13", "14", "15")),
+         total_residents_2level = factor(total_residents_2level, levels = c("<5", "5+")),
+         residents_under5_2level = fct_collapse(residents_under_five,
+                                    "1" = c("0", "1"),
+                                    "2+" = c("2", "3", "4", "5")),
+         residents_under5_2level = factor(residents_under5_2level, levels = c("1", "2+"))) %>% 
+  ungroup() %>% 
+  arrange(area, home, home_winter_id, sample_date) 
+
+
+analysis_data3 <- home_char_clean %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  select(area, home, home_winter_id, winter_id, treatment, residents_smoke:home_insert) %>% 
+  right_join(analysis_data2, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(home_type_2level = fct_collapse(home_type,
+                                  "House" = "House",
+                                  "Other" = c("Duplex/Apt", "Mobile Home", "Other")),
+         home_type_2level = factor(home_type_2level,
+                            levels = c("House", "Other")),
+         home_year_built_2level = cut(home_year_built, breaks = c(0, 1985, 2020),
+                                 labels = c("<1985", "1985+"),
+                                 right = FALSE),
+         stove_age = factor(stove_age,
+                         levels = c("0-5 years old", "6-10 years old",
+                                    "11-15 years old", "16 + years old",
+                                    "Do not know")),
+         stove_age_3level = fct_collapse(stove_age,
+                                  "0-5 years old" = "0-5 years old",
+                                  "6-15 years old" = c("6-10 years old",
+                                                       "11-15 years old"),
+                                  "16 + years old" = "16 + years old",
+                                  "Do not know" = "Do not know"),
+         stove_cert = factor(stove_cert,
+                             levels = c("Yes", "No", "Do not know")),
+         home_sqft_2level = cut(home_sqft, breaks = c(0, 1500, 5000),
+                         labels = c("<1500", "1500+"),
+                         right = FALSE),
+         home_floors_2level = cut(home_floors, breaks = c(0, 2, 10),
+                                 labels = c("1", "2+"),
+                                 right = FALSE),
+         home_bedrooms_2level = cut(home_bedrooms, breaks = c(0, 3, 50),
+                                 labels = c("<3", "3+"),
+                                 right = FALSE),
+         home_windows_2level = cut(home_windows, breaks = c(0, 10, 100),
+                                labels = c("<10", "10+"),
+                                 right = FALSE),
+         home_pets_2level = cut(home_pets, breaks = c(0, 2, 50),
+                                labels = c("<2", "2+"),
+                                 right = FALSE),
+         home_furry_2level = cut(home_furry, breaks = c(0, 2, 50),
+                                labels = c("<2", "2+"),
+                                 right = FALSE),
+         secondary_heat_3level = fct_collapse(secondary_heat,
+                                       "Electric" = "Electrical",
+                                       "Wood stove" = "Wood stove",
+                                       "Other" = c("Natural gas furnace",
+                                                   "Oil", "Other", "Propane")),
+         chimney_clean = factor(chimney_clean,
+                         levels = c("Less than 6 months ago", "6-12 months ago",
+                                    "12-18 months ago", "More than 18 months ago")),
+         chimney_clean_3level = fct_collapse(chimney_clean,
+                                  "Less than 6 months ago" = "Less than 6 months ago",
+                                  "6-12 months ago" = "6-12 months ago",
+                                  "12 + months ago" = c("12-18 months ago",
+                                                        "More than 18 months ago")),
+         home_damp = factor(home_damp, levels = c("Yes", "No", "Do not know")),
+         home_mold = factor(home_mold, levels = c("Yes", "No", "Do not know")),
+         home_fireplace = factor(home_fireplace, levels = c("Yes", "No", "Do not know")),
+         home_furnace = factor(home_furnace, levels = c("Yes", "No", "Do not know")),
+         home_insert = factor(home_insert, levels = c("Yes", "No", "Do not know"))) %>% 
+  ungroup() %>% 
+  arrange(area, home, home_winter_id, sample_date) 
+
+
+analysis_data4 <- indoor_temp_rh_clean %>% 
+  filter(winter_id == 1) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  select(area, home, home_winter_id, winter_id, treatment, rh_indoor_current:temp_indoor_min) %>% 
+  ungroup() %>% 
+  right_join(analysis_data3, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  mutate(temp_max_5 = temp_indoor_max/5,
+         temp_min_5 = temp_indoor_min/5,
+         rh_max_5 = rh_indoor_max/5,
+         rh_min_5 = rh_indoor_min/5) %>% 
+  ungroup() %>% 
+  arrange(area, home, home_winter_id, sample_date) 
+
+
+analysis_data5 <- moisture_clean %>% 
+  mutate(sample_date = as.character(moisture_date)) %>% 
+  filter(!is.na(moisture_ave)) %>% 
+  select(area, home, home_winter_id, winter_id, treatment, moisture_ave, 
+         moisture_split, sample_date) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  full_join(analysis_data4, by = c("area", "home", "home_winter_id", 
+                                    "winter_id", "treatment", "sample_date")) %>% 
+  mutate(moisture_ave_5 = moisture_ave/5) %>% 
+  ungroup() %>% 
+  arrange(area, home, home_winter_id, sample_date) 
+
+
+analysis_data6 <- stove_grades_clean %>% 
+  arrange(area, home, winter_id) %>% 
+  group_by(home) %>% 
+  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  select(area, home, home_winter_id, winter_id, treatment, stove_grade) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  right_join(analysis_data5, by = c("area", "home", "home_winter_id", 
+                                    "winter_id", "treatment")) %>% 
+  mutate(stove_grade_3level = fct_collapse(stove_grade,
+                                    "A" = "A",
+                                    "C" = "C",
+                                    "D or F" = c("D", "F"))) %>% 
+  ungroup() %>% 
+  arrange(area, home, home_winter_id, sample_date) 
+
+
+analysis_data7 <- stove_use_clean %>% 
+  filter(winter_id == 1) %>% 
+  select(-home_id) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate(winter_id = as.character(winter_id)) %>%
+  right_join(analysis_data6, by = c("area", "home", "home_winter_id", 
+                                    "winter_id", "treatment")) %>% 
+  mutate(burn_level_3level = fct_collapse(burn_level,
+                                   "No/Light burning" = c("No burning", 
+                                                          "Light burning"),
+                                   "Ave burning" = "Average burning",
+                                   "Heavy burning" = "Heavy burning"),
+         burn_level_3level = factor(burn_level_3level,
+                         levels = c("No/Light burning", "Ave burning", "Heavy burning")),
+         wood_collect_2level = fct_collapse(wood_collect,
+                                   "<3 months" = c("< 1 week", "1 week to 1 mo",
+                                                   "1 mo to 3 mo"),
+                                   "3+ months" = c("3 mo to 6 mo", 
+                                                   "6 mo to 1 year", "> 1 yr")),
+         wood_collect_2level = factor(wood_collect_2level,
+                         levels = c("<3 months", "3+ months")),
+         wood_collect_method_2level = fct_collapse(wood_collect_method,
+                                   "Harvest yourself" = "Harvest yourself",
+                                   "Purchase/other" = c("Mix", "Other", 
+                                                        "Purchase it")),
+         wood_cords = if_else(wood_cords > 10, 10, wood_cords)) %>% 
+  ungroup() %>% 
+  arrange(area, home, home_winter_id, sample_date) 
+
+
+#write_rds(analysis_data7, "Output/exposure_analysis_data_long.rds")
+#write_csv(analysis_data7, "Output/exposure_analysis_data_long.csv")
+```
