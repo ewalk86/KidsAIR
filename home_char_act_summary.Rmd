@@ -1,11 +1,10 @@
 ---
 title: "Kids home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 16 March 2020"
+date: "Started 15 Jan 2020, Updated 25 March 2020"
 output:
   pdf_document: default
   powerpoint_presentation: default
-  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -28,23 +27,10 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load dataset
-home_char_clean <- read_rds("Output/home_char_clean.rds") %>% 
-  mutate(chimney_clean = factor(chimney_clean,
-                                levels = c("Less than 6 months ago",
-                                           "6-12 months ago", "12-18 months ago",
-                                           "More than 18 months ago"),
-                                labels = c("< 6 months ago",
-                                           "6-12 months ago", "12-18 months ago",
-                                           "> 18 months ago")),
-         stove_age = factor(stove_age,
-                            levels = c("0-5 years old", "6-10 years old",
-                                       "11-15 years old", "16 + years old",
-                                       "Do not know")))
-  
-  
+home_char_clean <- read_rds("Output/home_char_clean.rds") 
 home_act_clean <- read_rds("Output/home_act_clean.rds")
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-pm_clean <- read_rds("Output/pm_clean.rds")
+#pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
 
@@ -77,6 +63,13 @@ table(table_list$winter_id, table_list$area, table_list$home_type, useNA = "ifan
 table(home_char_summary$stove_age)
 ```
 
+
+```{r}
+table(home_char_clean$primary_heat, home_char_clean$secondary_heat, home_char_clean$area,
+      dnn = c("primary heating", "secondary heating", "area"))
+```
+
+
 ```{r, include=FALSE}
 # Summarize factor vars
 ## Use this as a quick look at all vars
@@ -91,8 +84,24 @@ table_list <- home_act_clean %>%
 ```
 
 
+```{r}
+home_char_filtered <- read_rds("Output/home_char_clean.rds") %>% 
+  mutate(chimney_clean = factor(chimney_clean,
+                                levels = c("Less than 6 months ago",
+                                           "6-12 months ago", "12-18 months ago",
+                                           "More than 18 months ago"),
+                                labels = c("< 6 months ago",
+                                           "6-12 months ago", "12-18 months ago",
+                                           "> 18 months ago")),
+         stove_age = factor(stove_age,
+                            levels = c("0-5 years old", "6-10 years old",
+                                       "11-15 years old", "16 + years old",
+                                       "Do not know")))
+```
+
+
 ```{r, fig.height=8}
-home_char_plot <- home_char_clean %>% 
+home_char_plot <- home_char_filtered %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   select(area, residents_smoke, residents_smoke_inside, home_damp:home_insert) %>% 
   pivot_longer(cols = c("residents_smoke":"home_insert"), names_to = "var") %>% 
@@ -111,62 +120,59 @@ home_char_plot <- home_char_clean %>%
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank()) +
-    facet_wrap(~var, ncol = 2)
+    facet_wrap(~var, ncol = 2) +
+    scale_fill_manual(values = jv_palette)
 home_char_plot
 ```
 
 
 ```{r}
-home_char_function <- function(data, variable) {
-
-home_plot <- data %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  select(area, variable) %>% 
-  rename(plot_var = variable) %>% 
-  #na.exclude() %>% 
+home_char_function <- function(data, var, title_label, y_label) {
+  
+  home_char_plot <- data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, var) %>% 
+  rename(plot_var = var) %>% 
+  filter(!is.na(plot_var)) %>% 
   ggplot() +
     geom_bar(aes(plot_var, fill = area)) +
     theme_minimal() +
-    labs(title = variable) +
     theme(axis.text.x = element_text(size = 16, colour = "black", 
                                      angle = 40, vjust = 0.7, hjust = 0.7),
           axis.text.y = element_text(size = 16, colour = "black"),
-          title = element_text(size = 18, colour = "black"),
-          legend.text = element_text(size = 14, colour = "black"),
-          legend.title = element_text(size = 16, colour = "black"),
-          axis.title.y = element_blank(),
+          title = element_text(size = 20, colour = "black"),
+          legend.text = element_text(size = 18, colour = "black"),
+          legend.title = element_text(size = 18, colour = "black"),
+          axis.title.y = element_text(size = 18, colour = "black"),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank(),
           panel.grid = element_blank()) +
+    labs(title = title_label) +
+    ylab(y_label) +
     scale_fill_manual(values = jv_palette)
-home_plot
-
+  home_char_plot
+  
 }
 
-home_char_function(home_char_clean, "residents_total")
-home_char_function(home_char_clean, "residents_under5")
-home_char_function(home_char_clean, "residents_under18")
-home_char_function(home_char_clean, "residents_smoke")
-home_char_function(home_char_clean, "residents_smoke_inside")
-home_char_function(home_char_clean, "home_type")
-home_char_function(home_char_clean, "home_floors")
-home_char_function(home_char_clean, "home_windows")
-home_char_function(home_char_clean, "home_bedrooms")
-home_char_function(home_char_clean, "home_pets")
-home_char_function(home_char_clean, "home_furry")
-home_char_function(home_char_clean, "primary_heat")
-home_char_function(home_char_clean, "secondary_heat")
-home_char_function(home_char_clean, "stove_age")
-home_char_function(home_char_clean, "stove_cert")
-home_char_function(home_char_clean, "chimney_clean")
-home_char_function(home_char_clean, "home_mold")
-home_char_function(home_char_clean, "home_damp")
-home_char_function(home_char_clean, "home_fireplace")
-home_char_function(home_char_clean, "home_furnace")
-home_char_function(home_char_clean, "home_woodstove")
-home_char_function(home_char_clean, "home_insert")
+home_char_function(home_char_filtered, "residents_smoke", "Residents smoke", "count")
+home_char_function(home_char_filtered, "residents_smoke_inside", "Residents smoke inside", "count")
+home_char_function(home_char_filtered, "home_type", "Home type", "count")
+home_char_function(home_char_filtered, "home_floors", "Floors in home", "count")
+home_char_function(home_char_filtered, "home_windows", "Windows in home", "count")
+home_char_function(home_char_filtered, "home_bedrooms", "Bedrooms in home", "count")
+home_char_function(home_char_filtered, "home_pets", "Pets in home", "count")
+home_char_function(home_char_filtered, "home_furry", "Furry pet in home", "count")
+home_char_function(home_char_filtered, "primary_heat", "Primary heat", "count")
+home_char_function(home_char_filtered, "secondary_heat", "Secondary heat", "count")
+home_char_function(home_char_filtered, "stove_age", "Stove age", "count")
+home_char_function(home_char_filtered, "stove_cert", "Stove EPA certified", "count")
+home_char_function(home_char_filtered, "chimney_clean", "Chimney last cleaned", "count")
+home_char_function(home_char_filtered, "home_mold", "Home mold", "count")
+home_char_function(home_char_filtered, "home_damp", "Home damp", "count")
+home_char_function(home_char_filtered, "home_fireplace", "Home fireplace", "count")
+home_char_function(home_char_filtered, "home_furnace", "Home furnace", "count")
 ```
 
 ```{r, fig.height=8}
@@ -189,55 +195,57 @@ home_act_plot <- home_act_clean %>%
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank()) +
-    facet_wrap(~var, ncol = 2)
+    facet_wrap(~var, ncol = 2) +
+    scale_fill_manual(values = jv_palette)
 home_act_plot
 ```
 
 
 ```{r}
-home_act_function <- function(data, variable) {
-
-home_plot <- data %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  select(area, variable) %>% 
-  rename(plot_var = variable) %>% 
-  #na.exclude() %>% 
+home_act_function <- function(data, var, title_label, y_label) {
+  
+  home_act_plot <- data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, var) %>% 
+  rename(plot_var = var) %>% 
+  filter(!is.na(plot_var)) %>% 
   ggplot() +
     geom_bar(aes(plot_var, fill = area)) +
     theme_minimal() +
-    labs(title = variable) +
     theme(axis.text.x = element_text(size = 16, colour = "black", 
                                      angle = 40, vjust = 0.7, hjust = 0.7),
           axis.text.y = element_text(size = 16, colour = "black"),
-          title = element_text(size = 18, colour = "black"),
-          legend.text = element_text(size = 14, colour = "black"),
-          legend.title = element_text(size = 16, colour = "black"),
-          axis.title.y = element_blank(),
+          title = element_text(size = 20, colour = "black"),
+          legend.text = element_text(size = 18, colour = "black"),
+          legend.title = element_text(size = 18, colour = "black"),
+          axis.title.y = element_text(size = 18, colour = "black"),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank(),
           panel.grid = element_blank()) +
+    labs(title = title_label) +
+    ylab(y_label) +
     scale_fill_manual(values = jv_palette)
-home_plot
-
+  home_act_plot
+  
 }
 
-home_act_function(home_act_clean, "home_act_gas")
-home_act_function(home_act_clean, "home_act_elect")
-home_act_function(home_act_clean, "home_act_propane")
-home_act_function(home_act_clean, "home_act_oil")
-home_act_function(home_act_clean, "home_act_smoking")
-home_act_function(home_act_clean, "home_act_incense")
-home_act_function(home_act_clean, "home_act_candle")
-home_act_function(home_act_clean, "home_act_kerosene")
-home_act_function(home_act_clean, "home_act_windows")
-home_act_function(home_act_clean, "home_act_door")
-home_act_function(home_act_clean, "home_act_sweep")
+home_act_function(home_act_clean, "home_act_gas", "Gas appliance used", "count")
+home_act_function(home_act_clean, "home_act_elect", "Electric appliance used", "count")
+home_act_function(home_act_clean, "home_act_propane", "Propane appliance used", "count")
+home_act_function(home_act_clean, "home_act_oil", "Oil appliance used", "count")
+home_act_function(home_act_clean, "home_act_smoking", "Smoking in home", "count")
+home_act_function(home_act_clean, "home_act_incense", "Incense burned", "count")
+home_act_function(home_act_clean, "home_act_candle", "Candle burned", "count")
+home_act_function(home_act_clean, "home_act_kerosene", "Kerosene burned", "count")
+home_act_function(home_act_clean, "home_act_windows", "Windows open", "count")
+home_act_function(home_act_clean, "home_act_door", "Doors open", "count")
+home_act_function(home_act_clean, "home_act_sweep", "Sweeping/cleaning/vacuuming", "count")
 ```
 
 
-```{r, include=FALSE}
+```{r, include=FALSE, eval=FALSE}
 #### Abstract/manuscript tables ####
 
 # Filter for homes that have PM data
@@ -271,7 +279,7 @@ home_act_filtered <- home_act_clean %>%
   arrange(area, home)
 ```
 
-```{r, include=FALSE}
+```{r, include=FALSE, eval=FALSE}
 # Summarize numeric vars
 kids_char <- home_char_filtered %>%  
   distinct(home, .keep_all = TRUE) %>%  

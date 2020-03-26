@@ -1,9 +1,10 @@
 ---
-title: "KidsAIR: household demographics summary"
+title: 'KidsAIR: household demographics summary'
 author: "Ethan Walker"
-date: "Started 27 Jan 2020, Updated 13 March 2020"
-output: 
-  powerpoint_presentation
+date: "Started 27 Jan 2020, Updated 25 March 2020"
+output:
+  beamer_presentation: default
+  powerpoint_presentation: default
 ---
 
 ```{r setup, include=FALSE}
@@ -29,7 +30,7 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 # Load individual datasets
 
 kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-demographics_clean <- read_rds("Output/demographics_clean.rds")
+demographics_clean <- read_rds("Output/demographics_clean.rds") 
 pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 
@@ -58,7 +59,7 @@ demographics_filtered <- demographics_clean %>%
   arrange(area, home)
 ```
 
-# Summarize demographics data
+
 ```{r, include=FALSE}
 # Summarize numeric vars
 kids_dems <- demographics_filtered %>%  
@@ -106,7 +107,7 @@ table(demographics_filtered$education, demographics_filtered$area, useNA = "ifan
 
 demographics_filtered <- demographics_clean %>% 
   filter(winter_id == 1) %>% 
-  filter(!is.na(hispanic_child)) %>% 
+  filter(residents_under_five != 0) %>% 
   mutate(income = factor(income,
                          levels = c("Less than $20,000", "$20,000 to $29,999",
                                     "$30,000 to $39,999", "$40,000 to $49,999",
@@ -118,6 +119,7 @@ demographics_filtered <- demographics_clean %>%
                                        "Some college",
                                        "College degree")),
          total_residents = as.numeric(total_residents),
+         total_residents = if_else(total_residents == 1, 2, total_residents),
          race_parent = factor(race_parent,
                               levels = c("American Indian/Alaskan Native",
                                          "Asian", "White",
@@ -126,7 +128,9 @@ demographics_filtered <- demographics_clean %>%
          race_child = factor(race_child,
                               levels = c("American Indian/Alaskan Native",
                                          "White", "More than one race"),
-                              labels = c("AI/AN", "White", "Multiple")))
+                              labels = c("AI/AN", "White", "Multiple")),
+         age_child_nov = factor(age_child_nov,
+                                levels = c("Less than 1", "1", "2", "3", "4")))
 ```
 
 
@@ -146,10 +150,10 @@ demographics_function <- function(data, var, title_label, y_label) {
     theme(axis.text.x = element_text(size = 16, colour = "black", 
                                      angle = 40, vjust = 0.7, hjust = 0.7),
           axis.text.y = element_text(size = 16, colour = "black"),
-          title = element_text(size = 18, colour = "black"),
-          legend.text = element_text(size = 14, colour = "black"),
-          legend.title = element_text(size = 16, colour = "black"),
-          axis.title.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 20, colour = "black"),
+          legend.text = element_text(size = 18, colour = "black"),
+          legend.title = element_text(size = 18, colour = "black"),
+          axis.title.y = element_text(size = 18, colour = "black"),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
@@ -218,6 +222,7 @@ demographics_function(demographics_filtered, "total_residents", "Total residents
 \pagebreak
 
 ```{r}
-demographics_function(demographics_filtered, "residents_under_five", "Residents under 5", "count")
+demographics_function(demographics_filtered, "residents_under_five", 
+                      "Residents under 5 years of age", "count")
 ```
 

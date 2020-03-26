@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: initial exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 20 March 2020"
+date: "Started 2 Feb 2020, Updated 26 March 2020"
 output: pdf_document
 ---
 
@@ -14,6 +14,8 @@ library(tidyverse)
 library(readxl)
 library(naniar)
 library(lubridate)
+library(broom)
+library(broom.mixed)
 library(zoo)
 library(lme4)
 library(lmerTest)
@@ -21,58 +23,46 @@ library(lmerTest)
 
 # Load individual datasets
 ```{r}
-pm_clean <- read_rds("Output/pm_clean.rds")
-sums_clean <- read_rds("Output/sums_clean.rds")
+exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long_new.rds") 
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-demographics_clean <- read_rds("Output/demographics_clean.rds")
-moisture_clean <- read_rds("Output/moisture_clean.rds")
-indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
-stove_use_clean <- read_rds("Output/stove_use_clean.rds")
-stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
-home_char_clean <- read_rds("Output/home_char_clean.rds")
-home_act_clean <- read_rds("Output/home_act_clean.rds")
+exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds") 
 
-# Mean PM for each placebo home over winter 1
-pm_home_mean <- pm_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  #filter(pm < 500) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  group_by(area, home) %>% 
-  summarize(mean_pm = mean(pm, na.rm = TRUE))
+exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds")
 
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds") 
-
-exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds") 
+sums_rolling_pm_data <- read_rds("Output/sums_rolling_pm_data.rds")
 ```
 
 
 # Demographics
 ```{r}
-filter_data <- exposure_analysis_data_short %>% 
+analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
-  filter(!is.na(pm_mean))
+  ungroup()
 
 # Variables to use:
 ## education_3level, income_3level, race_parent_2level, race_child_2level
 ## total_residents_2level, residents_under5_2level, resident_smokes
 
-table(filter_data$residents_smoke)
-median(filter_data$home_furry, na.rm = TRUE)
+table(analysis_data$residents_smoke)
+median(analysis_data$home_furry, na.rm = TRUE)
 
-pm_demographics_results <- lm(log(pm_mean) ~ residents_smoke, data = filter_data)
+pm_demographics_results <- lm(log(pm_mean_sampling_period) ~ residents_smoke, 
+                              data = analysis_data)
 summary(pm_demographics_results)
+tidy(pm_demographics_results)
 plot(pm_demographics_results)
 ```
 
 
 # Home characteristics
 ```{r}
-filter_data <- exposure_analysis_data_short %>% 
+analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
-  filter(!is.na(pm_mean))
+  ungroup()
 
 # Variables to use:
 ## home_type_2level, home_year_built_2level, home_sqft_2level, home_floors_2level
@@ -80,31 +70,36 @@ filter_data <- exposure_analysis_data_short %>%
 ## secondary_heat_3level, stove_age_3level, stove_cert, chimney_clean_3level,
 ## home_damp, home_mold, home_fireplace, home_furnace, home_insert
 
-table(filter_data$home_insert)
-median(filter_data$home_furry, na.rm = TRUE)
+table(analysis_data$home_insert)
+median(analysis_data$home_furry, na.rm = TRUE)
 
-pm_home_char_results <- lm(log(pm_mean) ~ home_insert, data = filter_data)
+pm_home_char_results <- lm(log(pm_mean_sampling_period) ~ home_insert, 
+                           data = analysis_data)
 summary(pm_home_char_results)
+tidy(pm_home_char_results)
 plot(pm_home_char_results)
 ```
 
 
 # Stove use
 ```{r}
-filter_data <- exposure_analysis_data_short %>% 
+analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
-  filter(!is.na(pm_mean))
+  ungroup()
 
 # Variables to use:
 ## burn_level_3level, wood_collect_2level, wood_collect_method_2level,
 ## wood_cords
 
-table(filter_data$home_insert)
-median(filter_data$wood_cords, na.rm = TRUE)
+table(analysis_data$burn_level_3level)
+median(analysis_data$wood_cords, na.rm = TRUE)
 
-pm_stove_use_results <- lm(log(pm_mean) ~ wood_collect_method_2level, data = filter_data)
+pm_stove_use_results <- lm(log(pm_mean_sampling_period) ~ wood_collect_method_2level, 
+                           data = analysis_data)
 summary(pm_stove_use_results)
+tidy(pm_stove_use_results)
 plot(pm_stove_use_results)
 pm_stove_use_plot <- pm_stove_use %>% 
   ggplot() + 
@@ -115,18 +110,21 @@ pm_stove_use_plot
 
 # Stove grades
 ```{r}
-filter_data <- exposure_analysis_data_short %>% 
+analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
-  filter(!is.na(pm_mean))
+  ungroup()
 
 # Variables to use:
 ## stove_grade_3level
 
-table(filter_data$stove_grade_3level)
+table(analysis_data$stove_grade_3level)
 
-pm_stove_grades_results <- lm(log(pm_mean) ~ stove_grade_3level, data = filter_data)
+pm_stove_grades_results <- lm(log(pm_mean_sampling_period) ~ stove_grade_3level, 
+                              data = analysis_data)
 summary(pm_stove_grades_results)
+tidy(pm_stove_grades_results)
 anova(pm_stove_grades_results)
 plot(pm_stove_grades_results)
 pm_stove_grades_plot <- pm_stove_grades %>% 
@@ -138,22 +136,23 @@ pm_stove_grades_plot
 
 # Home activity
 ```{r}
-filter_data <- exposure_analysis_data_long %>% 
+analysis_data <- exposure_analysis_data_medium %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(home) %>% 
+  group_by(area, home) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
-  filter(!is.na(pm_mean_sampling_day))
+  ungroup()
 
 # Variables to use:
 ## home_act_gas, home_act_elect, home_act_propane, home_act_oil, home_act_other,
 ## home_act_smoke, home_act_incense, home_act_candle, home_act_windows,
 ## home_act_door, home_act_sweep
 
-table(filter_data$home_act_sweep)
+table(analysis_data$home_act_sweep)
 
 pm_home_act_results <- lmer(log(pm_mean_sampling_day) ~ home_act_sweep + 
-                              (1 | home), data = filter_data)
+                              (1 | home), data = analysis_data)
 summary(pm_home_act_results)
+tidy(pm_home_act_results)
 plot(pm_home_act_results, 
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(pm_home_act_results), main = "QQ Plot")
@@ -162,205 +161,174 @@ qqnorm(residuals(pm_home_act_results), main = "QQ Plot")
 
 # Wood moisture content
 ```{r}
-filter_data <- exposure_analysis_data_long %>% 
+analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(!is.na(moisture_ave)) %>% 
-  select(sample_date, pm_first_datetime, area, home, 
-         moisture_ave, pm_mean_sampling_period) %>% 
-  separate(pm_first_datetime, c("pm_first_date", "first_time"), sep = " ") %>% 
   group_by(area, home) %>% 
-  mutate(moisture_date = ymd(sample_date),
-         first_date = ymd(pm_first_date),
-         time_diff = moisture_date - first_date,
-         time_diff = as.numeric(abs(time_diff))) %>% 
-  group_by(home) %>% 
-  mutate(time_diff_rank = if_else(time_diff == min(time_diff, na.rm = TRUE), 1, 0)) %>%
-  ungroup() %>% 
-  filter(time_diff_rank == 1) %>% 
   distinct(home, .keep_all = TRUE) %>% 
-  filter(!is.na(pm_mean_sampling_period))
+  ungroup() %>% 
+  mutate(moisture_closest_2level = cut(moisture_closest, breaks = c(0, 10.5, 100),
+                                 labels = c("<10.5", "10.5+"),
+                                 right = FALSE),
+         moisture_winter_2level = cut(mean_moisture_winter, breaks = c(0, 10.5, 100),
+                                 labels = c("<10.5", "10.5+"),
+                                 right = FALSE)) 
 
 # Variables to use:
-## moisture_ave, mean_moisture_5
+## moisture_closest, moisture_closest_2level
+## mean_moisture_winter, moisture_winter_2level
 
-table(filter_data$moisture_cat)
-median(filter_data$moisture_ave, na.rm = TRUE)
+table(analysis_data$moisture_closest_2level)
+median(analysis_data$mean_moisture_winter, na.rm = TRUE)
 
 
 pm_moisture_results <- lm(log(pm_mean_sampling_period) ~ 
-                            moisture_ave, data = filter_data)
+                            moisture_winter_2level, data = analysis_data)
 summary(pm_moisture_results)
 plot(pm_moisture_results)
 ```
 
 
-# Indoor temp/Rh
+# Indoor temp/RH
 ```{r}
-pm_temp_rh <- pm_home_mean %>% 
-  left_join(indoor_temp_rh_clean, by = c("area", "home")) %>% 
-  filter(winter_id == 1) %>% 
-  mutate(temp_max_5 = temp_indoor_max/5,
-         temp_min_5 = temp_indoor_min/5,
-         rh_max_5 = rh_indoor_max/5,
-         rh_min_5 = rh_indoor_min/5,
-         temp_max_cat = cut(temp_indoor_max, breaks = c(0, 30, 45),
-                                labels = c("<30", "30+"),
+analysis_data <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  mutate(temp_max_2level = cut(temp_indoor_max, breaks = c(0, 30, 100),
+                                 labels = c("<30", "30+"),
                                  right = FALSE),
-         temp_min_cat = cut(temp_indoor_min, breaks = c(0, 16.5, 50),
-                                labels = c("<16.5", "16.5+"),
+         temp_min_2level = cut(temp_indoor_min, breaks = c(0, 16.5, 100),
+                                 labels = c("<16.5", "16.5+"),
                                  right = FALSE),
-         rh_max_cat = cut(rh_indoor_max, breaks = c(0, 40, 100),
-                                labels = c("<40", "40+"),
+         rh_max_2level = cut(rh_indoor_max, breaks = c(0, 40, 100),
+                                 labels = c("<40", "40+"),
                                  right = FALSE),
-         rh_min_cat = cut(rh_indoor_min, breaks = c(0, 20, 100),
-                                labels = c("<20", "20+"),
+         rh_min_2level = cut(rh_indoor_min, breaks = c(0, 20, 100),
+                                 labels = c("<20", "20+"),
                                  right = FALSE))
 
+# Variables to use:
+## rh_min_5, rh_max_5, temp_min_5, temp_max_5
+## temp_max_2level, temp_min_2level,rh_max_2level ,rh_min_2level
 
-table(pm_temp_rh$rh_min_cat)
-median(pm_temp_rh$rh_indoor_min, na.rm = TRUE)
-range(pm_temp_rh$rh_indoor_max, na.rm = TRUE)
+table(analysis_data$temp_max_2level)
+median(analysis_data$rh_indoor_min, na.rm = TRUE)
 
 
-pm_home_act_results <- lm(log(mean_pm) ~ rh_min_cat, data = filter_data)
-summary(pm_home_act_results)
-plot(pm_home_act_results)
+pm_temp_rh_results <- lm(log(pm_mean_sampling_period) ~ temp_max_2level, 
+                         data = analysis_data)
+summary(pm_temp_rh_results)
+tidy(pm_temp_rh_results)
+plot(pm_temp_rh_results)
 ```
 
 
-# SUMs - experimenting with several methods of looking at associations
+
+# SUMs - by sampling day
 ```{r}
-#### Join PM dataset full SUMs dataset by SUMs sampling times
-
-pm_join <- pm_clean %>% 
-  mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
-  separate(sample_datetime, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
+analysis_data <- exposure_analysis_data_medium %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
-  arrange(sample_datetime) %>% 
-  mutate(pm_last_datetime = last(sample_datetime),
-         pm_first_datetime = first_datetime_new,
-         sample_datetime = round_date(sample_datetime, unit = "minute"),
-         pm_rolling_20 = rollmean(pm, 20, fill = "extend")) %>% 
-  ungroup() %>% 
-  arrange(area, home, sample_datetime) 
+  distinct(sampling_day, .keep_all = TRUE) %>% 
+  mutate(sums_mean_sampling_day_5 = sums_mean_sampling_day/5,
+         temp_perc_25_2level = cut(temp_perc_25, breaks = c(0, 50, 100),
+                                 labels = c("<50", "50+"),
+                                 right = FALSE),
+         temp_perc_27_2level = cut(temp_perc_27, breaks = c(0, 35, 100),
+                                 labels = c("<35", "35+"),
+                                 right = FALSE),
+         temp_perc_30_2level = cut(temp_perc_30, breaks = c(0, 10, 100),
+                                 labels = c("<10", "10+"),
+                                 right = FALSE)) %>% 
+  ungroup()
 
-sums_join <- sums_clean %>% 
-  mutate(sample_datetime = ymd_hms(datetime_sums)) %>% 
-  separate(sample_datetime, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
-  mutate(sample_datetime = round_date(sample_datetime, unit = "minute")) %>% 
-  ungroup() %>% 
-  arrange(area, home, sample_datetime)
+# Variables to use:
+## sums_mean_sampling_day_5, temp_perc_25_2level
+## temp_perc_27_2level, temp_perc_30_2level
 
-pm_sums_joined <- sums_join %>% 
-  left_join(pm_join, by = c("area", "home", "sample_datetime")) %>% 
-  filter(pm_rolling_20 < 1000) %>% 
-  filter(!is.na(temp_c_sums)) %>% 
-  filter(!is.na(pm_rolling_20)) %>% 
+table(analysis_data$temp_perc_25_2level)
+median(analysis_data$temp_perc_30, na.rm = TRUE)
+
+pm_sums_results <- lmer(log(pm_mean_sampling_day) ~ temp_perc_25_2level + 
+                              (1 | home), data = analysis_data)
+summary(pm_sums_results)
+tidy(pm_sums_results)
+plot(pm_sums_results, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(pm_sums_results), main = "QQ Plot")
+```
+
+
+
+# SUMs - by sampling period
+```{r}
+analysis_data <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate(sums_mean_sampling_period_5 = sums_mean_sampling_period/5,
+         temp_perc_25_2level = cut(temp_perc_25, breaks = c(0, 50, 100),
+                                 labels = c("<50", "50+"),
+                                 right = FALSE),
+         temp_perc_27_2level = cut(temp_perc_27, breaks = c(0, 35, 100),
+                                 labels = c("<35", "35+"),
+                                 right = FALSE),
+         temp_perc_30_2level = cut(temp_perc_30, breaks = c(0, 10, 100),
+                                 labels = c("<10", "10+"),
+                                 right = FALSE)) %>% 
+  ungroup()
+
+# Variables to use:
+## sums_mean_sampling_period_5, temp_perc_25_2level
+## temp_perc_27_2level, temp_perc_30_2level
+
+table(analysis_data$temp_perc_25_2level)
+median(analysis_data$temp_perc_30, na.rm = TRUE)
+
+pm_sums_results <- lm(log(pm_mean_sampling_period) ~ sums_mean_sampling_period_5, 
+                      data = analysis_data)
+summary(pm_sums_results)
+tidy(pm_sums_results)
+plot(pm_sums_results, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(pm_sums_results), main = "QQ Plot")
+```
+
+
+
+# SUMs - mean PM per SUMs interval
+```{r}
+analysis_data <- sums_rolling_pm_data %>% 
   mutate(temp_c_sums_5 = temp_c_sums/5)
 
-pm_sums_count <- pm_sums_joined %>% 
-  count(home)
-
-cor.test(pm_sums_joined$temp_c_sums, pm_sums_joined$pm_rolling_20, method = "spearman")
-pm_sums_model <- lmer(log(pm_rolling_20) ~ temp_c_sums_5 + (1 | home), data = pm_sums_joined)
+cor.test(analysis_data$temp_c_sums, analysis_data$pm_rolling_20, method = "spearman")
+pm_sums_model <- lmer(log(pm_rolling_20) ~ temp_c_sums_5 + (1 | home), 
+                      data = analysis_data)
 
 summary(pm_sums_model)
+tidy(pm_sums_model)
 exp((0.146291)-1)*100
 plot(pm_sums_model, 
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(pm_sums_model), main = "QQ Plot")
 
-pm_sums_plot <- pm_sums_joined %>% 
+pm_sums_plot <- analysis_data %>% 
   ggplot() + 
     geom_point(aes(log(pm_rolling_20), temp_c_sums)) +
     geom_smooth(aes(log(pm_rolling_20), temp_c_sums)) +
     theme_minimal()
 pm_sums_plot
+```
 
 
 
-#### Join PM dataset with SUMs dataset by sampling day
-
-pm_join <- pm_clean %>% 
+# SUMs - events per sampling day - KEEP WORKING ON THIS
+```{r}
+sums_temp_change <- sums_rolling_pm_data %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  mutate(pm = if_else(pm > 500, 500, pm),
-         pm_mean = mean(pm, na.rm = TRUE)) %>% 
-  group_by(area, home, sampling_day) %>% 
-  mutate(pm_mean_daily = mean(pm, na.rm = TRUE)) %>% 
-  mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
-  group_by(area, home, sampling_day) %>% 
-  arrange(sample_datetime) %>% 
-  mutate(pm_last_datetime = last(sample_datetime),
-         pm_first_datetime = first(sample_datetime)) %>% 
-  ungroup() %>% 
-  arrange(area, home, sample_datetime) %>% 
-  select(area, home, home_winter_id, dtid, day_of_week, pm_total_observations,
-         pm_mean, sampling_day, pm_mean_daily, pm_first_datetime, pm_last_datetime) %>% 
-  group_by(area, home) %>% 
-  distinct(sampling_day, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  arrange(area, home, sampling_day)
-
-sums_join <- sums_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  select(area, home, winter_id, ibid, treatment, datetime_sums, temp_c_sums,)
-
-pm_sums_joined <- sums_join %>% 
-  left_join(pm_join, by = c("area", "home")) %>% 
-  arrange(area, home, datetime_sums) %>% 
-  mutate(filter_var = if_else(datetime_sums >= pm_first_datetime &
-                              datetime_sums <= pm_last_datetime, 1, 0)) %>% 
-  filter(filter_var == 1) %>% 
-  group_by(area, home, sampling_day) %>% 
-  mutate(temp_perc_25 = if_else(temp_c_sums >= 30, 1, 0)) %>% 
-  arrange(area, home, sampling_day) %>% 
-  mutate(sums_mean_daily = mean(temp_c_sums, na.rm = TRUE),
-         sums_mean_daily_5 = sums_mean_daily/5) %>% 
-  group_by(area, home, home_winter_id, sampling_day, pm_mean, 
-           pm_mean_daily, sums_mean_daily) %>% 
-  summarize(temp_perc_25 = (sum(temp_perc_25)/n()*100)) %>% 
-  mutate(temp_perc_25_cat = cut(temp_perc_25, breaks = c(0, 10, 200),
-                                labels = c("< 50%", "50% +"),
-                                 right = FALSE)) %>%
-  distinct(pm_mean_daily, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  arrange(area, home, sampling_day)
-  
-
-pm_sums_count <- pm_sums_joined %>% 
-  count(home)
-median(pm_sums_joined$temp_perc_25)
-table(pm_sums_joined$temp_perc_25_cat)
-
-cor.test(pm_sums_joined$sums_mean_daily, pm_sums_joined$pm_mean_daily, method = "spearman")
-pm_sums_model <- lmer(pm_mean_daily ~ temp_perc_25_cat + (1 | home), data = pm_sums_joined)
-pm_sums_model <- lmer(log(pm_mean_daily) ~ temp_perc_25_cat + (1 | home), data = pm_sums_joined)
-
-summary(pm_sums_model)
-exp((0.146291)-1)*100
-plot(pm_sums_model, 
-     xlab = "fitted values", ylab = "residuals")
-qqnorm(residuals(pm_sums_model), main = "QQ Plot")
-
-
-
-#### Join PM dataset with SUMs events datasets
-
-# Mean PM for each placebo home over winter 1
-pm_home_mean_date <- pm_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  separate(pm_datetime_new, c("date_sums", "pm_time"), sep = " ", remove = TRUE) %>% 
-  group_by(area, home, date_sums) %>% 
-  summarize(mean_pm = mean(pm, na.rm = TRUE)) %>% 
-  group_by(area, home, date_sums) %>% 
-  distinct(date_sums, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  arrange(area, home, date_sums)
-
-sums_temp_change <- sums_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area, home, date_sums) %>% 
+  group_by(area, home, sample_date) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>% 
   mutate(time_diff = (lead(datetime_sums) - datetime_sums)/60) %>% 
   mutate(lead_temp = if_else(time_diff < 20, lead(temp_c_sums, 4), lead(temp_c_sums)),
          lead_temp = if_else(time_diff > 25, 999, lead_temp)) %>% 
@@ -374,25 +342,21 @@ sums_temp_change <- sums_clean %>%
          heat_event = if_else(is.na(temp_diff_check), 1,
                               heat_event)) %>% 
   ungroup() %>% 
-  mutate(date_sums = as.character(date_sums)) %>% 
-  group_by(area, home, date_sums) %>% 
-  summarize(sums_events = sum(heat_event, na.rm = TRUE)) %>% 
+  mutate(sample_date = as.character(sample_date)) %>% 
+  group_by(area, home, sample_date) %>% 
+  mutate(sums_events = sum(heat_event, na.rm = TRUE),
+         sums_events_cat = cut(sums_events, breaks = c(0, 5, 50),
+                           labels = c("<4", "4+"),
+                                 right = FALSE)) %>% 
   ungroup() %>% 
-  arrange(area, home, date_sums)
+  arrange(area, home, sample_date)
 
-pm_sums_events_joined <- pm_home_mean_date %>% 
-  left_join(sums_temp_change, by = c("area", "home", "date_sums")) %>% 
-  arrange(area, home, date_sums) %>% 
-  #mutate(sums_events = factor(sums_events))
-  mutate(sums_events_cat = cut(sums_events, breaks = c(0, 2, 20),
-                           labels = c("<2", "2+"),
-                                 right = FALSE))
 
-median(pm_sums_events_joined$sums_events, na.rm = TRUE)
-table(pm_sums_events_joined$sums_events_cat)
+median(sums_temp_change$sums_events, na.rm = TRUE)
+table(sums_temp_change$sums_events_cat)
 
-pm_sums_model <- lmer(mean_pm ~ sums_events_cat + (1 | home), data = filter_data)
-pm_sums_model <- lmer(log(mean_pm) ~ sums_events_cat + (1 | home), data = filter_data)
+pm_sums_model <- lmer(mean_pm ~ sums_events + (1 | home), data = sums_temp_change)
+pm_sums_model <- lmer(log(pm_mean_daily) ~ sums_events + (1 | home), data = sums_temp_change)
 
 summary(pm_sums_model)
 #exp((0.146291)-1)*100
@@ -406,8 +370,6 @@ pm_sums_plot <- pm_sums_events_joined %>%
     geom_boxplot(aes(sums_events_cat, log(mean_pm))) +
     theme_minimal()
 pm_sums_plot
-
-
 ```
 
 
