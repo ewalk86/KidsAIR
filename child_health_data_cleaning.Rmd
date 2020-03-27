@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 16 March 2020"
+date: "Started 27 Feb 2020, Updated 27 March 2020"
 output: pdf_document 
 ---
 
@@ -164,6 +164,142 @@ kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
 ```
 
 
+# Format at-home-log and merge with PM data
+```{r}
+kids_at_home_log <- read_rds("Output/kids_at_home_log.rds") %>% 
+  arrange(area, home_winter_id, at_home_day)
+
+kids_at_home_log_new <- kids_at_home_log %>% 
+  mutate(sampling_day = at_home_day) %>% 
+  group_by(area, home_winter_id, child_id_num, sampling_day) %>% 
+  mutate("00:00:00" = 1,
+         "01:00:00" = 1,
+         "02:00:00" = 1,
+         "03:00:00" = 1,
+         "04:00:00" = 1,
+         "05:00:00" = 1,
+         "06:00:00" = 1,
+         "07:00:00" = as.numeric(at_home_7) - 1,
+         "08:00:00" = as.numeric(at_home_8) - 1,
+         "09:00:00" = as.numeric(at_home_9) - 1,
+         "10:00:00" = as.numeric(at_home_10) - 1,
+         "11:00:00" = as.numeric(at_home_11) - 1,
+         "12:00:00" = as.numeric(at_home_12) - 1,
+         "13:00:00" = as.numeric(at_home_13) - 1,
+         "14:00:00" = as.numeric(at_home_14) - 1,
+         "15:00:00" = as.numeric(at_home_15) - 1,
+         "16:00:00" = as.numeric(at_home_16) - 1,
+         "17:00:00" = as.numeric(at_home_17) - 1,
+         "18:00:00" = as.numeric(at_home_18) - 1,
+         "19:00:00" = as.numeric(at_home_19) - 1,
+         "20:00:00" = as.numeric(at_home_20) - 1,
+         "21:00:00" = as.numeric(at_home_21) - 1,
+         "22:00:00" = as.numeric(at_home_22) - 1,
+         "23:00:00" = 1) %>% 
+  pivot_longer(cols = c("00:00:00":"23:00:00"), names_to = "sample_time",
+                        values_to = "at_home") %>% 
+  mutate("00:00:00" = "home",
+         "01:00:00" = "home",
+         "02:00:00" = "home",
+         "03:00:00" = "home",
+         "04:00:00" = "home",
+         "05:00:00" = "home",
+         "06:00:00" = "home",
+         "07:00:00" = location_7,
+         "08:00:00" = location_8,
+         "09:00:00" = location_9,
+         "10:00:00" = location_10,
+         "11:00:00" = location_11,
+         "12:00:00" = location_12,
+         "13:00:00" = location_13,
+         "14:00:00" = location_14,
+         "15:00:00" = location_15,
+         "16:00:00" = location_16,
+         "17:00:00" = location_17,
+         "18:00:00" = location_18,
+         "19:00:00" = location_19,
+         "20:00:00" = location_20,
+         "21:00:00" = location_21,
+         "22:00:00" = location_22,
+         "23:00:00" = "home") %>% 
+  select(area, home, home_winter_id, child_id_num, winter_id, treatment,
+         sampling_day, sample_time, at_home, "00:00:00":"23:00:00") %>% 
+  group_by(area, home_winter_id, child_id_num, sampling_day, sample_time) %>% 
+  pivot_longer(cols = c("00:00:00":"23:00:00"), names_to = "location_time",
+                        values_to = "at_home_location") %>% 
+  mutate(filter_var = if_else(sample_time == location_time, 1, 0)) %>% 
+  filter(filter_var == 1) %>%  
+  arrange(area, home_winter_id, child_id_num, sampling_day, sample_time) %>% 
+  select(area, home, home_winter_id, child_id_num, winter_id, treatment,
+         sampling_day, sample_time, at_home, at_home_location)  %>% 
+  group_by(area, home_winter_id, child_id_num, sampling_day) %>% 
+  mutate(at_home = if_else(sample_time == "06:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "05:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "04:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "03:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "02:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "01:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "00:00:00", lead(at_home), at_home),
+         at_home = if_else(sample_time == "23:00:00", lag(at_home), at_home),
+         at_home_location = if_else(sample_time == "06:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "05:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "04:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "03:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "02:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "01:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "00:00:00", 
+                                    lead(at_home_location), at_home_location),
+         at_home_location = if_else(sample_time == "23:00:00", 
+                                    lag(at_home_location), at_home_location),
+         at_home_location = if_else(at_home == 1, "home", at_home_location)) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id, child_id_num, sampling_day, sample_time)
+
+
+at_home_pm_merged <- pm_clean %>% 
+  group_by(area, home) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm),
+         pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
+  group_by(area, home, sampling_day) %>% 
+  mutate(pm_mean_sampling_day = mean(pm, na.rm = TRUE),
+         pm_datetime_merge = round_date(pm_datetime_new, unit = "hour"),
+         pm_obs_sampling_day = n()) %>% 
+  separate(pm_datetime_merge, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
+  group_by(area, home, sampling_day, sample_time) %>% 
+  mutate(pm_mean_hour = mean(pm, na.rm = TRUE)) %>% 
+  distinct(sample_time, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  mutate(sampling_day = as.character(sampling_day)) %>% 
+  select(area, home, home_winter_id, winter_id, treatment, sampling_day, 
+         sample_date, sample_time, pm_mean_hour, pm_mean_sampling_day, 
+         pm_mean_sampling_period, day_of_week, pm_obs_sampling_day) %>% 
+  left_join(kids_at_home_log_new, 
+            by = c("area", "home", "home_winter_id", "winter_id", "treatment",
+                   "sampling_day", "sample_time")) %>% 
+  group_by(area, home, home_winter_id, child_id_num, at_home) %>% 
+  mutate(pm_at_home_sampling_period = mean(pm_mean_hour, na.rm = TRUE)) %>% 
+  group_by(area, home, home_winter_id, child_id_num, sampling_day, at_home) %>% 
+  mutate(pm_at_home_sampling_day = mean(pm_mean_hour, na.rm = TRUE)) %>% 
+  distinct(at_home, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  filter(!is.na(at_home)) %>% 
+  arrange(area, home_winter_id, child_id_num, at_home, sampling_day)
+
+
+#write_rds(at_home_pm_merged, "Output/at_home_pm_merged.rds")
+#write_csv(at_home_pm_merged, "Output/at_home_pm_merged.csv")
+
+
+at_home_pm_merged <- read_rds("Output/at_home_pm_merged.rds")
+```
+
+
 ################# Medical Visit ###############
 
 # Load and merge files from different locations
@@ -249,7 +385,7 @@ kids_med_visit <- rbind(wmt_medicalvisit_initial, nn_medicalvisit_initial,
 
 # write_rds(kids_med_visit, "Output/kids_med_visit.rds")
 
-
+kids_med_visit <- read_rds("Output/kids_med_visit.rds")
 
 save_var_names <- data.frame(t(kids_med_visit)) %>% 
   rownames_to_column() %>% 
@@ -293,6 +429,16 @@ wmt_birthinfancy_initial <- read_xlsx("Input/WMT/wmt_birthinfancy_20200227.xlsx"
 
 
 
+# Combine logs from all areas
+kids_birth_infancy <- wmt_birthinfancy_initial %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+# write_rds(kids_birth_infancy, "Output/kids_birth_infancy.rds")
+
+kids_birth_infancy <- read_rds("Output/kids_birth_infancy.rds")
+
+
+
 save_var_names <- data.frame(t(wmt_birthinfancy_initial)) %>% 
   rownames_to_column() %>% 
   select(rowname)
@@ -327,6 +473,17 @@ wmt_childhomewinter_initial <- read_xlsx("Input/WMT/wmt_childhomewinter_20200227
          
 
 # Waiting on files from NN and AK
+
+
+
+# Combine logs from all areas
+child_home_winter <- wmt_childhomewinter_initial %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+# write_rds(child_home_winter, "Output/child_home_winter.rds")
+
+child_home_winter <- read_rds("Output/child_home_winter.rds")
+
 ```
 
 
@@ -365,6 +522,16 @@ wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>%
 
 
 
+
+# Combine logs from all areas
+kids_csq <- wmt_csq_initial %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+# write_rds(kids_csq, "Output/kids_csq.rds")
+
+kids_csq <- read_rds("Output/kids_csq.rds")
+
+
 save_var_names <- data.frame(t(wmt_csq_initial)) %>% 
   rownames_to_column() %>% 
   select(rowname)
@@ -390,4 +557,15 @@ wmt_medicalrecords_initial <- read_xlsx("Input/WMT/wmt_medicalrecords_20200227.x
          
 
 # Waiting on files from NN and AK
+
+
+
+
+# Combine logs from all areas
+kids_medical_records <- wmt_medicalrecords_initial %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+# write_rds(kids_medical_records, "Output/kids_medical_records.rds")
+
+kids_medical_records <- read_rds("Output/kids_medical_records.rds")
 ```

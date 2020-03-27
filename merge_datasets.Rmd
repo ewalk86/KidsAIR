@@ -1,7 +1,7 @@
 ---
-title: "KidsAIR: merge datasets"
+title: "KidsAIR: merge exposure datasets"
 author: "Ethan Walker"
-date: "Started 24 March 2020, Updated 26 March 2020"
+date: "Started 24 March 2020, Updated 27 March 2020"
 output: pdf_document
 ---
 
@@ -24,7 +24,7 @@ library(lmerTest)
 #pm_clean <- read_rds("Output/pm_clean.rds")
 #sums_clean <- read_rds("Output/sums_clean.rds")
 
-#kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
 demographics_clean <- read_rds("Output/demographics_clean.rds")
 moisture_clean <- read_rds("Output/moisture_clean.rds")
 indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
@@ -375,7 +375,8 @@ exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds"
 save_var_names <- data.frame(t(exposure_analysis_data_long)) %>% 
   rownames_to_column() %>% 
   select(rowname)
-write_csv(save_var_names, "Output/kids_data_var_names.csv")
+
+#write_csv(save_var_names, "Output/kids_data_var_names.csv")
 ```
 
 
@@ -433,7 +434,8 @@ exposure_analysis_data_medium <- exposure_analysis_data_long_new %>%
   mutate(filter_var = if_else(winter_id == 1 & is.na(sampling_day) & lead(sampling_day) == 1, 1, 0),
          filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
   select(filter_var, area:wood_collect_method_2level) %>% 
-  filter(filter_var == 0)
+  filter(filter_var == 0) %>% 
+  select(-filter_var)
 
 
 

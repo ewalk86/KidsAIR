@@ -28,9 +28,13 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 ```{r}
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds") 
+exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long_new.rds") 
 
-exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds") 
+exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds") 
+
+exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds")
+
+sums_rolling_pm_data <- read_rds("Output/sums_rolling_pm_data.rds")
 ```
 
 # Linear model
