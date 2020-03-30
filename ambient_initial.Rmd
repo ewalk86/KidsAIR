@@ -1,0 +1,289 @@
+---
+title: "KidsAIR: ambient data"
+author: "Ethan Walker"
+date: "Started 30 March 2020, Updated 30 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(ggmap)
+library(maps)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+# Load data
+
+wmt_zipcodes <- read_csv("Input/WMT/wmt_zipcodes.csv") %>% 
+  rename_all(tolower)
+
+
+nn_zipcodes <- read_csv("Input/NN/nn_zipcodes.csv") %>% 
+  rename_all(tolower)
+
+
+ak_zipcodes <- read_csv("Input/AK/ak_zipcodes.csv") %>% 
+  rename_all(tolower)
+
+
+us_zipcodes <- read_tsv("Input/us_zipcodes/us_zipcodes.txt", 
+                        col_names = c("country", "zip", "city", "state",
+                                      "state_abbr", "trash1", "trash2", "trash3", 
+                                      "trash4", "lat", "long", "trash5")) %>% 
+  select(-trash1:-trash4, -trash5)
+
+
+wmt_map <- map_data("state") %>% 
+  filter(region == "montana" | region == "idaho")
+
+
+nn_map <- map_data("state") %>% 
+  filter(region == "arizona" | region == "utah" |
+         region == "new mexico" | region == "colorado")
+
+
+ak_map <- map_data("state") %>% 
+  filter(region == "alaska")
+
+
+montana_temps <- read_csv("Input/ambient/montana_temp.txt") %>% 
+  rename_all(tolower) %>% 
+  mutate(station = `stn---`,
+         temp_date = yearmoda,
+         mean_temp = temp,
+         mean_dewp = dewp,
+         mean_pressure = stp,
+         mean_visib_miles = visib,
+         mean_wind_knots = wdsp,
+         max_wind_knots = mxspd,
+         max_temp = max,
+         min_temp = min,
+         precip = prcp,
+         snow_depth = sndp) %>% 
+  select(station:snow_depth)
+
+
+us_temp_stations <- read_table("Input/ambient/temp_station_list.txt", skip = 20,
+                            col_names = c("station", "wban", "station_names",
+                                          "country", "state", "call", "lat",
+                                          "long", "elevation", "begin_date",
+                                          "end_date")) %>% 
+  filter(country == "US") %>% 
+  mutate(lat = as.numeric(lat),
+         long = as.numeric(long),
+         elevation = as.numeric(elevation),
+         begin_date = ymd(begin_date),
+         end_date = ymd(end_date))
+
+
+pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
+```
+
+
+
+# Mapping zipcodes, weather stations, pm stations - WMT
+```{r}
+wmt_zipcodes_new <- wmt_zipcodes %>% 
+  left_join(us_zipcodes, by = "zip") %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  mutate(lat_zip = lat,
+         long_zip = long)
+
+#Plot temp stations
+wmt_temp_stations <- us_temp_stations %>% 
+  filter(state == "MT" | state == "ID") %>% 
+  mutate(lat_temp = lat,
+         long_temp = long) %>% 
+  distinct(station, .keep_all = TRUE) %>% 
+  full_join(wmt_zipcodes_new, by = "country") %>% 
+  mutate(lat_diff = abs(lat_zip - lat_temp),
+         long_diff = abs(long_zip - long_temp),
+         sum_diff = lat_diff + long_diff) %>% 
+  arrange(zip, sum_diff) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(home))
+
+
+wmt_plot <- wmt_zipcodes_new %>% 
+  ggplot() +
+    geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
+               colour="black", fill = "white") +
+    geom_point(data=wmt_temp_stations, 
+             aes(long_zip, lat_zip, color = station_names), size = 3) +
+    geom_point(data=wmt_temp_stations, 
+             aes(long_temp, lat_temp, color = station_names), 
+             shape = 15, size = 3) +
+    theme_minimal() +
+    scale_color_manual(values = jv_palette)
+wmt_plot
+
+
+#Plot PM stations
+wmt_pm_stations <- pm_stations %>% 
+  filter(area == "wmt") %>% 
+  full_join(wmt_zipcodes_new, by = "country") %>% 
+  mutate(lat_diff = abs(lat_zip - lat_pm),
+         long_diff = abs(long_zip - long_pm),
+         sum_diff = lat_diff + long_diff) %>% 
+  arrange(zip, sum_diff) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(home))
+
+
+wmt_plot <- wmt_zipcodes_new %>% 
+  ggplot() +
+    geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
+               colour="black", fill = "white") +
+    geom_point(data=wmt_pm_stations, 
+             aes(long_zip, lat_zip, color = site), size = 3) +
+    geom_point(data=wmt_pm_stations, 
+             aes(long_pm, lat_pm, color = site), 
+             shape = 15, size = 3) +
+    theme_minimal() +
+    scale_color_manual(values = jv_palette)
+wmt_plot
+```
+
+
+# Mapping zipcodes, weather stations, pm stations - NN
+```{r}
+nn_zipcodes_new <- nn_zipcodes %>% 
+  left_join(us_zipcodes, by = "zip") %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  mutate(lat_zip = lat,
+         long_zip = long)
+
+
+#Plot temp stations
+nn_temp_stations <- us_temp_stations %>% 
+  filter(state == "AZ" | state == "NM" |
+         state == "UT" | state == "CO") %>% 
+  mutate(lat_temp = lat,
+         long_temp = long) %>% 
+  distinct(station, .keep_all = TRUE) %>% 
+  full_join(nn_zipcodes_new, by = "country") %>% 
+  mutate(lat_diff = abs(lat_zip - lat_temp),
+         long_diff = abs(long_zip - long_temp),
+         sum_diff = lat_diff + long_diff) %>% 
+  arrange(zip, sum_diff) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(home))
+
+
+nn_plot_temp_stations <- wmt_zipcodes_new %>% 
+  ggplot() +
+    geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
+               colour="black", fill = "white") +
+    geom_point(data=nn_temp_stations, 
+             aes(long_zip, lat_zip, color = station_names), size = 3) +
+    geom_point(data=nn_temp_stations, 
+             aes(long_temp, lat_temp, color = station_names), 
+             shape = 15, size = 3) +
+    theme_minimal() +
+    scale_color_manual(values = jv_palette)
+nn_plot_temp_stations
+
+
+
+#Plot PM stations
+nn_pm_stations <- pm_stations %>% 
+  filter(area == "nn") %>% 
+  full_join(nn_zipcodes_new, by = "country") %>% 
+  mutate(lat_diff = abs(lat_zip - lat_pm),
+         long_diff = abs(long_zip - long_pm),
+         sum_diff = lat_diff + long_diff) %>% 
+  arrange(zip, sum_diff) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(home))
+
+
+nn_plot <- nn_zipcodes_new %>% 
+  ggplot() +
+    geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
+               colour="black", fill = "white") +
+    geom_point(data=nn_pm_stations, 
+             aes(long_zip, lat_zip, color = site), size = 3) +
+    geom_point(data=nn_pm_stations, 
+             aes(long_pm, lat_pm, color = site), 
+             shape = 15, size = 3) +
+    theme_minimal() +
+    scale_color_manual(values = jv_palette)
+nn_plot
+```
+
+
+# Mapping zipcodes, weather stations, pm stations - WMT
+```{r}
+ak_zipcodes_new <- ak_zipcodes %>% 
+  left_join(us_zipcodes, by = "zip") %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  mutate(lat_zip = lat,
+         long_zip = long)
+
+
+#Plot temp stations
+ak_temp_stations <- us_temp_stations %>% 
+  filter(state == "AK") %>% 
+  mutate(lat_temp = lat,
+         long_temp = long) %>% 
+  distinct(station, .keep_all = TRUE) %>% 
+  full_join(ak_zipcodes_new, by = "country") %>% 
+  mutate(lat_diff = abs(lat_zip - lat_temp),
+         long_diff = abs(long_zip - long_temp),
+         sum_diff = lat_diff + long_diff) %>% 
+  arrange(zip, sum_diff) %>% 
+  distinct(zip, .keep_all = TRUE)
+
+zipcodes_map <- wmt_zipcodes_new %>% 
+  ggplot() +
+    geom_point(data=ak_temp_stations, 
+             aes(long_zip, lat_zip, color = station_names), size = 3) +
+    geom_point(data=ak_temp_stations, 
+             aes(long_temp, lat_temp, color = station_names), 
+             shape = 15, size = 3) +
+    theme_minimal() +
+    scale_color_manual(values = jv_palette) 
+zipcodes_map
+
+
+
+#Plot PM stations
+ak_pm_stations <- pm_stations %>% 
+  filter(area == "ak") %>% 
+  full_join(ak_zipcodes_new, by = "country") %>% 
+  mutate(lat_diff = abs(lat_zip - lat_pm),
+         long_diff = abs(long_zip - long_pm),
+         sum_diff = lat_diff + long_diff) %>% 
+  arrange(zip, sum_diff) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(home))
+
+
+ak_plot <- ak_zipcodes_new %>% 
+  ggplot() +
+    geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
+               colour="black", fill = "white") +
+    geom_point(data=ak_pm_stations, 
+             aes(long_zip, lat_zip, color = site), size = 3) +
+    geom_point(data=ak_pm_stations, 
+             aes(long_pm, lat_pm, color = site), 
+             shape = 15, size = 3) +
+    theme_minimal() +
+    scale_color_manual(values = jv_palette)
+ak_plot
+```

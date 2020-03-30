@@ -105,6 +105,7 @@ health_data_merged <- read_rds("Output/health_data_merged.rds")
 
 
 health_exposure_data_sampling_day <- health_data_merged %>% 
+  select(-pm_mean_sampling_day, -pm_mean_sampling_period, day_of_week) %>% 
   mutate(winter_id = as.character(winter_id)) %>% 
   left_join(exposure_analysis_data_medium,
             by = c("area", "home", "home_winter_id", "winter_id", "treatment",

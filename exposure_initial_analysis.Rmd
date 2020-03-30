@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: initial exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 26 March 2020"
+date: "Started 2 Feb 2020, Updated 30 March 2020"
 output: pdf_document
 ---
 
@@ -19,6 +19,7 @@ library(broom.mixed)
 library(zoo)
 library(lme4)
 library(lmerTest)
+library(ggmap)
 ```
 
 # Load individual datasets
@@ -30,6 +31,8 @@ exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.
 exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds")
 
 sums_rolling_pm_data <- read_rds("Output/sums_rolling_pm_data.rds")
+
+health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
 ```
 
 
@@ -247,10 +250,12 @@ analysis_data <- exposure_analysis_data_medium %>%
 ## sums_mean_sampling_day_5, temp_perc_25_2level
 ## temp_perc_27_2level, temp_perc_30_2level
 
-table(analysis_data$temp_perc_25_2level)
+table(analysis_data$temp_perc_30_2level)
 median(analysis_data$temp_perc_30, na.rm = TRUE)
 
-pm_sums_results <- lmer(log(pm_mean_sampling_day) ~ temp_perc_25_2level + 
+pm_sums_results <- lmer(log(pm_mean_sampling_day) ~ temp_perc_30_2level + 
+                              (1 | home), data = analysis_data)
+pm_sums_results <- lmer(pm_mean_sampling_day ~ temp_perc_30_2level + 
                               (1 | home), data = analysis_data)
 summary(pm_sums_results)
 tidy(pm_sums_results)
@@ -288,6 +293,8 @@ median(analysis_data$temp_perc_30, na.rm = TRUE)
 
 pm_sums_results <- lm(log(pm_mean_sampling_period) ~ sums_mean_sampling_period_5, 
                       data = analysis_data)
+pm_sums_results <- lm(pm_mean_sampling_period ~ sums_mean_sampling_period_5, 
+                      data = analysis_data)
 summary(pm_sums_results)
 tidy(pm_sums_results)
 plot(pm_sums_results, 
@@ -305,10 +312,12 @@ analysis_data <- sums_rolling_pm_data %>%
 cor.test(analysis_data$temp_c_sums, analysis_data$pm_rolling_20, method = "spearman")
 pm_sums_model <- lmer(log(pm_rolling_20) ~ temp_c_sums_5 + (1 | home), 
                       data = analysis_data)
+pm_sums_model <- lmer(pm_rolling_20 ~ temp_c_sums_5 + (1 | home), 
+                      data = analysis_data)
 
 summary(pm_sums_model)
 tidy(pm_sums_model)
-exp((0.146291)-1)*100
+exp((0.1496794)-1)*100
 plot(pm_sums_model, 
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(pm_sums_model), main = "QQ Plot")
@@ -323,53 +332,56 @@ pm_sums_plot
 
 
 
-# SUMs - events per sampling day - KEEP WORKING ON THIS
+# SUMs - events per sampling day 
 ```{r}
 sums_temp_change <- sums_rolling_pm_data %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area, home, sample_date) %>% 
+  group_by(area, home, sampling_day) %>% 
   distinct(datetime_sums, .keep_all = TRUE) %>% 
-  mutate(time_diff = (lead(datetime_sums) - datetime_sums)/60) %>% 
+  group_by(area, home, sampling_day) %>% 
+  mutate(time_diff = (lead(datetime_sums) - datetime_sums)) %>% 
   mutate(lead_temp = if_else(time_diff < 20, lead(temp_c_sums, 4), lead(temp_c_sums)),
          lead_temp = if_else(time_diff > 25, 999, lead_temp)) %>% 
   replace_with_na(replace = list(lead_temp = 999)) %>% 
   mutate(temp_diff = lead_temp - temp_c_sums,
-         temp_diff_abs = abs(lead_temp - temp_c_sums),
          # change temp in the following line
-         temp_diff_check = if_else(temp_diff >= 8, 1, 0),
+         temp_diff_check = if_else(temp_diff >= 5, 1, 0),
          heat_event = if_else(temp_diff_check == 1 & lag(temp_diff_check) == 1, 0,
                               temp_diff_check),
          heat_event = if_else(is.na(temp_diff_check), 1,
                               heat_event)) %>% 
-  ungroup() %>% 
-  mutate(sample_date = as.character(sample_date)) %>% 
-  group_by(area, home, sample_date) %>% 
+  group_by(area, home, sampling_day) %>% 
   mutate(sums_events = sum(heat_event, na.rm = TRUE),
-         sums_events_cat = cut(sums_events, breaks = c(0, 5, 50),
-                           labels = c("<4", "4+"),
+         sums_events_cat = cut(sums_events, breaks = c(0, 2, 50),
+                           labels = c("<2", "2+"),
                                  right = FALSE)) %>% 
+  distinct(sampling_day, .keep_all = TRUE) %>% 
   ungroup() %>% 
+  select(area:pm_rolling_20, sums_mean_winter:sums_mean_sampling_period,
+         time_diff:sums_events_cat) %>% 
   arrange(area, home, sample_date)
 
 
 median(sums_temp_change$sums_events, na.rm = TRUE)
 table(sums_temp_change$sums_events_cat)
 
-pm_sums_model <- lmer(mean_pm ~ sums_events + (1 | home), data = sums_temp_change)
-pm_sums_model <- lmer(log(pm_mean_daily) ~ sums_events + (1 | home), data = sums_temp_change)
+pm_sums_model <- lmer(pm_mean_sampling_day ~ sums_events_cat + 
+                        (1 | home), data = sums_temp_change)
+pm_sums_model <- lmer(log(pm_mean_sampling_day) ~ sums_events_cat + 
+                        (1 | home), data = sums_temp_change)
 
 summary(pm_sums_model)
+tidy(pm_sums_model)
 #exp((0.146291)-1)*100
 plot(pm_sums_model, 
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(pm_sums_model), main = "QQ Plot")
 
-pm_sums_plot <- pm_sums_events_joined %>% 
+pm_sums_plot <- sums_temp_change %>% 
   filter(!is.na(sums_events)) %>% 
   ggplot() + 
-    geom_boxplot(aes(sums_events_cat, log(mean_pm))) +
+    geom_boxplot(aes(sums_events_cat, log(pm_mean_sampling_day))) +
     theme_minimal()
 pm_sums_plot
 ```
-
 
