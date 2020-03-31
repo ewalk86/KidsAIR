@@ -61,23 +61,6 @@ ak_map <- map_data("state") %>%
   filter(region == "alaska")
 
 
-montana_temps <- read_csv("Input/ambient/montana_temp.txt") %>% 
-  rename_all(tolower) %>% 
-  mutate(station = `stn---`,
-         temp_date = yearmoda,
-         mean_temp = temp,
-         mean_dewp = dewp,
-         mean_pressure = stp,
-         mean_visib_miles = visib,
-         mean_wind_knots = wdsp,
-         max_wind_knots = mxspd,
-         max_temp = max,
-         min_temp = min,
-         precip = prcp,
-         snow_depth = sndp) %>% 
-  select(station:snow_depth)
-
-
 us_temp_stations <- read_table("Input/ambient/temp_station_list.txt", skip = 20,
                             col_names = c("station", "wban", "station_names",
                                           "country", "state", "call", "lat",
@@ -95,7 +78,6 @@ pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
 ```
 
 
-
 # Mapping zipcodes, weather stations, pm stations - WMT
 ```{r}
 wmt_zipcodes_new <- wmt_zipcodes %>% 
@@ -109,14 +91,28 @@ wmt_temp_stations <- us_temp_stations %>%
   filter(state == "MT" | state == "ID") %>% 
   mutate(lat_temp = lat,
          long_temp = long) %>% 
-  distinct(station, .keep_all = TRUE) %>% 
+  filter(begin_date < "2014-06-01") %>% 
+  filter(end_date > "2020-03-21") %>% 
+  #distinct(station, .keep_all = TRUE) %>% 
   full_join(wmt_zipcodes_new, by = "country") %>% 
   mutate(lat_diff = abs(lat_zip - lat_temp),
          long_diff = abs(long_zip - long_temp),
-         sum_diff = lat_diff + long_diff) %>% 
+         sum_diff = lat_diff + long_diff,
+         area = "WMT") %>% 
   arrange(zip, sum_diff) %>% 
   distinct(zip, .keep_all = TRUE) %>% 
-  filter(!is.na(home))
+  filter(!is.na(home)) %>% 
+  mutate(station_char = factor(station_names, 
+                               levels = c("BERT MOONEY AIRPORT", "GLACIER PARK INTERNATIONAL AI",
+                                          "GOLF (SIMMS)", "HELENA REGIONAL AIRPORT",
+                                          "LEMHI COUNTY AIRPORT", "MISSOULA INTERNATIONAL AIRPOR",
+                                          "MULLAN PASS"),
+                               labels = c("bertmooneyairport", "glacierparkairport",
+                                          "golfsimms", "helenaairport",
+                                          "lemhicountyairport", "missoulaairport",
+                                          "mullanpass"))) %>% 
+  select(area, station, station_char, zip, elevation, lat_temp, long_temp, lat_zip, 
+         long_zip, station_names)
 
 
 wmt_plot <- wmt_zipcodes_new %>% 
@@ -128,21 +124,22 @@ wmt_plot <- wmt_zipcodes_new %>%
     geom_point(data=wmt_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
-    theme_minimal() +
+    theme_void() +
     scale_color_manual(values = jv_palette)
 wmt_plot
 
 
 #Plot PM stations
 wmt_pm_stations <- pm_stations %>% 
-  filter(area == "wmt") %>% 
+  filter(area == "WMT") %>% 
   full_join(wmt_zipcodes_new, by = "country") %>% 
   mutate(lat_diff = abs(lat_zip - lat_pm),
          long_diff = abs(long_zip - long_pm),
          sum_diff = lat_diff + long_diff) %>% 
   arrange(zip, sum_diff) %>% 
   distinct(zip, .keep_all = TRUE) %>% 
-  filter(!is.na(home))
+  filter(!is.na(home)) %>% 
+  select(area, local_site, zip, lat_pm, long_pm, lat_zip, long_zip)
 
 
 wmt_plot <- wmt_zipcodes_new %>% 
@@ -150,11 +147,11 @@ wmt_plot <- wmt_zipcodes_new %>%
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
                colour="black", fill = "white") +
     geom_point(data=wmt_pm_stations, 
-             aes(long_zip, lat_zip, color = site), size = 3) +
+             aes(long_zip, lat_zip, color = local_site), size = 3) +
     geom_point(data=wmt_pm_stations, 
-             aes(long_pm, lat_pm, color = site), 
+             aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
-    theme_minimal() +
+    theme_void() +
     scale_color_manual(values = jv_palette)
 wmt_plot
 ```
@@ -175,14 +172,27 @@ nn_temp_stations <- us_temp_stations %>%
          state == "UT" | state == "CO") %>% 
   mutate(lat_temp = lat,
          long_temp = long) %>% 
-  distinct(station, .keep_all = TRUE) %>% 
+  filter(begin_date < "2014-06-01") %>% 
+  filter(end_date > "2020-03-21") %>% 
+  #distinct(station, .keep_all = TRUE) %>% 
   full_join(nn_zipcodes_new, by = "country") %>% 
   mutate(lat_diff = abs(lat_zip - lat_temp),
          long_diff = abs(long_zip - long_temp),
-         sum_diff = lat_diff + long_diff) %>% 
+         sum_diff = lat_diff + long_diff,
+         area = "NN") %>% 
   arrange(zip, sum_diff) %>% 
   distinct(zip, .keep_all = TRUE) %>% 
-  filter(!is.na(home))
+  filter(!is.na(home)) %>% 
+  mutate(station_char = factor(station_names, 
+                               levels = c("FOUR CORNERS REGIONAL ARPT", "GALLUP MUNICIPAL AIRPORT",
+                                          "PAGE MUNICIPAL AIRPORT", "WINDOW ROCK AIRPORT",
+                                          "WINSLOW-LINDBERGH REGIONAL AI"),
+                               labels = c("fourcornersairport", "gallopairport",
+                                          "pageairport", "windowrockairport",
+                                          "winslowlindberghairport"))) %>% 
+  select(area, station, station_char, zip, elevation, lat_temp, long_temp, lat_zip, 
+         long_zip, station_names)
+
 
 
 nn_plot_temp_stations <- wmt_zipcodes_new %>% 
@@ -194,7 +204,7 @@ nn_plot_temp_stations <- wmt_zipcodes_new %>%
     geom_point(data=nn_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
-    theme_minimal() +
+    theme_void() +
     scale_color_manual(values = jv_palette)
 nn_plot_temp_stations
 
@@ -202,14 +212,15 @@ nn_plot_temp_stations
 
 #Plot PM stations
 nn_pm_stations <- pm_stations %>% 
-  filter(area == "nn") %>% 
+  filter(area == "NN") %>% 
   full_join(nn_zipcodes_new, by = "country") %>% 
   mutate(lat_diff = abs(lat_zip - lat_pm),
          long_diff = abs(long_zip - long_pm),
          sum_diff = lat_diff + long_diff) %>% 
   arrange(zip, sum_diff) %>% 
   distinct(zip, .keep_all = TRUE) %>% 
-  filter(!is.na(home))
+  filter(!is.na(home)) %>% 
+  select(area, local_site, zip, lat_pm, long_pm, lat_zip, long_zip)
 
 
 nn_plot <- nn_zipcodes_new %>% 
@@ -217,11 +228,11 @@ nn_plot <- nn_zipcodes_new %>%
     geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
                colour="black", fill = "white") +
     geom_point(data=nn_pm_stations, 
-             aes(long_zip, lat_zip, color = site), size = 3) +
+             aes(long_zip, lat_zip, color = local_site), size = 3) +
     geom_point(data=nn_pm_stations, 
-             aes(long_pm, lat_pm, color = site), 
+             aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
-    theme_minimal() +
+    theme_void() +
     scale_color_manual(values = jv_palette)
 nn_plot
 ```
@@ -241,13 +252,24 @@ ak_temp_stations <- us_temp_stations %>%
   filter(state == "AK") %>% 
   mutate(lat_temp = lat,
          long_temp = long) %>% 
-  distinct(station, .keep_all = TRUE) %>% 
+  filter(begin_date < "2014-06-01") %>% 
+  filter(end_date > "2020-03-21") %>% 
+  #distinct(station, .keep_all = TRUE) %>% 
   full_join(ak_zipcodes_new, by = "country") %>% 
   mutate(lat_diff = abs(lat_zip - lat_temp),
          long_diff = abs(long_zip - long_temp),
-         sum_diff = lat_diff + long_diff) %>% 
+         sum_diff = lat_diff + long_diff,
+         area = "AK") %>% 
   arrange(zip, sum_diff) %>% 
-  distinct(zip, .keep_all = TRUE)
+  distinct(zip, .keep_all = TRUE) %>% 
+  mutate(station_char = factor(station_names, 
+                               levels = c("KIPNUK AIRPORT", "BETHEL AIRPORT",
+                                          "QUINHAGAK AIRPORT"),
+                               labels = c("kipnukairport", "bethelairport",
+                                          "quinhagakairport"))) %>% 
+  select(area, station, station_char, zip, elevation, lat_temp, long_temp, lat_zip, 
+         long_zip, station_names)
+
 
 zipcodes_map <- wmt_zipcodes_new %>% 
   ggplot() +
@@ -256,7 +278,7 @@ zipcodes_map <- wmt_zipcodes_new %>%
     geom_point(data=ak_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
-    theme_minimal() +
+    theme_void() +
     scale_color_manual(values = jv_palette) 
 zipcodes_map
 
@@ -264,14 +286,15 @@ zipcodes_map
 
 #Plot PM stations
 ak_pm_stations <- pm_stations %>% 
-  filter(area == "ak") %>% 
+  filter(area == "AK") %>% 
   full_join(ak_zipcodes_new, by = "country") %>% 
   mutate(lat_diff = abs(lat_zip - lat_pm),
          long_diff = abs(long_zip - long_pm),
          sum_diff = lat_diff + long_diff) %>% 
   arrange(zip, sum_diff) %>% 
   distinct(zip, .keep_all = TRUE) %>% 
-  filter(!is.na(home))
+  filter(!is.na(home)) %>% 
+  select(area, local_site, zip, lat_pm, long_pm, lat_zip, long_zip)
 
 
 ak_plot <- ak_zipcodes_new %>% 
@@ -279,11 +302,169 @@ ak_plot <- ak_zipcodes_new %>%
     geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
                colour="black", fill = "white") +
     geom_point(data=ak_pm_stations, 
-             aes(long_zip, lat_zip, color = site), size = 3) +
+             aes(long_zip, lat_zip, color = local_site), size = 3) +
     geom_point(data=ak_pm_stations, 
-             aes(long_pm, lat_pm, color = site), 
+             aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
-    theme_minimal() +
+    theme_void() +
     scale_color_manual(values = jv_palette)
 ak_plot
 ```
+
+
+# Compile temperature data and filter for closest stations
+```{r}
+list_files <- list.files("Input/ambient/temp_data")
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd("Input/ambient/temp_data") # set new working directory
+initial_data = tibble(file_name = list_files) %>% # use list of files from above
+  mutate(save_data = lapply(file_name, read_csv, 
+                            col_names = c("station", "wban", "temp_date",
+                                          "mean_temp", "t1", "mean_dewp", "t2",
+                                          "t3", "t4", "mean_pressure", "t5",
+                                          "mean_visib_miles", "t6", "mean_wind_knots",
+                                          "t7", "max_wind_knots", "t8", "max_temp",
+                                          "min_temp", "precip", "snow_depth", "t9"))) %>%
+  unnest(save_data)
+
+
+# Format combined file from above; combine with other PM data below
+temp_data <- initial_data %>% 
+  filter(!is.na(t1)) %>% 
+  separate(file_name, c("area", "station_char"), sep = "_") %>%
+  mutate(temp_date = ymd(temp_date),
+         mean_temp = as.numeric(mean_temp),
+         mean_dewp = as.numeric(mean_dewp),
+         mean_pressure = as.numeric(mean_pressure),
+         mean_visib_miles = as.numeric(mean_visib_miles),
+         mean_wind_knots = as.numeric(mean_wind_knots),
+         max_wind_knots = as.numeric(max_wind_knots)) %>% 
+  select(station_char, station, temp_date, mean_temp, mean_dewp,
+         mean_pressure, mean_visib_miles, mean_wind_knots, max_wind_knots) %>% 
+  replace_with_na_all(condition = ~.x %in% c(9999.9, 999.9))
+
+
+temp_stations <- rbind(wmt_temp_stations, nn_temp_stations, ak_temp_stations)
+
+
+temp_data_joined <- temp_data %>% 
+  left_join(temp_stations, by = c("station", "station_char")) 
+
+
+#write_rds(temp_data_joined, "Output/kids_temp_data.rds")
+#write_csv(temp_data_joined, "Output/kids_temp_data.csv")
+
+kids_temp_data <- read_rds("Output/kids_temp_data.rds")
+```
+
+
+# Compile PM data and filter for correct dates/variables
+```{r}
+pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
+
+
+list_files <- list.files("Input/ambient/pm_data")
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd("Input/ambient/pm_data") # set new working directory
+initial_data = tibble(file_name = list_files) %>% # use list of files from above
+   mutate(save_data = lapply(file_name, read_csv, skip = 1,
+                            col_names = c("t1", "t2", "t3", "t4", "parameter",
+                                          "pm_lat", "pm_long", "t5", "parameter_name",
+                                          "duration", "pollutant", "amb_pm_date",
+                                          "year", "t6", "units", "t7", "t8", "t9",
+                                          "t10", "t11", "mean_pollution", "t12",
+                                          "t13", "t14", "aqi", "t15", "t16",
+                                          "t17", "t18", "t19", "local_site",
+                                          "t20", "t21", "t22"),
+                            col_types = list(col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_double(), 
+                                          col_double(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(),
+                                          col_character(), col_character(), 
+                                          col_double(), col_character(),
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character(), 
+                                          col_character(), col_character()))) %>%
+  unnest(save_data)
+
+
+
+pm_data <- initial_data %>% 
+  filter(t1 != "State Code") %>% 
+  filter(pollutant == "PM25 24-hour 2012") %>% 
+  select(local_site, pollutant, amb_pm_date, mean_pollution) %>% 
+  mutate(amb_pm_24hr = as.numeric(mean_pollution),
+         date1 = ymd(amb_pm_date),
+         date2 = mdy(amb_pm_date)) %>% 
+  unite(amb_pm_date, c("date1", "date2"), sep = "") %>% 
+  separate(amb_pm_date, c("trash", "amb_pm_date"), sep = "NA") %>% 
+  unite(amb_pm_date, c("trash", "amb_pm_date"), sep = "") %>% 
+  group_by(local_site, amb_pm_date) %>% 
+  distinct(pollutant, .keep_all = TRUE) %>% 
+  select(local_site, amb_pm_date, amb_pm_24hr)
+  arrange(local_site, amb_pm_date)
+  
+  
+pm_stations <- rbind(wmt_pm_stations, nn_pm_stations, ak_pm_stations)
+
+
+pm_data_joined <- pm_data %>% 
+  left_join(pm_stations, by = "local_site")
+
+
+#write_rds(pm_data_joined, "Output/kids_amb_pm_data.rds")
+#write_csv(pm_data_joined, "Output/kids_amb_pm_data.csv")
+
+kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data.rds")
+```
+
+
+# Add new variables to pm/temp datasets
+```{r}
+kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data.rds")
+kids_temp_data <- read_rds("Output/kids_temp_data.rds")
+
+
+# PM data
+kids_amb_pm_data_new <- kids_amb_pm_data %>% 
+  arrange(area, local_site, amb_pm_date, zip) %>% 
+  group_by(area, local_site, zip) %>% 
+  mutate(amb_pm_24hr_lag1 = lag(amb_pm_24hr),
+         amb_pm_24hr_lag2 = lag(amb_pm_24hr, 2),
+         amb_pm_24hr_lag3 = lag(amb_pm_24hr, 3),
+         amb_pm_roll_mean_2day = rollmean(amb_pm_24hr, 2, fill = NA, align = "right"),
+         amb_pm_roll_mean_3day = rollmean(amb_pm_24hr, 3, fill = NA, align = "right"),
+         amb_pm_roll_mean_4day = rollmean(amb_pm_24hr, 4, fill = NA, align = "right")) %>% 
+  ungroup()
+
+#write_rds(kids_amb_pm_data_new, "Output/kids_amb_pm_data_new.rds")
+#write_csv(kids_amb_pm_data_new, "Output/kids_amb_pm_data_new.csv")
+
+
+# Temp data
+kids_amb_temp_data_new <- kids_temp_data %>% 
+  arrange(area, station, temp_date, zip) %>% 
+  group_by(area, station, zip) %>% 
+  mutate(mean_temp_lag1 = lag(mean_temp),
+         mean_temp_lag2 = lag(mean_temp, 2),
+         mean_temp_lag3 = lag(mean_temp, 3),
+         mean_temp_roll_2day = rollmean(mean_temp, 2, fill = NA, align = "right"),
+         mean_temp_roll_3day = rollmean(mean_temp, 3, fill = NA, align = "right"),
+         mean_temp_roll_4day = rollmean(mean_temp, 4, fill = NA, align = "right")) %>% 
+  ungroup()
+
+#write_rds(kids_amb_temp_data_new, "Output/kids_amb_temp_data_new.rds")
+#write_csv(kids_amb_temp_data_new, "Output/kids_amb_temp_data_new.csv")
+```
+
+

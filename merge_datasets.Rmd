@@ -383,6 +383,20 @@ save_var_names <- data.frame(t(exposure_analysis_data_long)) %>%
 # Update long dataset -- REMEMBER TO UPDATE SHORT DATA BELOW
 ```{r}
 exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds")
+kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data_new.rds") %>% 
+  mutate(sample_date = amb_pm_date)
+kids_amb_temp_data <- read_rds("Output/kids_amb_temp_data_new.rds") %>% 
+  mutate(sample_date = temp_date) %>% 
+  mutate(sample_date = as.character(sample_date)) %>% 
+  select(-lat_zip, -long_zip)
+wmt_zipcodes <- read_csv("Input/WMT/wmt_zipcodes.csv") %>% 
+  rename_all(tolower)
+nn_zipcodes <- read_csv("Input/NN/nn_zipcodes.csv") %>% 
+  rename_all(tolower)
+ak_zipcodes <- read_csv("Input/AK/ak_zipcodes.csv") %>% 
+  rename_all(tolower)
+kids_zipcodes <- rbind(wmt_zipcodes, nn_zipcodes, ak_zipcodes) %>% 
+  mutate(home = gsub(home, pattern = "_", replacement = ""))
 
 
 
@@ -409,6 +423,9 @@ exposure_analysis_data_long_new <- exposure_analysis_data_long %>%
                                             "$20,000-$49,999", 
                                             "$50,000+"))) %>% 
   ungroup() %>% 
+  left_join(kids_zipcodes, by = "home") %>% 
+  left_join(kids_amb_pm_data, by = c("area", "zip", "sample_date")) %>% 
+  left_join(kids_amb_temp_data, by = c("area", "zip", "sample_date")) %>%
   arrange(area, home, home_winter_id, sample_date)
 
 
@@ -426,14 +443,14 @@ exposure_analysis_data_long_new <- read_rds("Output/exposure_analysis_data_long_
 
 exposure_analysis_data_medium <- exposure_analysis_data_long_new %>% 
   select(area, home, home_winter_id, winter_id, treatment, 
-         sampling_day, sample_date, burn_level:wood_collect_method_2level) %>% 
+         sampling_day, sample_date, burn_level:mean_temp_roll_4day) %>% 
   group_by(area, home, winter_id, child_id_char) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
   select(area, home, home_winter_id, winter_id, treatment, sampling_day,
-         child_id_char, burn_level:wood_collect_method_2level) %>% 
+         child_id_char, burn_level:mean_temp_roll_4day) %>% 
   mutate(filter_var = if_else(winter_id == 1 & is.na(sampling_day) & lead(sampling_day) == 1, 1, 0),
          filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
-  select(filter_var, area:wood_collect_method_2level) %>% 
+  select(filter_var, area:mean_temp_roll_4day) %>% 
   filter(filter_var == 0) %>% 
   select(-filter_var)
 
