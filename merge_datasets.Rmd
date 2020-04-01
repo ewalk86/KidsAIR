@@ -384,19 +384,33 @@ save_var_names <- data.frame(t(exposure_analysis_data_long)) %>%
 ```{r}
 exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds")
 kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data_new.rds") %>% 
-  mutate(sample_date = amb_pm_date)
+  mutate(sample_date = amb_pm_date) %>% 
+  distinct(zip, .keep_all = TRUE)
 kids_amb_temp_data <- read_rds("Output/kids_amb_temp_data_new.rds") %>% 
   mutate(sample_date = temp_date) %>% 
   mutate(sample_date = as.character(sample_date)) %>% 
-  select(-lat_zip, -long_zip)
+  distinct(zip, .keep_all = TRUE)
 wmt_zipcodes <- read_csv("Input/WMT/wmt_zipcodes.csv") %>% 
   rename_all(tolower)
 nn_zipcodes <- read_csv("Input/NN/nn_zipcodes.csv") %>% 
-  rename_all(tolower)
+  rename_all(tolower) 
 ak_zipcodes <- read_csv("Input/AK/ak_zipcodes.csv") %>% 
-  rename_all(tolower)
+  rename_all(tolower) 
 kids_zipcodes <- rbind(wmt_zipcodes, nn_zipcodes, ak_zipcodes) %>% 
-  mutate(home = gsub(home, pattern = "_", replacement = ""))
+  mutate(home = gsub(home, pattern = "_", replacement = ""),
+         home = gsub(home, pattern = " ", replacement = "")) %>% 
+  left_join(kids_amb_pm_data, by = "zip") %>% 
+  select(home, zip, lat_pm, long_pm) %>% 
+  left_join(kids_amb_temp_data, by = "zip") %>% 
+  select(home, zip, lat_zip, long_zip, lat_pm, long_pm, lat_temp, long_temp)
+kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data_new.rds") %>% 
+  mutate(sample_date = amb_pm_date) %>% 
+  select(-lat_zip, -long_zip, -lat_pm, -long_pm)
+kids_amb_temp_data <- read_rds("Output/kids_amb_temp_data_new.rds") %>% 
+  mutate(sample_date = temp_date) %>% 
+  mutate(sample_date = as.character(sample_date)) %>% 
+  select(-lat_zip, -long_zip, -lat_temp, -long_temp)
+
 
 
 
@@ -452,7 +466,8 @@ exposure_analysis_data_medium <- exposure_analysis_data_long_new %>%
          filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
   select(filter_var, area:mean_temp_roll_4day) %>% 
   filter(filter_var == 0) %>% 
-  select(-filter_var)
+  select(-filter_var) %>% 
+  ungroup()
 
 
 

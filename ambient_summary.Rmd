@@ -1,0 +1,295 @@
+---
+title: "KidsAIR: ambient temperature and PM analysis"
+author: "Ethan Walker"
+date: "Started 1 April 2020, Updated 1 April 2020"
+output: powerpoint_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE,
+                      fig.height = 6, fig.width = 8)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(ggmap)
+library(maps)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long_new.rds") 
+
+exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds") 
+
+exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds")
+
+sums_rolling_pm_data <- read_rds("Output/sums_rolling_pm_data.rds")
+
+health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+# data from each sampling day
+pm_summary <- exposure_analysis_data_long %>% 
+  group_by(area) %>% 
+  summarize(mean_amb_pm = mean(amb_pm_24hr, na.rm = TRUE))
+pm_summary
+
+temp_summary <- exposure_analysis_data_long %>% 
+  group_by(area) %>% 
+  summarize(mean_amb_temp = mean(mean_temp, na.rm = TRUE))
+temp_summary
+
+
+# data from indoor PM sampling
+pm_summary <- exposure_analysis_data_medium %>% 
+  group_by(area) %>% 
+  summarize(mean_amb_pm = mean(amb_pm_24hr, na.rm = TRUE))
+pm_summary
+
+temp_summary <- exposure_analysis_data_medium %>% 
+  group_by(area) %>% 
+  summarize(mean_amb_temp = mean(mean_temp, na.rm = TRUE))
+temp_summary
+```
+
+
+```{r}
+boxplots_amb_pm <- exposure_analysis_data_medium %>% 
+  #filter(winter_id == 1 & treatment == "Placebo") %>% 
+  ggplot(aes(area, amb_pm_24hr)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
+    theme_minimal() +
+    labs(y = expression(paste("Ambient PM "[2.5], " (", mu, g/m^3, ")"))) +
+    labs(title = "Ambient PM levels during indoor PM sampling",
+          subtitle = "Data from closest EPA monitor to each home's zipcode") +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          title = element_text(size = 16, colour = "black"))
+boxplots_amb_pm
+```
+
+
+```{r}
+boxplots_amb_temp <- exposure_analysis_data_medium %>% 
+  #filter(winter_id == 1 & treatment == "Placebo") %>% 
+  ggplot(aes(area, mean_temp)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
+    theme_minimal() +
+    labs(y = "Degrees (F)") +
+    labs(title = "Ambient mean temperatures during indoor PM sampling",
+          subtitle = "Data from closest site to each home's zipcode") +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          title = element_text(size = 16, colour = "black"))
+boxplots_amb_temp
+```
+
+
+```{r}
+wmt_map <- map_data("state") %>% 
+  filter(region == "montana")
+
+
+nn_map <- map_data("state") %>% 
+  filter(region == "arizona")
+
+
+ak_map <- map_data("world") %>% 
+  filter(subregion == "Alaska") %>% 
+  filter(long < 0)
+
+
+
+wmt_plot <- exposure_analysis_data_medium %>%
+  ungroup() %>% 
+  filter(area == "WMT") %>% 
+  group_by(zip) %>% 
+  mutate(mean_amb_pm = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(zip)) %>% 
+  ggplot() +
+    geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
+               color="black", fill = "tan") +
+    geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
+               shape = 21, color = "black") +
+    geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
+               color = "black") +
+    theme_void() +
+    labs(title = "WMT mean ambient PM at each zipcode during indoor PM sampling",
+         subtitle = "Yellow triangles = EPA monitors") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 8)
+wmt_plot
+```
+
+```{r}
+nn_plot <- exposure_analysis_data_medium %>%
+  ungroup() %>% 
+  filter(area == "NN") %>% 
+  group_by(zip) %>% 
+  mutate(mean_amb_pm = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(zip)) %>% 
+  ggplot() +
+    geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
+               color="black", fill = "tan") +
+    geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
+               color = "black") +
+    geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
+               shape = 21, color = "black") +
+    theme_void() +
+    labs(title = "NN mean ambient PM at each zipcode during indoor PM sampling",
+         subtitle = "Yellow triangles = EPA monitors") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 1.5)
+nn_plot
+```
+
+```{r}
+ak_plot <- exposure_analysis_data_medium %>%
+  ungroup() %>% 
+  filter(area == "AK") %>% 
+  group_by(zip) %>% 
+  mutate(mean_amb_pm = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(zip)) %>% 
+  ggplot() +
+    geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
+               color="black", fill = "tan") +
+    geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
+               color = "black") +
+    geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
+               shape = 21, color = "black") +
+    theme_void() +
+    labs(title = "AK mean ambient PM at each zipcode during indoor PM sampling",
+         subtitle = "Yellow triangles = EPA monitors") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 6)
+ak_plot
+```
+
+
+
+```{r}
+wmt_map <- map_data("state") %>% 
+  filter(region == "montana")
+
+
+nn_map <- map_data("state") %>% 
+  filter(region == "arizona")
+
+
+ak_map <- map_data("world") %>% 
+  filter(subregion == "Alaska") %>% 
+  filter(long < 0)
+
+
+
+wmt_plot <- exposure_analysis_data_medium %>%
+  ungroup() %>% 
+  filter(area == "WMT") %>% 
+  group_by(zip) %>% 
+  mutate(mean_amb_temp = mean(mean_temp, na.rm = TRUE)) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(zip)) %>% 
+  ggplot() +
+    geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
+               color="black", fill = "tan") +
+    geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
+               shape = 21, color = "black") +
+    geom_point(aes(long_temp, lat_temp), shape = 24, size = 3, fill = "yellow",
+               color = "black") +
+    theme_void() +
+    labs(title = "WMT mean ambient Temp at each zipcode during indoor PM sampling",
+         subtitle = "Yellow triangles = weather stations") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 20)
+wmt_plot
+```
+
+
+```{r}
+nn_plot <- exposure_analysis_data_medium %>%
+  ungroup() %>% 
+  filter(area == "NN") %>% 
+  group_by(zip) %>% 
+  mutate(mean_amb_temp = mean(mean_temp, na.rm = TRUE)) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(zip)) %>% 
+  ggplot() +
+    geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
+               color="black", fill = "tan") +
+    geom_point(aes(long_temp, lat_temp), shape = 24, size = 3, fill = "yellow",
+               color = "black") +
+    geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
+               shape = 21, color = "black") +
+    theme_void() +
+    labs(title = "NN mean ambient Temp at each zipcode during indoor PM sampling",
+         subtitle = "Yellow triangles = weather stations") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 45)
+nn_plot
+```
+
+
+```{r}
+ak_plot <- exposure_analysis_data_medium %>%
+  ungroup() %>% 
+  filter(area == "AK") %>% 
+  group_by(zip) %>% 
+  mutate(mean_amb_temp = mean(mean_temp, na.rm = TRUE)) %>% 
+  distinct(zip, .keep_all = TRUE) %>% 
+  filter(!is.na(zip)) %>% 
+  ggplot() +
+    geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
+               color="black", fill = "tan") +
+    geom_point(aes(long_temp, lat_temp), shape = 24, size = 5, fill = "yellow",
+               color = "black") +
+    geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
+               shape = 21, color = "black") +
+    theme_void() +
+    labs(title = "AK mean ambient Temp at each zipcode during indoor PM sampling",
+         subtitle = "Yellow triangles = weather stations") +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 30)
+ak_plot
+```
+

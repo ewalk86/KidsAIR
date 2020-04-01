@@ -21,6 +21,7 @@ library(lme4)
 library(lmerTest)
 library(ggmap)
 library(maps)
+library(tigris)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -41,6 +42,7 @@ ak_zipcodes <- read_csv("Input/AK/ak_zipcodes.csv") %>%
   rename_all(tolower)
 
 
+# Zipcode data from: http://download.geonames.org/export/dump/ 
 us_zipcodes <- read_tsv("Input/us_zipcodes/us_zipcodes.txt", 
                         col_names = c("country", "zip", "city", "state",
                                       "state_abbr", "trash1", "trash2", "trash3", 
@@ -57,10 +59,13 @@ nn_map <- map_data("state") %>%
          region == "new mexico" | region == "colorado")
 
 
-ak_map <- map_data("state") %>% 
-  filter(region == "alaska")
+ak_map <- map_data("world") %>% 
+  filter(subregion == "Alaska") %>% 
+  filter(long < 0)
 
 
+# Weather data and stations comes from the National Climatic Data Center:
+# https://www7.ncdc.noaa.gov/CDO/cdoselect.cmd?datasetabbv=GSOD&countryabbv=&georegionabbv=
 us_temp_stations <- read_table("Input/ambient/temp_station_list.txt", skip = 20,
                             col_names = c("station", "wban", "station_names",
                                           "country", "state", "call", "lat",
@@ -74,19 +79,31 @@ us_temp_stations <- read_table("Input/ambient/temp_station_list.txt", skip = 20,
          end_date = ymd(end_date))
 
 
+# Ambient PM data comes from EPA Air Quality Monitors:
+# https://epa.maps.arcgis.com/apps/webappviewer/index.html?id=5f239fd3e72f424f98ef3d5def547eb5&extent=-146.2334,13.1913,-46.3896,56.5319 
 pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
 ```
 
 
 # Mapping zipcodes, weather stations, pm stations - WMT
+# These steps are repeated for NN and AK below
 ```{r}
+# Zipcodes for each KidsAIR study home were downloaded from the server
+# If there was no zipcode provided, the zipcode from the nearest town was used
+# Here, WMT zipcodes are joined with the US zipcode data
+# This step gives lat/long coordinates for each WMT zipcode
 wmt_zipcodes_new <- wmt_zipcodes %>% 
   left_join(us_zipcodes, by = "zip") %>% 
   distinct(zip, .keep_all = TRUE) %>% 
   mutate(lat_zip = lat,
          long_zip = long)
 
-#Plot temp stations
+
+# US weather stations list was filtered for MT and ID locations
+# Stations were further filtered for data availability during study dates
+# Temp data was joined with WMT zipcode data
+# Lat/long differences were calculated
+# The weather station closest to each zipcode was selected and plotted below
 wmt_temp_stations <- us_temp_stations %>% 
   filter(state == "MT" | state == "ID") %>% 
   mutate(lat_temp = lat,
@@ -115,6 +132,8 @@ wmt_temp_stations <- us_temp_stations %>%
          long_zip, station_names)
 
 
+# Here, zipcodes and weather stations are plotted on a map
+# Colors match for weather stations and zips that are closest together
 wmt_plot <- wmt_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
@@ -125,11 +144,15 @@ wmt_plot <- wmt_zipcodes_new %>%
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
     theme_void() +
+    labs(title = "WMT zipcodes and weather stations") +
     scale_color_manual(values = jv_palette)
 wmt_plot
 
 
-#Plot PM stations
+
+
+# Lat/long coordinates for PM stations was manually extracted from the EPA site
+# Similar to weather stations, each WMT zipcode was matched with the closest PM monitor
 wmt_pm_stations <- pm_stations %>% 
   filter(area == "WMT") %>% 
   full_join(wmt_zipcodes_new, by = "country") %>% 
@@ -142,6 +165,8 @@ wmt_pm_stations <- pm_stations %>%
   select(area, local_site, zip, lat_pm, long_pm, lat_zip, long_zip)
 
 
+# PM monitors and zipcodes are plotted below
+# Colors match for PM monitors and zips that are closest together
 wmt_plot <- wmt_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
@@ -152,6 +177,7 @@ wmt_plot <- wmt_zipcodes_new %>%
              aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
     theme_void() +
+    labs(title = "WMT zipcodes and PM monitors") +
     scale_color_manual(values = jv_palette)
 wmt_plot
 ```
@@ -205,6 +231,7 @@ nn_plot_temp_stations <- wmt_zipcodes_new %>%
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
     theme_void() +
+    labs(title = "NN zipcodes and weather stations") +
     scale_color_manual(values = jv_palette)
 nn_plot_temp_stations
 
@@ -233,6 +260,7 @@ nn_plot <- nn_zipcodes_new %>%
              aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
     theme_void() +
+    labs(title = "NN zipcodes and PM monitors") +
     scale_color_manual(values = jv_palette)
 nn_plot
 ```
@@ -273,12 +301,15 @@ ak_temp_stations <- us_temp_stations %>%
 
 zipcodes_map <- wmt_zipcodes_new %>% 
   ggplot() +
+    geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
+               colour="black", fill = "white") +
     geom_point(data=ak_temp_stations, 
              aes(long_zip, lat_zip, color = station_names), size = 3) +
     geom_point(data=ak_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
     theme_void() +
+    labs(title = "AK zipcodes and weather stations") +
     scale_color_manual(values = jv_palette) 
 zipcodes_map
 
@@ -307,6 +338,7 @@ ak_plot <- ak_zipcodes_new %>%
              aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
     theme_void() +
+    labs(title = "AK zipcodes and PM monitors") +
     scale_color_manual(values = jv_palette)
 ak_plot
 ```
@@ -314,9 +346,10 @@ ak_plot
 
 # Compile temperature data and filter for closest stations
 ```{r}
+# Read in ambient weather files and bind together
 list_files <- list.files("Input/ambient/temp_data")
 # Set working directory and load files in list; extract file name and add as column
-## run next 4 lines together
+## run next 10 lines together
 setwd("Input/ambient/temp_data") # set new working directory
 initial_data = tibble(file_name = list_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_csv, 
@@ -329,7 +362,7 @@ initial_data = tibble(file_name = list_files) %>% # use list of files from above
   unnest(save_data)
 
 
-# Format combined file from above; combine with other PM data below
+# Format combined file from above
 temp_data <- initial_data %>% 
   filter(!is.na(t1)) %>% 
   separate(file_name, c("area", "station_char"), sep = "_") %>%
@@ -345,9 +378,11 @@ temp_data <- initial_data %>%
   replace_with_na_all(condition = ~.x %in% c(9999.9, 999.9))
 
 
+# Bind together weather station names from each location
 temp_stations <- rbind(wmt_temp_stations, nn_temp_stations, ak_temp_stations)
 
 
+# Join weather data with station names
 temp_data_joined <- temp_data %>% 
   left_join(temp_stations, by = c("station", "station_char")) 
 
@@ -363,10 +398,10 @@ kids_temp_data <- read_rds("Output/kids_temp_data.rds")
 ```{r}
 pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
 
-
+# Read in ambient PM files and bind together
 list_files <- list.files("Input/ambient/pm_data")
 # Set working directory and load files in list; extract file name and add as column
-## run next 4 lines together
+## run next 28 lines together
 setwd("Input/ambient/pm_data") # set new working directory
 initial_data = tibble(file_name = list_files) %>% # use list of files from above
    mutate(save_data = lapply(file_name, read_csv, skip = 1,
@@ -398,7 +433,7 @@ initial_data = tibble(file_name = list_files) %>% # use list of files from above
   unnest(save_data)
 
 
-
+# Format combined file from above
 pm_data <- initial_data %>% 
   filter(t1 != "State Code") %>% 
   filter(pollutant == "PM25 24-hour 2012") %>% 
@@ -414,10 +449,12 @@ pm_data <- initial_data %>%
   select(local_site, amb_pm_date, amb_pm_24hr)
   arrange(local_site, amb_pm_date)
   
-  
+
+# Bind together PM monitor names from each location
 pm_stations <- rbind(wmt_pm_stations, nn_pm_stations, ak_pm_stations)
 
 
+# Join PM data with monitor names
 pm_data_joined <- pm_data %>% 
   left_join(pm_stations, by = "local_site")
 
