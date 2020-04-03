@@ -1,8 +1,8 @@
 ---
 title: "KidsAIR: ambient temperature and PM analysis"
 author: "Ethan Walker"
-date: "Started 1 April 2020, Updated 1 April 2020"
-output: powerpoint_presentation
+date: "Started 1 April 2020, Updated 3 April 2020"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -26,6 +26,8 @@ library(maps)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r}
@@ -153,14 +155,15 @@ wmt_plot <- exposure_analysis_data_medium %>%
   filter(!is.na(zip)) %>% 
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
-               color="black", fill = "tan") +
+               color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
                shape = 21, color = "black") +
     geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
                color = "black") +
     theme_void() +
     labs(title = "WMT mean ambient PM at each zipcode during indoor PM sampling",
-         subtitle = "Yellow triangles = EPA monitors") +
+         subtitle = "Yellow triangles = EPA monitors",
+         fill = "Ambient PM", size = "Ambient PM") +
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 8)
 wmt_plot
 ```
@@ -175,14 +178,15 @@ nn_plot <- exposure_analysis_data_medium %>%
   filter(!is.na(zip)) %>% 
   ggplot() +
     geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
-               color="black", fill = "tan") +
+               color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
                color = "black") +
     geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "NN mean ambient PM at each zipcode during indoor PM sampling",
-         subtitle = "Yellow triangles = EPA monitors") +
+         subtitle = "Yellow triangles = EPA monitors",
+         fill = "Ambient PM", size = "Ambient PM") +
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 1.5)
 nn_plot
 ```
@@ -197,14 +201,15 @@ ak_plot <- exposure_analysis_data_medium %>%
   filter(!is.na(zip)) %>% 
   ggplot() +
     geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
-               color="black", fill = "tan") +
-    geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
+               color="black", fill = "azure", size = 1.2) +
+    geom_point(aes(long_pm, lat_pm), shape = 24, size = 5, fill = "yellow",
                color = "black") +
     geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "AK mean ambient PM at each zipcode during indoor PM sampling",
-         subtitle = "Yellow triangles = EPA monitors") +
+         subtitle = "Yellow triangle = EPA monitor",
+         fill = "Ambient PM", size = "Ambient PM") +
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 6)
 ak_plot
 ```
@@ -235,14 +240,15 @@ wmt_plot <- exposure_analysis_data_medium %>%
   filter(!is.na(zip)) %>% 
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
-               color="black", fill = "tan") +
+               color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
                shape = 21, color = "black") +
     geom_point(aes(long_temp, lat_temp), shape = 24, size = 3, fill = "yellow",
                color = "black") +
     theme_void() +
     labs(title = "WMT mean ambient Temp at each zipcode during indoor PM sampling",
-         subtitle = "Yellow triangles = weather stations") +
+         subtitle = "Yellow triangles = weather stations",
+         fill = "Ambient temp", size = "Ambient temp") +
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 20)
 wmt_plot
 ```
@@ -258,14 +264,15 @@ nn_plot <- exposure_analysis_data_medium %>%
   filter(!is.na(zip)) %>% 
   ggplot() +
     geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
-               color="black", fill = "tan") +
+               color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_temp, lat_temp), shape = 24, size = 3, fill = "yellow",
                color = "black") +
     geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "NN mean ambient Temp at each zipcode during indoor PM sampling",
-         subtitle = "Yellow triangles = weather stations") +
+         subtitle = "Yellow triangles = weather stations",
+         fill = "Ambient temp", size = "Ambient temp") +
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 45)
 nn_plot
 ```
@@ -281,14 +288,15 @@ ak_plot <- exposure_analysis_data_medium %>%
   filter(!is.na(zip)) %>% 
   ggplot() +
     geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
-               color="black", fill = "tan") +
+               color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_temp, lat_temp), shape = 24, size = 5, fill = "yellow",
                color = "black") +
     geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "AK mean ambient Temp at each zipcode during indoor PM sampling",
-         subtitle = "Yellow triangles = weather stations") +
+         subtitle = "Yellow triangles = weather stations",
+         fill = "Ambient temp", size = "Ambient temp") +
     scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 30)
 ak_plot
 ```

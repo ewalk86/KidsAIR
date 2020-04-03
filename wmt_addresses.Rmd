@@ -1,0 +1,53 @@
+---
+title: "KidsAIR: WMT addresses"
+author: "Ethan Walker"
+date: "Started 3 April 2020, Updated 3 April 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE, message = FALSE,
+                      fig.height = 6, fig.width = 8)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(ggmap)
+library(maps)
+library(tigris)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
+```
+
+
+```{r}
+wmt_addresses <- read_xlsx("Input/WMT/wmt_addresses.xlsx")
+
+register_google(key = "")
+```
+
+
+```{r}
+addresses_new <- wmt_addresses %>% 
+  unite(address, c("Address", "City", "Zip"), sep = ", ", remove = FALSE) %>% 
+  select(Home, address) 
+```
+
+
+```{r}
+addresses_geocoded <- geocode(location = addresses_new$address, output = "latlon",
+                              source = "google")
+```
+

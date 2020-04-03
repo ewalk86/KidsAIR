@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: initial exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 30 March 2020"
+date: "Started 2 Feb 2020, Updated 3 April 2020"
 output: pdf_document
 ---
 
@@ -381,6 +381,61 @@ pm_sums_plot <- sums_temp_change %>%
   filter(!is.na(sums_events)) %>% 
   ggplot() + 
     geom_boxplot(aes(sums_events_cat, log(pm_mean_sampling_day))) +
+    theme_minimal()
+pm_sums_plot
+```
+
+
+
+# Ambient temp/PM - by sampling date
+```{r}
+analysis_data <- exposure_analysis_data_long %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  #filter(area == "AK") %>% 
+  filter(!is.na(sampling_day)) %>% 
+  filter(!is.na(sample_date)) %>%
+  select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
+         zip:mean_temp_roll_4day) %>% 
+  mutate(amb_pm_5 = amb_pm_24hr/5,
+         mean_temp_5 = mean_temp/5,
+         mean_temp_cat = cut(mean_temp, breaks = c(0, 30, 150),
+                           labels = c("<30", "30+"),
+                                 right = FALSE),
+         amb_pm_cat = cut(amb_pm_24hr, breaks = c(0, 7, 100),
+                           labels = c("<7", "7+"),
+                                 right = FALSE))
+
+
+median(analysis_data$amb_pm_24hr, na.rm = TRUE)
+table(analysis_data$amb_pm_cat)
+  
+
+# Variables to use:
+## amb_pm_5, amb_pm_cat,
+## amb_pm_24hr, amb_pm_24hr_lag1, amb_pm_24hr_lag2, amb_pm_24hr_lag3
+## amb_pm_roll_mean_2day, amb_pm_roll_mean_3day, amb_pm_roll_mean_4day
+## mean_temp_5, mean_temp_cat,
+## mean_temp, mean_temp_lag1, mean_temp_lag2, mean_temp_lag3
+## mean_temp_roll_2day, mean_temp_roll_3day, mean_temp_roll_4day
+
+  
+cor.test(analysis_data$mean_temp, analysis_data$pm_mean_daily, method = "spearman")
+pm_ambient_model <- lmer(log(pm_mean_daily) ~ amb_pm_cat + (1 | home), 
+                      data = analysis_data)
+pm_ambient_model <- lmer(pm_mean_daily ~ amb_pm_cat + (1 | home), 
+                      data = analysis_data)
+
+#summary(pm_ambient_model)
+tidy(pm_ambient_model)
+exp((-0.06723228)-1)*100
+plot(pm_ambient_model, 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(pm_ambient_model), main = "QQ Plot")
+
+pm_sums_plot <- analysis_data %>% 
+  ggplot() + 
+    geom_point(aes(log(pm_mean_daily), mean_temp)) +
+    geom_smooth(aes(log(pm_mean_daily), mean_temp)) +
     theme_minimal()
 pm_sums_plot
 ```

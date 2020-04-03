@@ -1,12 +1,14 @@
 ---
 title: "KidsAIR: ambient data"
 author: "Ethan Walker"
-date: "Started 30 March 2020, Updated 30 March 2020"
+date: "Started 30 March 2020, Updated 3 April 2020"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE, message = FALSE,
+                      fig.height = 6, fig.width = 8)
 ```
 
 ```{r, message=FALSE}
@@ -25,6 +27,8 @@ library(tigris)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r}
@@ -85,9 +89,10 @@ pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
 ```
 
 
+```{r}
 # Mapping zipcodes, weather stations, pm stations - WMT
 # These steps are repeated for NN and AK below
-```{r}
+
 # Zipcodes for each KidsAIR study home were downloaded from the server
 # If there was no zipcode provided, the zipcode from the nearest town was used
 # Here, WMT zipcodes are joined with the US zipcode data
@@ -137,15 +142,15 @@ wmt_temp_stations <- us_temp_stations %>%
 wmt_plot <- wmt_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
-               colour="black", fill = "white") +
+               colour="black", fill = "azure", size = 1.2) +
     geom_point(data=wmt_temp_stations, 
              aes(long_zip, lat_zip, color = station_names), size = 3) +
     geom_point(data=wmt_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
     theme_void() +
-    labs(title = "WMT zipcodes and weather stations") +
-    scale_color_manual(values = jv_palette)
+    labs(title = "WMT zipcodes and weather stations", color = "Weather station") +
+    scale_color_manual(values = cbPalette)
 wmt_plot
 
 
@@ -170,21 +175,22 @@ wmt_pm_stations <- pm_stations %>%
 wmt_plot <- wmt_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
-               colour="black", fill = "white") +
+               colour="black", fill = "azure", size = 1.2) +
     geom_point(data=wmt_pm_stations, 
              aes(long_zip, lat_zip, color = local_site), size = 3) +
     geom_point(data=wmt_pm_stations, 
              aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
     theme_void() +
-    labs(title = "WMT zipcodes and PM monitors") +
-    scale_color_manual(values = jv_palette)
+    labs(title = "WMT zipcodes and PM monitors", color = "EPA Monitor") +
+    scale_color_manual(values = cbPalette)
 wmt_plot
 ```
 
 
-# Mapping zipcodes, weather stations, pm stations - NN
 ```{r}
+# Mapping zipcodes, weather stations, pm stations - NN
+
 nn_zipcodes_new <- nn_zipcodes %>% 
   left_join(us_zipcodes, by = "zip") %>% 
   distinct(zip, .keep_all = TRUE) %>% 
@@ -224,15 +230,15 @@ nn_temp_stations <- us_temp_stations %>%
 nn_plot_temp_stations <- wmt_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
-               colour="black", fill = "white") +
+               colour="black", fill = "azure", size = 1.2) +
     geom_point(data=nn_temp_stations, 
              aes(long_zip, lat_zip, color = station_names), size = 3) +
     geom_point(data=nn_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
              shape = 15, size = 3) +
     theme_void() +
-    labs(title = "NN zipcodes and weather stations") +
-    scale_color_manual(values = jv_palette)
+    labs(title = "NN zipcodes and weather stations", color = "Weather station") +
+    scale_color_manual(values = cbPalette)
 nn_plot_temp_stations
 
 
@@ -253,21 +259,22 @@ nn_pm_stations <- pm_stations %>%
 nn_plot <- nn_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=nn_map, aes(x=long, y=lat, group=group), 
-               colour="black", fill = "white") +
+               colour="black", fill = "azure", size = 1.2) +
     geom_point(data=nn_pm_stations, 
              aes(long_zip, lat_zip, color = local_site), size = 3) +
     geom_point(data=nn_pm_stations, 
              aes(long_pm, lat_pm, color = local_site), 
              shape = 15, size = 3) +
     theme_void() +
-    labs(title = "NN zipcodes and PM monitors") +
-    scale_color_manual(values = jv_palette)
+    labs(title = "NN zipcodes and PM monitors", color = "EPA monitor") +
+    scale_color_manual(values = cbPalette)
 nn_plot
 ```
 
 
-# Mapping zipcodes, weather stations, pm stations - WMT
 ```{r}
+# Mapping zipcodes, weather stations, pm stations - WMT
+
 ak_zipcodes_new <- ak_zipcodes %>% 
   left_join(us_zipcodes, by = "zip") %>% 
   distinct(zip, .keep_all = TRUE) %>% 
@@ -302,15 +309,15 @@ ak_temp_stations <- us_temp_stations %>%
 zipcodes_map <- wmt_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
-               colour="black", fill = "white") +
+               colour="black", fill = "azure", size = 1.2) +
     geom_point(data=ak_temp_stations, 
-             aes(long_zip, lat_zip, color = station_names), size = 3) +
+             aes(long_zip, lat_zip, color = station_names), size = 5) +
     geom_point(data=ak_temp_stations, 
              aes(long_temp, lat_temp, color = station_names), 
-             shape = 15, size = 3) +
+             shape = 15, size = 5) +
     theme_void() +
-    labs(title = "AK zipcodes and weather stations") +
-    scale_color_manual(values = jv_palette) 
+    labs(title = "AK zipcodes and weather stations", color = "Weather station") +
+    scale_color_manual(values = cbPalette) 
 zipcodes_map
 
 
@@ -331,21 +338,22 @@ ak_pm_stations <- pm_stations %>%
 ak_plot <- ak_zipcodes_new %>% 
   ggplot() +
     geom_polygon(data=ak_map, aes(x=long, y=lat, group=group), 
-               colour="black", fill = "white") +
+               colour="black", fill = "azure", size = 1.2) +
     geom_point(data=ak_pm_stations, 
-             aes(long_zip, lat_zip, color = local_site), size = 3) +
+             aes(long_zip, lat_zip, color = local_site), size = 5) +
     geom_point(data=ak_pm_stations, 
              aes(long_pm, lat_pm, color = local_site), 
-             shape = 15, size = 3) +
+             shape = 15, size = 5) +
     theme_void() +
-    labs(title = "AK zipcodes and PM monitors") +
-    scale_color_manual(values = jv_palette)
+    labs(title = "AK zipcodes and PM monitors", color = "EPA monitor") +
+    scale_color_manual(values = cbPalette)
 ak_plot
 ```
 
 
+```{r, echo=FALSE, include=FALSE, eval=FALSE}
 # Compile temperature data and filter for closest stations
-```{r}
+
 # Read in ambient weather files and bind together
 list_files <- list.files("Input/ambient/temp_data")
 # Set working directory and load files in list; extract file name and add as column
@@ -394,8 +402,9 @@ kids_temp_data <- read_rds("Output/kids_temp_data.rds")
 ```
 
 
+```{r, echo=FALSE, include=FALSE, eval=FALSE}
 # Compile PM data and filter for correct dates/variables
-```{r}
+
 pm_stations <- read_xlsx("Input/ambient/pm_station_list.xlsx")
 
 # Read in ambient PM files and bind together
@@ -466,8 +475,9 @@ kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data.rds")
 ```
 
 
+```{r, echo=FALSE, include=FALSE, eval=FALSE}
 # Add new variables to pm/temp datasets
-```{r}
+
 kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data.rds")
 kids_temp_data <- read_rds("Output/kids_temp_data.rds")
 
