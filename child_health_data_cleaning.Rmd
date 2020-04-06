@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 27 March 2020"
+date: "Started 27 Feb 2020, Updated 6 April 2020"
 output: pdf_document 
 ---
 
@@ -305,75 +305,98 @@ at_home_pm_merged <- read_rds("Output/at_home_pm_merged.rds")
 # Load and merge files from different locations
 ```{r}
 wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx") %>% 
+  replace_with_na_all(condition = ~.x == -999) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "WMT",
          med_visit_date = ymd(VisitDate),
          med_visit_ari = as.character(ARI),
-         lethargy = as.character(Lethargy),
-         retractions = as.character(Retractions),
+         med_visit_lethargy = as.character(Lethargy),
+         med_visit_retractions = as.character(Retractions),
          temp1 = as.numeric(Temp1),
          temp2 = as.numeric(Temp2),
          temp3 = as.numeric(Temp3),
-         resp_rate = as.numeric(RR),
-         heart_rate = as.numeric(HR),
-         wheeze = as.character(Wheeze),
-         stridor = as.character(Stridor),
-         crackles = as.character(Crackles),
-         sp02 = as.numeric(SP02),
-         hr_sp02 = as.numeric(HRPulseOx),
-         referred = as.character(Referred),
+         med_visit_resp_rate = as.numeric(RR),
+         med_visit_heart_rate = as.numeric(HR),
+         med_visit_wheeze = as.character(Wheeze),
+         med_visit_stridor = as.character(Stridor),
+         med_visit_crackles = as.character(Crackles),
+         med_visit_sp02 = as.numeric(SP02),
+         med_visit_hr_sp02 = as.numeric(HRPulseOx),
+         med_visit_referred = as.character(Referred),
          med_visit_notes = as.character(Notes)) %>% 
-  select(home_winter_id:med_visit_notes) %>% 
-  replace_with_na_all(condition = ~.x == -999)
+  # gather 3 temperatures to calculate average
+  gather("sample", "value", c("temp1":"temp3")) %>% 
+  group_by(home_winter_id, med_visit_date) %>% 
+  mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>%
+  select(home_winter_id:med_visit_mean_temp) 
+  
 
 
 nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %>% 
+  replace_with_na_all(condition = ~.x == -999) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "NN",
          med_visit_date = ymd(VisitDate),
          med_visit_ari = as.character(ARI),
-         lethargy = as.character(Lethargy),
-         retractions = as.character(Retractions),
+         med_visit_lethargy = as.character(Lethargy),
+         med_visit_retractions = as.character(Retractions),
          temp1 = as.numeric(Temp1),
          temp2 = as.numeric(Temp2),
          temp3 = as.numeric(Temp3),
-         resp_rate = as.numeric(RR),
-         heart_rate = as.numeric(HR),
-         wheeze = as.character(Wheeze),
-         stridor = as.character(Stridor),
-         crackles = as.character(Crackles),
-         sp02 = as.numeric(SP02),
-         hr_sp02 = as.numeric(HRPulseOx),
-         referred = as.character(Referred),
+         med_visit_resp_rate = as.numeric(RR),
+         med_visit_heart_rate = as.numeric(HR),
+         med_visit_wheeze = as.character(Wheeze),
+         med_visit_stridor = as.character(Stridor),
+         med_visit_crackles = as.character(Crackles),
+         med_visit_sp02 = as.numeric(SP02),
+         med_visit_hr_sp02 = as.numeric(HRPulseOx),
+         med_visit_referred = as.character(Referred),
          med_visit_notes = as.character(Level)) %>% 
-  select(home_winter_id:med_visit_notes) %>% 
-  replace_with_na_all(condition = ~.x == -999)
+  # gather 3 temperatures to calculate average
+  gather("sample", "value", c("temp1":"temp3")) %>% 
+  group_by(home_winter_id, med_visit_date) %>% 
+  mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>%
+  select(home_winter_id:med_visit_mean_temp)
+
 
 
 ak_medicalvisit_initial <- read_xlsx("Input/AK/ak_medicalvisit_20200227.xlsx") %>% 
+  replace_with_na_all(condition = ~.x == -999) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "AK",
          med_visit_date = ymd(VisitDate),
          med_visit_ari = as.character(ARI),
-         lethargy = as.character(Lethargy),
-         retractions = as.character(Retractions),
+         med_visit_lethargy = as.character(Lethargy),
+         med_visit_retractions = as.character(Retractions),
          temp1 = as.numeric(Temp1),
          temp2 = as.numeric(Temp2),
          temp3 = as.numeric(Temp3),
-         resp_rate = as.numeric(RR),
-         heart_rate = as.numeric(HR),
-         wheeze = as.character(Wheeze),
-         stridor = as.character(Stridor),
-         crackles = as.character(Crackles),
-         sp02 = as.numeric(SP02),
-         hr_sp02 = as.numeric(HRPulseOx),
-         referred = as.character(Referred),
+         med_visit_resp_rate = as.numeric(RR),
+         med_visit_heart_rate = as.numeric(HR),
+         med_visit_wheeze = as.character(Wheeze),
+         med_visit_stridor = as.character(Stridor),
+         med_visit_crackles = as.character(Crackles),
+         med_visit_sp02 = as.numeric(SP02),
+         med_visit_hr_sp02 = as.numeric(HRPulseOx),
+         med_visit_referred = as.character(Referred),
          med_visit_notes = as.character(Level)) %>% 
-  select(home_winter_id:med_visit_notes) %>% 
-  replace_with_na_all(condition = ~.x == -999)
+  # gather 3 temperatures to calculate average
+  gather("sample", "value", c("temp1":"temp3")) %>% 
+  group_by(home_winter_id, med_visit_date) %>% 
+  mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  # spread 3 moisture samples back to wide format
+  spread(sample, value) %>%
+  select(home_winter_id:med_visit_mean_temp)
 
 
 
@@ -457,19 +480,19 @@ wmt_childhomewinter_initial <- read_xlsx("Input/WMT/wmt_childhomewinter_20200227
          home_id = as.character(HomeID),
          child_id_num = as.character(ChildID),
          area = "WMT",
-         dr_relook = DrRelook,
-         ari_status = as.character(Status),
-         symptom_free_date = ymd(SymptomFreeDate),
-         csq_duedate = ymd(CSQDueDate),
-         csq_date = ymd(CSQDate),
-         csq_time = as.character(CSQTime),
-         dr_comments = as.character(DrComments),
-         dr_history = as.character(DrHistory),
-         notify_parents = as.character(NotifyParents),
-         notes_to_parents = as.character(NotesToParents),
-         any_ari = as.character(AnyARI),
-         ari_comments = as.character(WinterARIComments)) %>% 
-  select(home_winter_id:ari_comments)
+         chw_dr_relook = DrRelook,
+         chw_ari_status = as.character(Status),
+         chw_symptom_free_date = ymd(SymptomFreeDate),
+         chw_csq_duedate = ymd(CSQDueDate),
+         chw_csq_date = ymd(CSQDate),
+         chw_csq_time = as.character(CSQTime),
+         chw_dr_comments = as.character(DrComments),
+         chw_dr_history = as.character(DrHistory),
+         chw_notify_parents = as.character(NotifyParents),
+         chw_notes_to_parents = as.character(NotesToParents),
+         chw_any_ari = as.character(AnyARI),
+         chw_ari_comments = as.character(WinterARIComments)) %>% 
+  select(home_winter_id:chw_ari_comments)
          
 
 # Waiting on files from NN and AK
@@ -497,25 +520,33 @@ wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>%
          child_id_num = as.character(ChildID),
          area = "WMT",
          csq_date = ymd(Date),
-         sick_2_weeks = as.character(Illin2Weeks),
-         sick = as.character(Sick),
-         ari = as.character(ARI),
-         still_sick = as.character(StillSick),
-         first_symptom_date = ymd(FirstSymptomDate),
-         see_dr = as.character(SeeDr),
-         dr_diagnosis = as.character(DrDiagnosis),
-         new_meds = as.character(NewMeds),
-         fever = as.character(Fever),
-         temp = as.numeric(Temperature),
-         rapid_breathing = as.character(RapidBreathing),
-         difficult_breathing = as.character(DifficultBreathing),
-         noisy_breathing = as.character(NoisyBreathing),
-         runny_nose = as.character(RunnyNose),
-         cough = as.character(Coughing),
-         wheeze = as.character(Wheezing),
-         symptom_free_date = ymd(SymptomFreeDate),
-         comments = as.character(Comments)) %>% 
-  select(home_winter_id:comments)
+         csq_collect = as.character(HowCollected),
+         csq_sick_2_weeks = as.character(Illin2Weeks),
+         csq_still_sick = as.character(StillSick),
+         csq_first_symptom_date = ymd(FirstSymptomDate),
+         csq_symptom_free_date = ymd(SymptomFreeDate),
+         csq_miss_work = as.character(MissWork),
+         csq_miss_work_days = as.character(DaysMissed),
+         csq_see_dr = as.character(SeeDr),
+         csq_dr_diagnosis = as.character(DrDiagnosis),
+         csq_new_meds = as.character(NewMeds),
+         csq_fever_2weeks = as.character(Fever),
+         csq_temp_2weeks = as.numeric(Temperature),
+         csq_rapid_breathing_2weeks = as.character(RapidBreathing),
+         csq_difficult_breathing_2weeks = as.character(DifficultBreathing),
+         csq_noisy_breathing_2weeks = as.character(NoisyBreathing),
+         csq_runny_nose_2weeks = as.character(RunnyNose),
+         csq_cough_2weeks = as.character(Coughing),
+         csq_wheeze_2weeks = as.character(Wheezing),
+         csq_fever_current = as.character(FeverStill),
+         csq_rapid_breathing_current = as.character(RapidBreathingStill),
+         csq_difficult_breathing_current = as.character(DifficultBreathingStill),
+         csq_noisy_breathing_current = as.character(NoisyBreathingStill),
+         csq_runny_nose_current = as.character(RunnyNoseStill),
+         csq_cough_current = as.character(CoughingStill),
+         csq_wheeze_current = as.character(WheezingStill),
+         csq_comments = as.character(Comments)) %>% 
+  select(home_winter_id:csq_comments)
          
 
 # Waiting on files from NN and AK
@@ -550,10 +581,11 @@ wmt_medicalrecords_initial <- read_xlsx("Input/WMT/wmt_medicalrecords_20200227.x
          child_id_num = as.character(ChildID),
          area = "WMT",
          visit_date = ymd(VisitDate),
-         dr_diagnosis = as.character(DrDiag),
-         ari = as.character(ARI),
-         comments = as.character(DrComments)) %>% 
-  select(home_winter_id:comments)
+         med_rec_visit_date = ymd(VisitDate),
+         med_rec_dr_diagnosis = as.character(DrDiag),
+         med_rec_ari = as.character(ARI),
+         med_rec_comments = as.character(DrComments)) %>% 
+  select(home_winter_id:med_rec_comments)
          
 
 # Waiting on files from NN and AK

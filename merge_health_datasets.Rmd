@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge health datasets"
 author: "Ethan Walker"
-date: "Started 27 March 2020, Updated 27 March 2020"
+date: "Started 27 March 2020, Updated 6 April 2020"
 output: pdf_document
 ---
 
@@ -33,14 +33,12 @@ kids_medical_records <- read_rds("Output/kids_medical_records.rds")
 # Initial data merge - long format
 ```{r}
 kids_med_visit <- read_rds("Output/kids_med_visit.rds") %>% 
-  mutate(visit_date = med_visit_date) %>% 
-  rename(wheeze_med_visit = wheeze)
+  mutate(visit_date = med_visit_date) 
 
 
 health_merged1 <- kids_csq %>% 
   select(-home_id) %>% 
   mutate(visit_date = csq_date) %>% 
-  rename(wheeze_csq = wheeze) %>% 
   full_join(kids_med_visit, by = c("area", "home", "home_winter_id", "treatment",
                                    "winter_id", "child_id_num", "visit_date")) %>% 
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
@@ -50,7 +48,7 @@ health_merged1 <- kids_csq %>%
 
 
 child_home_winter <- read_rds("Output/child_home_winter.rds") %>% 
-  select(-csq_date, -home_id.x, -home_id.y, -symptom_free_date)
+  select(-home_id.x, -home_id.y, -chw_symptom_free_date)
 
 
 health_merged2 <- health_merged1 %>% 
@@ -85,8 +83,22 @@ health_merged4 <- health_merged3 %>%
   ungroup()
 
 
-#write_rds(health_merged4, "Output/health_data_merged.rds")
-#write_csv(health_merged4, "Output/health_data_merged.csv")
+kids_medical_records <- read_rds("Output/kids_medical_records.rds") %>% 
+  select(-visit_date)
+
+
+health_merged5 <- health_merged4 %>% 
+  left_join(kids_medical_records, by = c("area", "home", "home_winter_id", "winter_id", 
+                                      "child_id_num", "treatment")) %>% 
+  arrange(area, home, home_winter_id, winter_id, child_id_num, sample_date) %>% 
+  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
+         treatment, sample_date, sampling_day, at_home_location, 
+         pm_at_home_sampling_day, pm_at_home_sampling_period, csq_date:med_rec_comments) %>% 
+  ungroup() 
+
+
+#write_rds(health_merged5, "Output/health_data_merged.rds")
+#write_csv(health_merged5, "Output/health_data_merged.csv")
 ```
 
 

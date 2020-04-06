@@ -1,0 +1,64 @@
+---
+title: "Kids LRTI tracking"
+author: "Ethan Walker"
+date: "Started 6 April 2020, Updated 6 April 2020"
+output: pdf_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
+```
+
+```{r}
+health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
+```
+
+```{r}
+lrti_data <- health_exposure_data_sampling_day %>% 
+  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
+         med_visit_date:med_visit_notes, chw_dr_relook:chw_ari_comments,
+         csq_date:csq_comments, med_rec_visit_date:med_rec_comments) %>% 
+  filter(!is.na(visit_date)) %>% 
+  filter(area == "WMT") %>% 
+  select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
+         med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments) %>% 
+  group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
+  distinct(visit_date, .keep_all = TRUE) %>% 
+  mutate(trash_date = ymd("2099-01-01"),
+         still_sick_date = if_else(csq_still_sick == "Yes", csq_date, trash_date),
+         med_rec_ari_date = if_else(med_rec_ari != "No ARI", med_rec_visit_date, trash_date),
+         med_visit_ari_date = if_else(med_visit_ari != "No", med_visit_date, trash_date)) %>% 
+  pivot_longer(cols = c("still_sick_date", "med_rec_ari_date", "med_visit_ari_date"),
+               names_to = "lrti_visits", values_to = "lrti_dates") %>% 
+  group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
+  mutate(lrti_start_date_new = if_else(!is.na(csq_first_symptom_date),
+                                       csq_first_symptom_date, lrti_dates)) %>% 
+  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
+         csq_first_symptom_date, lrti_start_date_new, lrti_visits, lrti_dates, trash_date) %>% 
+  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, lrti_dates) %>% 
+  distinct(visit_date, .keep_all = TRUE) %>% 
+  group_by(area, home, home_winter_id, winter_id, child_id_num) %>% 
+  distinct(lrti_start_date_new, .keep_all = TRUE)
+
+
+
+
+table(lrti_data$med_visit_ari)
+```
+
+
