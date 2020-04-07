@@ -1,7 +1,7 @@
 ---
 title: "Kids LRTI tracking"
 author: "Ethan Walker"
-date: "Started 6 April 2020, Updated 6 April 2020"
+date: "Started 6 April 2020, Updated 7 April 2020"
 output: pdf_document 
 ---
 
@@ -17,28 +17,91 @@ library(naniar)
 library(lubridate)
 library(zoo)
 library(knitr)
-jv_palette <- c("#330099","#CC0066","#FF6633", 
-                 "#0099CC", "#FF9900","#CC6633",
-                  "#FF3366", "#33CC99", "#33999")
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
-               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r}
 health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
 ```
 
+# Diagnosing LRTI from the data
+
+Is there a specific protocol Paul uses for diagnosing LRTI, or is it case-by-case
+based on the given information for each child? We'll need to have some kind of
+protocol/algorithm for publications, I would think.
+
+Other questions:
+- How far has the team made it (date/winter) in diagnosing LRTI? Winter 17/18?
+- Has this process been done/started for NN/AK, or just WMT?
+
 ```{r}
+# LRTI Diagnosis data
+lrti_diagnosis_data <- health_exposure_data_sampling_day %>% 
+  # select relevant health data
+  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
+         med_visit_date:med_visit_mean_temp,
+         csq_date:csq_comments, 
+         med_rec_visit_date, med_rec_dr_diagnosis, med_rec_ari, med_rec_comments) %>% 
+  # Currently only have this data for WMT - need to get new files and updates dataset
+  filter(area == "WMT") %>% 
+  # This is the most broad way of distinguishing if a child was sick
+  # Need to get Paul's protocol for diagnosis to filter down from here
+  filter(csq_sick_2_weeks == "Yes")
+```
+
+The filtering below narrows down the LRTI definition too much; we are missing cases
+where children had LRTI but did not visit a healthcare facility and have a med rec.
+If we only use these cases, it could bias the results.
+
+There are instances of LRTI in our records that weren’t confirmed in the medical record. 
+There are other instances where the medical record diagnosed LRTI, but our records 
+overturned it. What is our criteria for diagnosing LRTI, where is it documented, 
+and how can we be sure it is consistent in diagnosing LRTI?
+
+```{r}
+# Further filtering and re-ordering of variables
+lrti_diagnosis_data_filtered <- lrti_diagnosis_data %>% 
+  select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
+         med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments) %>% 
+  group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
+  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, csq_collect) %>% 
+  # If a home CSQ was done on same visit date as initial phone CSQ, filter for only the home CSQ
+  distinct(csq_sick_2_weeks, .keep_all = TRUE) %>% 
+  select(area:csq_still_sick, med_visit_referred, csq_see_dr, 
+         csq_first_symptom_date:csq_comments) %>% 
+  # Were they referred (med visit) or did they see a Dr (CSQ)?
+  filter(med_visit_referred == "Yes" | csq_see_dr == "Yes") %>% 
+  # If yes, did we get medical records?
+  filter(!is.na(med_rec_visit_date)) %>% 
+  # If yes, was there an ARI diagnosis?
+  filter(med_rec_ari == "ARI" | med_rec_ari == "Possible ARI") %>% 
+  group_by(child_id_num) %>% 
+  distinct(med_rec_visit_date, .keep_all = TRUE)
+```
+
+
+
+
+# Defining start date, end date, and at-risk period for each diagnosed LRTI case
+
+First, I need to know (or make) exactly which variable is a final diagnosed case 
+of LRTI in the data. Then, I can create a method in R to identify start/end/at-risk.
+The code below is a start at this, using Nick's handoff documents/algorithm.
+
+```{r}
+# LRTI start date, end date, and at-risk period identification
 lrti_data <- health_exposure_data_sampling_day %>% 
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
          med_visit_date:med_visit_notes, chw_dr_relook:chw_ari_comments,
          csq_date:csq_comments, med_rec_visit_date:med_rec_comments) %>% 
-  filter(!is.na(visit_date)) %>% 
   filter(area == "WMT") %>% 
+  filter(csq_sick_2_weeks == "Yes") %>% 
   select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
          med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments) %>% 
   group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
-  distinct(visit_date, .keep_all = TRUE) %>% 
+  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, csq_collect) %>% 
+  distinct(csq_sick_2_weeks, .keep_all = TRUE) %>% 
+  select(area:csq_still_sick, med_visit_referred, csq_see_dr, 
+         csq_first_symptom_date:csq_comments)
   mutate(trash_date = ymd("2099-01-01"),
          still_sick_date = if_else(csq_still_sick == "Yes", csq_date, trash_date),
          med_rec_ari_date = if_else(med_rec_ari != "No ARI", med_rec_visit_date, trash_date),
@@ -49,7 +112,8 @@ lrti_data <- health_exposure_data_sampling_day %>%
   mutate(lrti_start_date_new = if_else(!is.na(csq_first_symptom_date),
                                        csq_first_symptom_date, lrti_dates)) %>% 
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
-         csq_first_symptom_date, lrti_start_date_new, lrti_visits, lrti_dates, trash_date) %>% 
+         csq_first_symptom_date, lrti_start_date_new, lrti_visits, lrti_dates, trash_date,
+         csq_sick_2_weeks, csq_still_sick, med_rec_ari, med_visit_ari) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, lrti_dates) %>% 
   distinct(visit_date, .keep_all = TRUE) %>% 
   group_by(area, home, home_winter_id, winter_id, child_id_num) %>% 
@@ -59,6 +123,6 @@ lrti_data <- health_exposure_data_sampling_day %>%
 
 
 table(lrti_data$med_visit_ari)
+table(health_exposure_data_sampling_day$csq_sick_2_weeks)
 ```
-
 

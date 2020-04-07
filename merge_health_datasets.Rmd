@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge health datasets"
 author: "Ethan Walker"
-date: "Started 27 March 2020, Updated 6 April 2020"
+date: "Started 27 March 2020, Updated 7 April 2020"
 output: pdf_document
 ---
 
@@ -42,7 +42,7 @@ health_merged1 <- kids_csq %>%
   full_join(kids_med_visit, by = c("area", "home", "home_winter_id", "treatment",
                                    "winter_id", "child_id_num", "visit_date")) %>% 
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
-         treatment, csq_date:med_visit_notes) %>% 
+         treatment, csq_date:med_visit_mean_temp) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
   ungroup()
 
@@ -104,13 +104,7 @@ health_merged5 <- health_merged4 %>%
 
 # Merge full health data with exposure data
 ```{r}
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long_new.rds") 
-
 exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds") 
-
-exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds")
-
-sums_rolling_pm_data <- read_rds("Output/sums_rolling_pm_data.rds")
 
 health_data_merged <- read_rds("Output/health_data_merged.rds")
 

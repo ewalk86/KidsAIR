@@ -305,7 +305,10 @@ at_home_pm_merged <- read_rds("Output/at_home_pm_merged.rds")
 # Load and merge files from different locations
 ```{r}
 wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx") %>% 
-  replace_with_na_all(condition = ~.x == -999) %>% 
+  mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
+         HR = if_else(HR < 50, -999, HR),
+         SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, -9999, 0)) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "WMT",
@@ -324,10 +327,12 @@ wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx"
          med_visit_sp02 = as.numeric(SP02),
          med_visit_hr_sp02 = as.numeric(HRPulseOx),
          med_visit_referred = as.character(Referred),
-         med_visit_notes = as.character(Notes)) %>% 
+         med_visit_notes = as.character(Level)) %>% 
   # gather 3 temperatures to calculate average
   gather("sample", "value", c("temp1":"temp3")) %>% 
-  group_by(home_winter_id, med_visit_date) %>% 
+  group_by(home_winter_id, child_id_num, med_visit_date) %>% 
+  mutate(value = if_else(value < 90, -99, value)) %>% 
+  replace_with_na(replace = list(value = -99)) %>% 
   mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
   ungroup() %>% 
   # spread 3 moisture samples back to wide format
@@ -336,8 +341,11 @@ wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx"
   
 
 
-nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %>% 
-  replace_with_na_all(condition = ~.x == -999) %>% 
+nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %>%
+  mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
+         HR = if_else(HR < 50, -999, HR),
+         SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, -9999, 0)) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "NN",
@@ -359,7 +367,9 @@ nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %
          med_visit_notes = as.character(Level)) %>% 
   # gather 3 temperatures to calculate average
   gather("sample", "value", c("temp1":"temp3")) %>% 
-  group_by(home_winter_id, med_visit_date) %>% 
+  group_by(home_winter_id, child_id_num, med_visit_date) %>% 
+  mutate(value = if_else(value < 90, -99, value)) %>% 
+  replace_with_na(replace = list(value = -99)) %>% 
   mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
   ungroup() %>% 
   # spread 3 moisture samples back to wide format
@@ -369,7 +379,10 @@ nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %
 
 
 ak_medicalvisit_initial <- read_xlsx("Input/AK/ak_medicalvisit_20200227.xlsx") %>% 
-  replace_with_na_all(condition = ~.x == -999) %>% 
+  mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
+         HR = if_else(HR < 50, -999, HR),
+         SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, -9999, 0)) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "AK",
@@ -391,7 +404,9 @@ ak_medicalvisit_initial <- read_xlsx("Input/AK/ak_medicalvisit_20200227.xlsx") %
          med_visit_notes = as.character(Level)) %>% 
   # gather 3 temperatures to calculate average
   gather("sample", "value", c("temp1":"temp3")) %>% 
-  group_by(home_winter_id, med_visit_date) %>% 
+  group_by(home_winter_id, child_id_num, med_visit_date) %>% 
+  mutate(value = if_else(value < 90, -99, value)) %>% 
+  replace_with_na(replace = list(value = -99)) %>% 
   mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
   ungroup() %>% 
   # spread 3 moisture samples back to wide format
