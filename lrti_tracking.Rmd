@@ -1,7 +1,7 @@
 ---
 title: "Kids LRTI tracking"
 author: "Ethan Walker"
-date: "Started 6 April 2020, Updated 8 April 2020"
+date: "Started 6 April 2020, Updated 9 April 2020"
 output: pdf_document 
 ---
 
@@ -30,23 +30,63 @@ based on the given information for each child? We'll need to have some kind of
 protocol/algorithm for publications, I would think.
 
 Other questions:
+- LRTI and ARI have been used interchangably. Our actual outcome is LRTI, yes?
+  - Is there a clinical definition we/Paul have been following when diagnosing cases?
+  - LRTI: bronchiolitis, pneumonia, croupe? Case definition up to Paul.
+  - Primary diagnosis is based on med recs, but secondary outcomes could be from
+    surveys. Also see how well survey data predicts Pauls diagnosis.
+- How does Paul initially narrow down which cases to look at? Or does he look
+  at each CSQ and med visit form?
 - How far has the team made it (date/winter) in diagnosing LRTI? Winter 17/18?
+  - Could touch base with Nick, but probably through winter 17/18.
 - Has this process been done/started for NN/AK, or just WMT?
+  - No. Surveys may be worse for these areas, but med rec data could be better
+    through Indian Health Services.
+  - At risk period could be difficult for these sites
+- Where did the med_visit_ari variable come from?
+
+Notes and specific documentation for steps to identify LRTI cases:
+- Double check the filter method of "yes" for sick/still sick
+- Ask Kathrene about med rec ARI vs med visit ARI and where they came from
+- Was there a variable where parents called us to report sickness?
+- 
+
+Next steps
+- Ask Kathrene some questions from above
+  - Have her upload final health data for NN/AK
+- Push to get the final data input, QA/QC, uploaded to Box
+- Go through winter 18/19 data line by line and flag cases that could be 
+  respiratory.
+  - Do this for all sites, and start on other sites for all years.
+- Also flag other potential secondary outcomes that we could look at.
 
 ```{r}
 # LRTI Diagnosis data
 lrti_diagnosis_data <- health_exposure_data_sampling_day %>% 
   # select relevant health data
-  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
-         med_visit_date:med_visit_mean_temp,
-         csq_date:csq_comments, 
-         med_rec_visit_date, med_rec_dr_diagnosis, med_rec_ari, med_rec_comments,
+  select(area, home, home_winter_id, winter_id, child_id_num, 
+         visit_date, med_visit_date, med_visit_referred,
+         csq_date:csq_symptom_free_date,
+         csq_see_dr, csq_dr_diagnosis,
+         med_rec_visit_date:med_rec_comments,
+         csq_miss_work:csq_comments,
+         med_visit_ari:med_visit_mean_temp,
          lrti_number:lrti_professional_comments) %>% 
   # Currently only have this data for WMT - need to get new files and updates dataset
   filter(area == "WMT") %>% 
   # This is the most broad way of distinguishing if a child was sick
-  # Need to get Paul's protocol for diagnosis to filter down from here
-  filter(csq_sick_2_weeks == "Yes") 
+  # Careful when filtering here. Could still make cases that these vars didn't catch
+  # Best to have a look through all rows, then use this to filter data down so it
+  # is easier to work with to assess dates/at-risk times
+  filter(csq_sick_2_weeks == "Yes" | csq_still_sick == "Yes") %>% 
+  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
+  ungroup()
+
+#  filter(visit_date > "2018-06-01") # filter for newer data by date
+
+
+# write_rds(lrti_diagnosis_data, "Output/lrti_diagnosis_data.rds")
+# write_csv(lrti_diagnosis_data, "Output/lrti_diagnosis_data.csv", na = " ")
 ```
 
 The filtering below narrows down the LRTI definition too much; we are missing cases

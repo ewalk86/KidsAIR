@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: initial exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 3 April 2020"
+date: "Started 2 Feb 2020, Updated 9 April 2020"
 output: pdf_document
 ---
 
@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r, message=FALSE}
-library(tidyverse)
 library(readxl)
 library(naniar)
 library(lubridate)
@@ -20,6 +19,10 @@ library(zoo)
 library(lme4)
 library(lmerTest)
 library(ggmap)
+library(mctest)
+library(ppcor)
+library(GGally)
+library(tidyverse)
 ```
 
 # Load individual datasets
@@ -439,4 +442,54 @@ pm_sums_plot <- analysis_data %>%
     theme_minimal()
 pm_sums_plot
 ```
+
+
+
+# Run correlations/Chi-square tests between different covariates
+Goal is to check for vars that have a lot of overlap and eliminate some from
+consideration to include in models
+```{r}
+pm_mean_sampling_period <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1) %>% 
+  dplyr::select(pm_mean_sampling_period, education_3level, income_3level,
+                race_parent, race_child, total_residents_2level, 
+                residents_under5_2level, residents_smoke,
+                stove_grade_3level, burn_level_3level, wood_cords,
+                mean_moisture_winter) %>% 
+  mutate_all(as.numeric) %>% 
+  na.exclude() %>% 
+  dplyr::select(pm_mean_sampling_period)
+
+other_vars <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1) %>% 
+  dplyr::select(pm_mean_sampling_period, education_3level, income_3level,
+                race_parent, race_child, total_residents_2level, 
+                residents_under5_2level, residents_smoke,
+                stove_grade_3level, burn_level_3level, wood_cords,
+                mean_moisture_winter) %>% 
+  mutate_all(as.numeric) %>% 
+  na.exclude() %>% 
+  dplyr::select(-pm_mean_sampling_period)
+
+omcdiag(other_vars, pm_mean_sampling_period)
+
+imcdiag(other_vars, pm_mean_sampling_period)
+imcdiag(other_vars, pm_mean_sampling_period, method = "Wi")
+```
+
+# Try individual chi-square tests and correlations b/w two vars
+```{r}
+chisqu_results <- chisq.test(chisqu_data_demographics$education_3level, 
+                             chisqu_data_demographics$income_3level)
+chisqu_results
+
+chisqu_results <- cor.test(chisqu_data_demographics$education_3level, 
+                             chisqu_data_demographics$income_3level)
+chisqu_results
+
+
+
+ggpairs(chisqu_data_demographics)
+```
+
 
