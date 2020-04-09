@@ -1,7 +1,7 @@
 ---
 title: "Kids LRTI tracking"
 author: "Ethan Walker"
-date: "Started 6 April 2020, Updated 7 April 2020"
+date: "Started 6 April 2020, Updated 8 April 2020"
 output: pdf_document 
 ---
 
@@ -40,12 +40,13 @@ lrti_diagnosis_data <- health_exposure_data_sampling_day %>%
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
          med_visit_date:med_visit_mean_temp,
          csq_date:csq_comments, 
-         med_rec_visit_date, med_rec_dr_diagnosis, med_rec_ari, med_rec_comments) %>% 
+         med_rec_visit_date, med_rec_dr_diagnosis, med_rec_ari, med_rec_comments,
+         lrti_number:lrti_professional_comments) %>% 
   # Currently only have this data for WMT - need to get new files and updates dataset
   filter(area == "WMT") %>% 
   # This is the most broad way of distinguishing if a child was sick
   # Need to get Paul's protocol for diagnosis to filter down from here
-  filter(csq_sick_2_weeks == "Yes")
+  filter(csq_sick_2_weeks == "Yes") 
 ```
 
 The filtering below narrows down the LRTI definition too much; we are missing cases
@@ -61,13 +62,14 @@ and how can we be sure it is consistent in diagnosing LRTI?
 # Further filtering and re-ordering of variables
 lrti_diagnosis_data_filtered <- lrti_diagnosis_data %>% 
   select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
-         med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments) %>% 
+         med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments,
+         lrti_number:lrti_professional_comments) %>% 
   group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, csq_collect) %>% 
   # If a home CSQ was done on same visit date as initial phone CSQ, filter for only the home CSQ
   distinct(csq_sick_2_weeks, .keep_all = TRUE) %>% 
   select(area:csq_still_sick, med_visit_referred, csq_see_dr, 
-         csq_first_symptom_date:csq_comments) %>% 
+         csq_first_symptom_date:lrti_professional_comments) %>% 
   # Were they referred (med visit) or did they see a Dr (CSQ)?
   filter(med_visit_referred == "Yes" | csq_see_dr == "Yes") %>% 
   # If yes, did we get medical records?
@@ -87,25 +89,37 @@ First, I need to know (or make) exactly which variable is a final diagnosed case
 of LRTI in the data. Then, I can create a method in R to identify start/end/at-risk.
 The code below is a start at this, using Nick's handoff documents/algorithm.
 
+The initial attempt at having R select start dates did not match up well with
+the cases in which Paul had already finalized the start/end dates. There seems
+to be a good amount of professional opinion by assessing symptoms and medical
+records. It may be best to filter a dataset down to only confirmed LRTI cases
+and useful health/medical variables, then decide start/end/at-risk times 
+on a case-by-case basis.
+
 ```{r}
 # LRTI start date, end date, and at-risk period identification
-lrti_data <- health_exposure_data_sampling_day %>% 
+lrti_date_data <- health_exposure_data_sampling_day %>% 
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
          med_visit_date:med_visit_notes, chw_dr_relook:chw_ari_comments,
-         csq_date:csq_comments, med_rec_visit_date:med_rec_comments) %>% 
+         csq_date:csq_comments, med_rec_visit_date:med_rec_comments,
+         lrti_number:lrti_professional_comments) %>% 
   filter(area == "WMT") %>% 
   filter(csq_sick_2_weeks == "Yes") %>% 
   select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
-         med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments) %>% 
+         med_rec_visit_date:med_rec_comments, 
+         med_visit_lethargy:lrti_professional_comments) %>% 
   group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, csq_collect) %>% 
   distinct(csq_sick_2_weeks, .keep_all = TRUE) %>% 
   select(area:csq_still_sick, med_visit_referred, csq_see_dr, 
-         csq_first_symptom_date:csq_comments)
+         csq_first_symptom_date:lrti_professional_comments) %>% 
   mutate(trash_date = ymd("2099-01-01"),
-         still_sick_date = if_else(csq_still_sick == "Yes", csq_date, trash_date),
-         med_rec_ari_date = if_else(med_rec_ari != "No ARI", med_rec_visit_date, trash_date),
-         med_visit_ari_date = if_else(med_visit_ari != "No", med_visit_date, trash_date)) %>% 
+         still_sick_date = if_else(csq_still_sick == "Yes", 
+                                   csq_date, trash_date),
+         med_rec_ari_date = if_else(!is.na(med_rec_visit_date), 
+                                    med_rec_visit_date, trash_date),
+         med_visit_ari_date = if_else(!is.na(med_visit_date), 
+                                      med_visit_date, trash_date)) %>% 
   pivot_longer(cols = c("still_sick_date", "med_rec_ari_date", "med_visit_ari_date"),
                names_to = "lrti_visits", values_to = "lrti_dates") %>% 
   group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
@@ -113,16 +127,15 @@ lrti_data <- health_exposure_data_sampling_day %>%
                                        csq_first_symptom_date, lrti_dates)) %>% 
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
          csq_first_symptom_date, lrti_start_date_new, lrti_visits, lrti_dates, trash_date,
-         csq_sick_2_weeks, csq_still_sick, med_rec_ari, med_visit_ari) %>% 
+         csq_sick_2_weeks, csq_still_sick, med_rec_ari, med_visit_ari,
+         lrti_number:lrti_professional_comments) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, lrti_dates) %>% 
   distinct(visit_date, .keep_all = TRUE) %>% 
   group_by(area, home, home_winter_id, winter_id, child_id_num) %>% 
-  distinct(lrti_start_date_new, .keep_all = TRUE)
-
-
-
-
-table(lrti_data$med_visit_ari)
-table(health_exposure_data_sampling_day$csq_sick_2_weeks)
+  distinct(lrti_start_date_new, .keep_all = TRUE) %>% 
+  distinct(child_id_num, lrti_number, .keep_all = TRUE) %>% 
+  filter(!is.na(lrti_number)) %>% 
+  select(child_id_num, home_winter_id, lrti_number, lrti_start_date_new:lrti_dates, 
+         lrti_start_date_final, lrti_end_date_final, area:lrti_professional_comments)
 ```
 

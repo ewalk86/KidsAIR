@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 6 April 2020"
+date: "Started 27 Feb 2020, Updated 8 April 2020"
 output: pdf_document 
 ---
 
@@ -561,6 +561,7 @@ wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>%
          csq_cough_current = as.character(CoughingStill),
          csq_wheeze_current = as.character(WheezingStill),
          csq_comments = as.character(Comments)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, -99, -99.9, 999, 0)) %>% 
   select(home_winter_id:csq_comments)
          
 
@@ -616,3 +617,37 @@ kids_medical_records <- wmt_medicalrecords_initial %>%
 
 kids_medical_records <- read_rds("Output/kids_medical_records.rds")
 ```
+
+
+
+################# Confirmed LRTI ###############
+
+# Load and merge files from different locations
+```{r}
+wmt_ari_initial <- read_xlsx("Input/WMT/wmt_ari_20200408.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "WMT",
+         lrti_number = as.character(ARINum),
+         lrti_basis = as.character(ARIBasis),
+         lrti_start_date_final = ymd(ProfessionalStartDate),
+         lrti_end_date_final = ymd(ProfessionalEndDate),
+         lrti_professional_comments = as.character(ProfessionalComments)) %>% 
+  select(home_winter_id:lrti_professional_comments)
+         
+
+# Waiting on files from NN and AK
+
+
+
+
+# Combine logs from all areas
+kids_lrti <- wmt_ari_initial %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
+
+# write_rds(kids_lrti, "Output/kids_lrti.rds")
+
+kids_lrti <- read_rds("Output/kids_lrti.rds")
+
+```
+

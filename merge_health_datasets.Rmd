@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge health datasets"
 author: "Ethan Walker"
-date: "Started 27 March 2020, Updated 7 April 2020"
+date: "Started 27 March 2020, Updated 8 April 2020"
 output: pdf_document
 ---
 
@@ -26,6 +26,7 @@ kids_med_visit <- read_rds("Output/kids_med_visit.rds")
 kids_birth_infancy <- read_rds("Output/kids_birth_infancy.rds")
 child_home_winter <- read_rds("Output/child_home_winter.rds")
 kids_csq <- read_rds("Output/kids_csq.rds")
+kids_lrti <- read_rds("Output/kids_lrti.rds")
 kids_medical_records <- read_rds("Output/kids_medical_records.rds")
 ```
 
@@ -94,11 +95,25 @@ health_merged5 <- health_merged4 %>%
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
          treatment, sample_date, sampling_day, at_home_location, 
          pm_at_home_sampling_day, pm_at_home_sampling_period, csq_date:med_rec_comments) %>% 
+  ungroup()
+
+
+kids_lrti <- read_rds("Output/kids_lrti.rds") %>% 
+  select(-home_id)
+
+
+health_merged6 <- health_merged5 %>% 
+  left_join(kids_lrti, by = c("area", "home", "home_winter_id", "winter_id", 
+                                      "child_id_num", "treatment")) %>% 
+  arrange(area, home, home_winter_id, winter_id, child_id_num, sample_date) %>% 
+  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
+         treatment, sample_date, sampling_day, at_home_location, 
+         pm_at_home_sampling_day, pm_at_home_sampling_period, csq_date:lrti_professional_comments) %>% 
   ungroup() 
 
 
-#write_rds(health_merged5, "Output/health_data_merged.rds")
-#write_csv(health_merged5, "Output/health_data_merged.csv")
+#write_rds(health_merged6, "Output/health_data_merged.rds")
+#write_csv(health_merged6, "Output/health_data_merged.csv")
 ```
 
 

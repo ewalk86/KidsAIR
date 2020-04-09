@@ -1,7 +1,7 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated 16 March 2020"
+date: "Started 22 Nov 2019, Updated Apri 8 2020"
 output: powerpoint_presentation
 ---
 
@@ -19,6 +19,8 @@ library(lubridate)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r}
@@ -34,22 +36,19 @@ pm_summary <- pm_clean %>%
   mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   group_by(area) %>% 
   summarize("n" = n(),
-            "Mean PM" = mean(pm, na.rm = TRUE), 
-            "SD PM" = sd(pm, na.rm = TRUE),
-            "Min PM" = min(pm, na.rm = TRUE), 
-            "25%" = quantile(pm, 0.25, na.rm = TRUE),
-            "Median PM" = median(pm, na.rm = TRUE),
-            "75%" = quantile(pm, 0.75, na.rm = TRUE),
-            "Max PM" = max(pm, na.rm = TRUE),
-            "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
-            "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
-            "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE),
-            "Mean % Daily Obs" = mean(percent_daily_obs_pm, na.rm = TRUE)) %>% 
+            "Mean PM" = round(mean(pm, na.rm = TRUE)), 
+            "SD PM" = round(sd(pm, na.rm = TRUE)),
+            "Min PM" = round(min(pm, na.rm = TRUE)), 
+            "25%" = round(quantile(pm, 0.25, na.rm = TRUE)),
+            "Median PM" = round(median(pm, na.rm = TRUE)),
+            "75%" = round(quantile(pm, 0.75, na.rm = TRUE)),
+            "Max PM" = round(max(pm, na.rm = TRUE)),
+            "Mean Sample Days" = round(mean(pm_sample_interval, na.rm = TRUE)),
+            "SD Sample Days" = round(sd(pm_sample_interval, na.rm = TRUE))) %>% 
   #select(-treatment) %>% 
   t() 
 
-kable(pm_summary, 
-      digits = 1, align = "c")
+kable(pm_summary, align = "c")
 
 
 pm_by_day <- pm_clean %>% 
