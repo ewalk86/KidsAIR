@@ -20,7 +20,6 @@ library(lme4)
 library(lmerTest)
 library(ggmap)
 library(mctest)
-library(ppcor)
 library(GGally)
 library(tidyverse)
 ```
@@ -445,51 +444,79 @@ pm_sums_plot
 
 
 
-# Run correlations/Chi-square tests between different covariates
+# Run tests for multicollinearity between different covariates
 Goal is to check for vars that have a lot of overlap and eliminate some from
 consideration to include in models
+
+First, use `mctest` package to check for multicollinearity among similar variables
+https://cran.r-project.org/web/packages/mctest/mctest.pdf 
+
+Notes on multicollinearity:
+
+https://datascienceplus.com/multicollinearity-in-r/ 
+https://www.theanalysisfactor.com/eight-ways-to-detect-multicollinearity/ 
+
 ```{r}
+# Filter data for specific variables; select pm variable
 pm_mean_sampling_period <- exposure_analysis_data_short %>% 
   filter(winter_id == 1) %>% 
-  dplyr::select(pm_mean_sampling_period, education_3level, income_3level,
-                race_parent, race_child, total_residents_2level, 
-                residents_under5_2level, residents_smoke,
-                stove_grade_3level, burn_level_3level, wood_cords,
-                mean_moisture_winter) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(pm_mean_sampling_period, income_3level, residents_smoke) %>% 
   mutate_all(as.numeric) %>% 
   na.exclude() %>% 
-  dplyr::select(pm_mean_sampling_period)
+  select(pm_mean_sampling_period)
 
+# Filter data for specific variables; select predictor variables
 other_vars <- exposure_analysis_data_short %>% 
   filter(winter_id == 1) %>% 
-  dplyr::select(pm_mean_sampling_period, education_3level, income_3level,
-                race_parent, race_child, total_residents_2level, 
-                residents_under5_2level, residents_smoke,
-                stove_grade_3level, burn_level_3level, wood_cords,
-                mean_moisture_winter) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(pm_mean_sampling_period, income_3level, residents_smoke) %>% 
   mutate_all(as.numeric) %>% 
   na.exclude() %>% 
-  dplyr::select(-pm_mean_sampling_period)
+  select(-pm_mean_sampling_period)
 
+
+# Use `omcdiag` to assess overall multicollinearity
 omcdiag(other_vars, pm_mean_sampling_period)
 
+
+# Use `imcdiag` to assess multicollinearity between individual variables
 imcdiag(other_vars, pm_mean_sampling_period)
-imcdiag(other_vars, pm_mean_sampling_period, method = "Wi")
+
+# Specify a method to assess
+imcdiag(other_vars, pm_mean_sampling_period, method = "Fi")
 ```
 
-# Try individual chi-square tests and correlations b/w two vars
+# Initial variables to use for model selection (these have less overlap):
+Demographics: income_3level, total_residents_2level, residents_smoke
+Home Characteristics: home_type_2level, home_floors_2level, stove_age_3level,
+                      chimney_clean_3level, home_mold, home_fireplace
+Home Activity: home_act_gas, home_act_smoking
+Others (make some categorical): amb_pm_24hr, mean_temp, sums_mean_sampling_day, 
+       moisture_closest, stove_grade_3level
+
+# Also try individual chi-square tests and correlations b/w two vars
+
 ```{r}
-chisqu_results <- chisq.test(chisqu_data_demographics$education_3level, 
-                             chisqu_data_demographics$income_3level)
+test_data <- exposure_analysis_data_medium %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(pm_mean_sampling_day))
+
+chisqu_results <- chisq.test(test_data$home_floors_2level, 
+                             test_data$home_windows_2level)
 chisqu_results
 
-chisqu_results <- cor.test(chisqu_data_demographics$education_3level, 
-                             chisqu_data_demographics$income_3level)
-chisqu_results
 
 
-
-ggpairs(chisqu_data_demographics)
+cor_results <- cor.test(test_data$temp_indoor_max, 
+                        test_data$mean_temp)
+cor_results
 ```
 
+If variables have very high overlap, then only use the one with the strongest
+association with PM for consideration in the model.
 
+Once variables are narrowed down, use best subsets selection (exposure_models.RMD) 
+to help inform a final model.
+
+Run sensitivity analyses to see if adding other variables back in makes a difference.
