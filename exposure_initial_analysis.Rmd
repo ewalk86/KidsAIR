@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: initial exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 9 April 2020"
+date: "Started 2 Feb 2020, Updated 13 April 2020"
 output: pdf_document
 ---
 
@@ -26,15 +26,25 @@ library(tidyverse)
 
 # Load individual datasets
 ```{r}
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long_new.rds") 
+input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/Input/")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+input_file <- c("exposure_analysis_data_long_new.rds")
+output_file <- c("exposure_analysis_data_long_new.rds")
 
-exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds") 
+exposure_analysis_data_long <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds")) 
 
-exposure_analysis_data_short <- read_rds("Output/exposure_analysis_data_short.rds")
+exposure_analysis_data_medium <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
 
-sums_rolling_pm_data <- read_rds("Output/sums_rolling_pm_data.rds")
+exposure_analysis_data_short <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_short.rds"))
 
-health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
+sums_rolling_pm_data <- 
+  read_rds(paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 
