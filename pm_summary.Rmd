@@ -1,8 +1,10 @@
 ---
 title: "Kids PM Summary"
 author: "Ethan Walker"
-date: "Started 22 Nov 2019, Updated Apri 8 2020"
-output: powerpoint_presentation
+date: "Started 22 Nov 2019, Updated April 14 2020"
+output: pdf_document
+header-includes:
+    - \usepackage[labelformat=empty]{caption}
 ---
 
 ```{r setup, include=FALSE}
@@ -16,6 +18,7 @@ library(readr)
 library(readxl)
 library(knitr)
 library(lubridate)
+library(kableExtra)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -25,14 +28,15 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 ```{r}
 # Load data
-pm_clean <- read_rds("Output/pm_clean.rds")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+pm_clean <- read_rds(paste0(output_path, "Output/pm_clean.rds"))
 ```
 
-# Summary stats
 ```{r}
-pm_summary <- pm_clean %>% 
+# Summary stats
+
+pm_500 <- pm_clean %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  #filter(pm < 500) %>% 
   mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   group_by(area) %>% 
   summarize("n" = n(),
@@ -42,15 +46,46 @@ pm_summary <- pm_clean %>%
             "25%" = round(quantile(pm, 0.25, na.rm = TRUE)),
             "Median PM" = round(median(pm, na.rm = TRUE)),
             "75%" = round(quantile(pm, 0.75, na.rm = TRUE)),
-            "Max PM" = round(max(pm, na.rm = TRUE)),
-            "Mean Sample Days" = round(mean(pm_sample_interval, na.rm = TRUE)),
-            "SD Sample Days" = round(sd(pm_sample_interval, na.rm = TRUE))) %>% 
-  #select(-treatment) %>% 
-  t() 
+            "Max PM" = round(max(pm, na.rm = TRUE))) 
 
-kable(pm_summary, align = "c")
+pm_2000 <- pm_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  mutate(pm = if_else(pm > 2000, 2000, pm)) %>% 
+  group_by(area) %>% 
+  summarize("n" = n(),
+            "Mean PM" = round(mean(pm, na.rm = TRUE)), 
+            "SD PM" = round(sd(pm, na.rm = TRUE)),
+            "Min PM" = round(min(pm, na.rm = TRUE)), 
+            "25%" = round(quantile(pm, 0.25, na.rm = TRUE)),
+            "Median PM" = round(median(pm, na.rm = TRUE)),
+            "75%" = round(quantile(pm, 0.75, na.rm = TRUE)),
+            "Max PM" = round(max(pm, na.rm = TRUE))) 
 
+pm_summary <- pm_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area) %>% 
+  summarize("n" = n(),
+            "Mean PM" = round(mean(pm, na.rm = TRUE)), 
+            "SD PM" = round(sd(pm, na.rm = TRUE)),
+            "Min PM" = round(min(pm, na.rm = TRUE)), 
+            "25%" = round(quantile(pm, 0.25, na.rm = TRUE)),
+            "Median PM" = round(median(pm, na.rm = TRUE)),
+            "75%" = round(quantile(pm, 0.75, na.rm = TRUE)),
+            "Max PM" = round(max(pm, na.rm = TRUE))) 
 
+full_summary <- rbind(pm_summary, pm_2000, pm_500)
+
+kable(full_summary, 
+      caption = "Kids Indoor PM2.5 (Winter 1 Placebo)") %>% 
+   kable_styling() %>% 
+   pack_rows("No PM2.5 Cutoff", 1, 3) %>% 
+   pack_rows("PM2.5 Cutoff: 2000", 4, 6) %>% 
+   pack_rows("PM2.5 Cutoff: 500", 7, 9) 
+```
+
+\clearpage  
+
+```{r}
 pm_by_day <- pm_clean %>% 
   mutate(sampling_month = month(pm_datetime_new, abbr = TRUE)) %>% 
   mutate(day_of_week = factor(day_of_week,
@@ -58,8 +93,6 @@ pm_by_day <- pm_clean %>%
                                             "Friday", "Saturday", "Sunday"),
                                  labels = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"))) %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  #filter(pm < 500) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   group_by(area, day_of_week) %>% 
   summarize("Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
@@ -68,15 +101,16 @@ pm_by_day <- pm_clean %>%
             "Median PM" = median(pm, na.rm = TRUE),
             "75%" = quantile(pm, 0.75, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE))
-#pm_by_day
+kable(pm_by_day, 
+      caption = "Kids Indoor PM2.5 by day of week (Winter 1 Placebo)", digits = 0)
 ```
 
+\clearpage  
 
 # Boxplots for PM by study area
 ```{r, fig.height=6, fig.width=8}
 boxplots_kids_pm <- pm_clean %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
@@ -89,10 +123,38 @@ boxplots_kids_pm <- pm_clean %>%
     stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
                  size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
-    ylim(0, 500) +
-    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
+    #ylim(0, 500) +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
-    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_kids_pm
+```
+
+\pagebreak  
+
+```{r, fig.height=6, fig.width=8}
+boxplots_kids_pm <- pm_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  ggplot(aes(area, log(pm))) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
+    theme_minimal() +
+    #ylim(0, 500) +
+    labs(y = expression(paste("Log PM"[2.5], " (", mu, g/m^3, ")"))) +
     theme(axis.text.x = element_text(size = 16, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
           axis.title.y = element_text(size = 16,

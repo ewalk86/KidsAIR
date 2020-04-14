@@ -403,7 +403,7 @@ histogram_id
 ```{r}
 # Plot PM by datetime to look at trends, gaps, and peaks
 pm_time_plot_function <- function(id, location) {
-pm_time_plot <- kids_pm %>% 
+pm_time_plot <- kids_pm_new %>% 
   filter(home_winter_id == id & area == location) %>% 
   #filter(pm < 30000) %>% 
   arrange(pm_datetime) %>% 
@@ -428,7 +428,7 @@ pm_time_plot <- kids_pm %>%
           axis.ticks = element_blank()) +
     scale_color_manual(values = jv_palette)
 
-gaps <<- kids_pm %>% 
+gaps <<- kids_pm_new %>% 
   filter(home_winter_id == id & area == location) %>% 
   mutate(pm_datetime = ymd_hms(pm_datetime),
          datetime_lead = ymd_hms(lead(pm_datetime)),
@@ -440,7 +440,7 @@ gaps <<- kids_pm %>%
   select(day_of_week, pm_sampling_day, datetime_diff_minutes, datetime_diff_hours, 
          pm_datetime, datetime_lead)
 
-pm_desc <<- kids_pm %>% 
+pm_desc <<- kids_pm_new %>% 
   filter(home_winter_id == id & area == location) %>% 
   arrange(desc(pm)) %>% 
   select(pm_datetime, pm, pm_sampling_day)
@@ -455,11 +455,14 @@ pm_time_plot
 ### KidsAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
 # Load data 
-kids_pm <- read_rds("Output/kids_pm_new.rds")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_pm_new <- 
+  read_rds(paste0(output_path, "Output/kids_pm_new.rds"))
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "129", location = "WMT")
+pm_time_plot_function(id = "273", location = "WMT")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
@@ -719,16 +722,52 @@ test <- kids_pm_new %>%
 # write_rds(kids_pm_new4, "Output/kids_pm_new4.rds")
 ```
 
-# Save cleaned dataset
+# Check high PM values
 ```{r}
-kids_pm <- read_rds("Output/kids_pm_new4.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_pm <- 
+  read_rds(paste0(output_path, "Output/kids_pm_new4.rds")) 
+
+kids_pm_check <- kids_pm %>% 
+  filter(pm > 2000) %>% 
+  group_by(area) %>% 
+  count(home_winter_id)
+
+# 0.1% of the PM data is greater than 2000
+# Nothing stood out as being unreasonable when looking (plotting) at homes
+# with values over 2000. Plan to exclude values > 10,000, leave the rest
+# as is, and do sensitivity analyses excluding home with values over specific
+# thresholds. Also plan to see how PM in homes with PM spikes is associated with
+# health and behavioral variables.
+```
+
+
+# Join PM data with linked IDs and make new variables for spikes in PM
+```{r}
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_pm <- 
+  read_rds(paste0(output_path, "Output/kids_pm_new4.rds")) 
+kids_linked_ids <- 
+  read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
 
 kids_pm_new5 <- kids_pm %>% 
   mutate(home_winter_id = as.character(home_winter_id)) %>% 
   select(-home, -treatment) %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  group_by(home, sampling_day) %>% 
+  mutate(pm_spike_1000 = if_else(pm > 1000, "Yes", "No"),
+         pm_spike_2000 = if_else(pm > 2000, "Yes", "No"),
+         pm_spike_5000 = if_else(pm > 5000, "Yes", "No")) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id, pm_datetime_new)
+```
 
-# write_rds(kids_pm_new5, "Output/pm_clean.rds")
+
+# Save dataset
+```{r}
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+write_rds(kids_pm_new5, paste0(output_path, "Output/pm_clean.rds"))
 ```
 

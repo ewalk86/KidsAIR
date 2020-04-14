@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge exposure datasets"
 author: "Ethan Walker"
-date: "Started 24 March 2020, Updated 27 March 2020"
+date: "Started 24 March 2020, Updated 14 April 2020"
 output: pdf_document
 ---
 
@@ -21,17 +21,29 @@ library(lmerTest)
 
 # Load individual datasets
 ```{r}
-#pm_clean <- read_rds("Output/pm_clean.rds")
-#sums_clean <- read_rds("Output/sums_clean.rds")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-demographics_clean <- read_rds("Output/demographics_clean.rds")
-moisture_clean <- read_rds("Output/moisture_clean.rds")
-indoor_temp_rh_clean <- read_rds("Output/indoor_temp_rh_clean.rds")
-stove_use_clean <- read_rds("Output/stove_use_clean.rds")
-stove_grades_clean <- read_rds("Output/stove_grades_clean.rds")
-home_char_clean <- read_rds("Output/home_char_clean.rds")
-home_act_clean <- read_rds("Output/home_act_clean.rds")
+pm_clean <- 
+  read_rds(paste0(output_path, "Output/pm_clean.rds"))
+sums_clean <- 
+  read_rds(paste0(output_path, "Output/sums_clean.rds"))
+
+kids_linked_ids <- 
+  read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
+demographics_clean <- 
+  read_rds(paste0(output_path, "Output/demographics_clean.rds"))
+moisture_clean <- 
+  read_rds(paste0(output_path, "Output/moisture_clean.rds"))
+indoor_temp_rh_clean <- 
+  read_rds(paste0(output_path, "Output/indoor_temp_rh_clean.rds"))
+stove_use_clean <- 
+  read_rds(paste0(output_path, "Output/stove_use_clean.rds"))
+stove_grades_clean <- 
+  read_rds(paste0(output_path, "Output/stove_grades_clean.rds"))
+home_char_clean <- 
+  read_rds(paste0(output_path, "Output/home_char_clean.rds"))
+home_act_clean <- 
+  read_rds(paste0(output_path, "Output/home_act_clean.rds"))
 ```
 
 
@@ -41,8 +53,7 @@ home_act_clean <- read_rds("Output/home_act_clean.rds")
 # Prep PM data to join with SUMs data by sampling day
 pm_join <- pm_clean %>% 
   group_by(area, home) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm),
-         pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
+  mutate(pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
   group_by(area, home, sampling_day) %>% 
   mutate(pm_mean_sampling_day = mean(pm, na.rm = TRUE)) %>% 
   mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
@@ -57,18 +68,20 @@ pm_join <- pm_clean %>%
          pm_first_datetime = first(sample_datetime)) %>% 
   mutate(winter_id = as.character(winter_id)) %>% 
   ungroup() %>% 
-  arrange(area, home, sample_date) %>% 
+  arrange(area, home, sample_date, desc(pm_spike_1000),
+          desc(pm_spike_2000), desc(pm_spike_5000)) %>% 
   select(area, home, home_winter_id, winter_id, treatment, dtid, day_of_week, 
          pm_total_observations, pm_mean_sampling_period, sampling_day, 
          pm_mean_sampling_day, pm_first_datetime, pm_last_datetime,
-         sample_date, pm_mean_daily, pm_daily_obs) %>% 
+         sample_date, pm_mean_daily, pm_daily_obs, pm_spike_1000,
+         pm_spike_2000, pm_spike_5000) %>% 
   group_by(area, home) %>% 
   distinct(sample_date, .keep_all = TRUE) %>% 
   ungroup() %>% 
   arrange(area, home, sample_date)
 
-#write_rds(pm_join, "Output/pm_join.rds")
-pm_join <- read_rds("Output/pm_join.rds")
+#write_rds(pm_join, paste0(output_path, "Output/pm_join.rds"))
+pm_join <- read_rds(paste0(output_path, "Output/pm_join.rds"))
 
 
 # Prep SUMs data to join with PM data
@@ -92,8 +105,8 @@ sums_join <- sums_clean %>%
   ungroup() %>% 
   arrange(area, home, datetime_sums)
 
-#write_rds(sums_join, "Output/sums_join.rds")
-sums_join <- read_rds("Output/sums_join.rds")
+#write_rds(sums_join, paste0(output_path, "Output/sums_join.rds"))
+sums_join <- read_rds(paste0(output_path, "Output/sums_join.rds"))
 
 
 # Join PM/SUMs data and filter/arrange by sampling day
@@ -113,8 +126,8 @@ pm_sums_joined1 <- sums_join %>%
   select(area, home, home_winter_id, winter_id, treatment, sampling_day, 
          sums_mean_sampling_day, sums_mean_sampling_period)
 
-#write_rds(pm_sums_joined1, "Output/pm_sums_joined1.rds")
-pm_sums_joined1 <- read_rds("Output/pm_sums_joined1.rds")
+#write_rds(pm_sums_joined1, paste0(output_path, "Output/pm_sums_joined1.rds"))
+pm_sums_joined1 <- read_rds(paste0(output_path, "Output/pm_sums_joined1.rds"))
 
 
 pm_sums_joined2 <- pm_join %>% 
@@ -365,37 +378,49 @@ analysis_data7 <- stove_use_clean %>%
 
 
 
-#write_rds(analysis_data7, "Output/exposure_analysis_data_long.rds")
-#write_csv(analysis_data7, "Output/exposure_analysis_data_long.csv")
+#write_rds(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.rds"))
+#write_csv(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.csv"))
 
 
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds")
+exposure_analysis_data_long <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_long.rds"))
 
 
 save_var_names <- data.frame(t(exposure_analysis_data_long)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 
-#write_csv(save_var_names, "Output/kids_data_var_names.csv")
+#write_csv(save_var_names, paste0(output_path, "Output/kids_data_var_names.csv"))
 ```
 
 
 # Update long dataset -- REMEMBER TO UPDATE SHORT DATA BELOW
 ```{r}
-exposure_analysis_data_long <- read_rds("Output/exposure_analysis_data_long.rds")
-kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data_new.rds") %>% 
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+exposure_analysis_data_long <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_long.rds"))
+
+kids_amb_pm_data <- 
+  read_rds(paste0(output_path, "Output/kids_amb_pm_data_new.rds")) %>% 
   mutate(sample_date = amb_pm_date) %>% 
   distinct(zip, .keep_all = TRUE)
-kids_amb_temp_data <- read_rds("Output/kids_amb_temp_data_new.rds") %>% 
+
+kids_amb_temp_data <- 
+  read_rds(paste0(output_path, "Output/kids_amb_temp_data_new.rds")) %>% 
   mutate(sample_date = temp_date) %>% 
   mutate(sample_date = as.character(sample_date)) %>% 
   distinct(zip, .keep_all = TRUE)
-wmt_zipcodes <- read_csv("Input/WMT/wmt_zipcodes.csv") %>% 
+
+wmt_zipcodes <- read_csv(paste0(output_path, "Input/WMT/wmt_zipcodes.csv")) %>% 
   rename_all(tolower)
-nn_zipcodes <- read_csv("Input/NN/nn_zipcodes.csv") %>% 
+
+nn_zipcodes <- read_csv(paste0(output_path, "Input/NN/nn_zipcodes.csv")) %>% 
   rename_all(tolower) 
-ak_zipcodes <- read_csv("Input/AK/ak_zipcodes.csv") %>% 
+
+ak_zipcodes <- read_csv(paste0(output_path, "Input/AK/ak_zipcodes.csv")) %>% 
   rename_all(tolower) 
+
 kids_zipcodes <- rbind(wmt_zipcodes, nn_zipcodes, ak_zipcodes) %>% 
   mutate(home = gsub(home, pattern = "_", replacement = ""),
          home = gsub(home, pattern = " ", replacement = "")) %>% 
@@ -403,10 +428,14 @@ kids_zipcodes <- rbind(wmt_zipcodes, nn_zipcodes, ak_zipcodes) %>%
   select(home, zip, lat_pm, long_pm) %>% 
   left_join(kids_amb_temp_data, by = "zip") %>% 
   select(home, zip, lat_zip, long_zip, lat_pm, long_pm, lat_temp, long_temp)
-kids_amb_pm_data <- read_rds("Output/kids_amb_pm_data_new.rds") %>% 
+
+kids_amb_pm_data <- 
+  read_rds(paste0(output_path, "Output/kids_amb_pm_data_new.rds")) %>% 
   mutate(sample_date = amb_pm_date) %>% 
   select(-lat_zip, -long_zip, -lat_pm, -long_pm)
-kids_amb_temp_data <- read_rds("Output/kids_amb_temp_data_new.rds") %>% 
+
+kids_amb_temp_data <- 
+  read_rds(paste0(output_path, "Output/kids_amb_temp_data_new.rds")) %>% 
   mutate(sample_date = temp_date) %>% 
   mutate(sample_date = as.character(sample_date)) %>% 
   select(-lat_zip, -long_zip, -lat_temp, -long_temp)
@@ -444,14 +473,15 @@ exposure_analysis_data_long_new <- exposure_analysis_data_long %>%
 
 
 
-#write_rds(exposure_analysis_data_long_new, "Output/exposure_analysis_data_long_new.rds")
-#write_csv(exposure_analysis_data_long_new, "Output/exposure_analysis_data_long_new.csv")
+#write_rds(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
+#write_csv(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.csv"))
 ```
 
 
 # Convert long data to medium: only keeping days with PM sampling, repeated by child_id
 ```{r}
-exposure_analysis_data_long_new <- read_rds("Output/exposure_analysis_data_long_new.rds")
+exposure_analysis_data_long_new <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
 
 
 
@@ -471,14 +501,15 @@ exposure_analysis_data_medium <- exposure_analysis_data_long_new %>%
 
 
 
-#write_rds(exposure_analysis_data_medium, "Output/exposure_analysis_data_medium.rds")
-#write_csv(exposure_analysis_data_medium, "Output/exposure_analysis_data_medium.csv")
+#write_rds(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
+#write_csv(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.csv"))
 ```
 
 
 # Convert medium data to short: only keeping 1 observation per sampling period, repeated by child_id
 ```{r}
-exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds")
+exposure_analysis_data_medium <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
 
 
 
@@ -541,15 +572,22 @@ exposure_analysis_data_short <- exposure_analysis_data_medium %>%
 
 
 
-#write_rds(exposure_analysis_data_short, "Output/exposure_analysis_data_short.rds")
-#write_csv(exposure_analysis_data_short, "Output/exposure_analysis_data_short.csv")
+#write_rds(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.rds"))
+#write_csv(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.csv"))
 ```
 
 
 # Dataset with PM and SUMs matched/average over short interval
 ```{r}
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+pm_clean <- 
+  read_rds(paste0(output_path, "Output/pm_clean.rds"))
+sums_clean <- 
+  read_rds(paste0(output_path, "Output/sums_clean.rds"))
+
+
 pm_join <- pm_clean %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   mutate(sample_datetime = ymd_hms(pm_datetime_new)) %>% 
   mutate(winter_id = as.character(winter_id)) %>%
   separate(sample_datetime, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
@@ -582,7 +620,8 @@ pm_sums_joined2 <- pm_sums_joined %>%
   select(area, home, home_winter_id, winter_id, datetime_sums, 
          sample_date, temp_c_sums, pm_rolling_20)
 
-exposure_analysis_data_long_new <- read_rds("Output/exposure_analysis_data_long_new.rds")
+exposure_analysis_data_long_new <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
 
 pm_sums_joined3 <- pm_sums_joined2 %>% 
   left_join(exposure_analysis_data_long_new, 
@@ -594,8 +633,8 @@ pm_sums_joined3 <- pm_sums_joined2 %>%
 
 
 
-#write_rds(pm_sums_joined3, "Output/sums_rolling_pm_data.rds")
-#write_csv(pm_sums_joined3, "Output/sums_rolling_pm_data.csv")
+#write_rds(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+#write_csv(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.csv"))
 ```
 
 

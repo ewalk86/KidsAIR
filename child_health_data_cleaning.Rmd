@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 8 April 2020"
+date: "Started 27 Feb 2020, Updated 14 April 2020"
 output: pdf_document 
 ---
 
@@ -24,9 +24,12 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load data
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-demographics_clean <- read_rds("Output/demographics_clean.rds")
-pm_clean <- read_rds("Output/pm_clean.rds")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_linked_ids <- read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
+demographics_clean <- 
+  read_rds(paste0(output_path, "Output/demographics_clean.rds"))
+pm_clean <- read_rds(paste0(output_path, "Output/pm_clean.rds"))
 ```
 
 
@@ -166,7 +169,8 @@ kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
 
 # Format at-home-log and merge with PM data
 ```{r}
-kids_at_home_log <- read_rds("Output/kids_at_home_log.rds") %>% 
+kids_at_home_log <- 
+  read_rds(paste0(output_path, "Output/kids_at_home_log.rds")) %>% 
   arrange(area, home_winter_id, at_home_day)
 
 kids_at_home_log_new <- kids_at_home_log %>% 
@@ -264,8 +268,7 @@ kids_at_home_log_new <- kids_at_home_log %>%
 
 at_home_pm_merged <- pm_clean %>% 
   group_by(area, home) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm),
-         pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
+  mutate(pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
   group_by(area, home, sampling_day) %>% 
   mutate(pm_mean_sampling_day = mean(pm, na.rm = TRUE),
          pm_datetime_merge = round_date(pm_datetime_new, unit = "hour"),
@@ -273,12 +276,15 @@ at_home_pm_merged <- pm_clean %>%
   separate(pm_datetime_merge, c("sample_date", "sample_time"), sep = " ", remove = FALSE) %>% 
   group_by(area, home, sampling_day, sample_time) %>% 
   mutate(pm_mean_hour = mean(pm, na.rm = TRUE)) %>% 
+  arrange(area, home_winter_id, sampling_day, desc(pm_spike_1000),
+          desc(pm_spike_2000), desc(pm_spike_5000)) %>% 
   distinct(sample_time, .keep_all = TRUE) %>% 
   ungroup() %>% 
   mutate(sampling_day = as.character(sampling_day)) %>% 
   select(area, home, home_winter_id, winter_id, treatment, sampling_day, 
          sample_date, sample_time, pm_mean_hour, pm_mean_sampling_day, 
-         pm_mean_sampling_period, day_of_week, pm_obs_sampling_day) %>% 
+         pm_mean_sampling_period, day_of_week, pm_obs_sampling_day, 
+         pm_spike_1000, pm_spike_2000, pm_spike_5000) %>% 
   left_join(kids_at_home_log_new, 
             by = c("area", "home", "home_winter_id", "winter_id", "treatment",
                    "sampling_day", "sample_time")) %>% 
@@ -286,17 +292,20 @@ at_home_pm_merged <- pm_clean %>%
   mutate(pm_at_home_sampling_period = mean(pm_mean_hour, na.rm = TRUE)) %>% 
   group_by(area, home, home_winter_id, child_id_num, sampling_day, at_home) %>% 
   mutate(pm_at_home_sampling_day = mean(pm_mean_hour, na.rm = TRUE)) %>% 
+  arrange(area, home_winter_id, child_id_num, sampling_day, desc(pm_spike_1000),
+          desc(pm_spike_2000), desc(pm_spike_5000)) %>% 
   distinct(at_home, .keep_all = TRUE) %>% 
   ungroup() %>% 
   filter(!is.na(at_home)) %>% 
   arrange(area, home_winter_id, child_id_num, at_home, sampling_day)
 
 
-#write_rds(at_home_pm_merged, "Output/at_home_pm_merged.rds")
-#write_csv(at_home_pm_merged, "Output/at_home_pm_merged.csv")
+#write_rds(at_home_pm_merged, paste0(output_path, "Output/at_home_pm_merged.rds"))
+#write_csv(at_home_pm_merged, paste0(output_path, "Output/at_home_pm_merged.csv"))
 
 
-at_home_pm_merged <- read_rds("Output/at_home_pm_merged.rds")
+at_home_pm_merged <- 
+  read_rds(paste0(output_path, "Output/at_home_pm_merged.rds"))
 ```
 
 

@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge health datasets"
 author: "Ethan Walker"
-date: "Started 27 March 2020, Updated 8 April 2020"
+date: "Started 27 March 2020, Updated 14 April 2020"
 output: pdf_document
 ---
 
@@ -21,22 +21,32 @@ library(lmerTest)
 
 # Load individual datasets
 ```{r}
-at_home_pm_merged <- read_rds("Output/at_home_pm_merged.rds")
-kids_med_visit <- read_rds("Output/kids_med_visit.rds")
-kids_birth_infancy <- read_rds("Output/kids_birth_infancy.rds")
-child_home_winter <- read_rds("Output/child_home_winter.rds")
-kids_csq <- read_rds("Output/kids_csq.rds")
-kids_lrti <- read_rds("Output/kids_lrti.rds")
-kids_medical_records <- read_rds("Output/kids_medical_records.rds")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+at_home_pm_merged <- 
+  read_rds(paste0(output_path, "Output/at_home_pm_merged.rds"))
+kids_med_visit <- 
+  read_rds(paste0(output_path, "Output/kids_med_visit.rds")) %>% 
+  mutate(visit_date = med_visit_date) 
+kids_birth_infancy <- 
+  read_rds(paste0(output_path, "Output/kids_birth_infancy.rds")) %>% 
+  select(-home_id)
+child_home_winter <- 
+  read_rds(paste0(output_path, "Output/child_home_winter.rds")) %>% 
+  select(-home_id.x, -home_id.y, -chw_symptom_free_date)
+kids_csq <- 
+  read_rds(paste0(output_path, "Output/kids_csq.rds"))
+kids_lrti <- 
+  read_rds(paste0(output_path, "Output/kids_lrti.rds")) %>% 
+  select(-home_id)
+kids_medical_records <- 
+  read_rds(paste0(output_path, "Output/kids_medical_records.rds")) %>% 
+  select(-visit_date)
 ```
 
 
 # Initial data merge - long format
 ```{r}
-kids_med_visit <- read_rds("Output/kids_med_visit.rds") %>% 
-  mutate(visit_date = med_visit_date) 
-
-
 health_merged1 <- kids_csq %>% 
   select(-home_id) %>% 
   mutate(visit_date = csq_date) %>% 
@@ -48,19 +58,11 @@ health_merged1 <- kids_csq %>%
   ungroup()
 
 
-child_home_winter <- read_rds("Output/child_home_winter.rds") %>% 
-  select(-home_id.x, -home_id.y, -chw_symptom_free_date)
-
-
 health_merged2 <- health_merged1 %>% 
   left_join(child_home_winter, by = c("area", "home", "home_winter_id", "treatment",
                                       "winter_id", "child_id_num")) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
   ungroup()
-
-
-kids_birth_infancy <- read_rds("Output/kids_birth_infancy.rds") %>% 
-  select(-home_id)
 
 
 health_merged3 <- health_merged2 %>% 
@@ -69,9 +71,6 @@ health_merged3 <- health_merged2 %>%
   mutate(sample_date = as.character(visit_date)) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
   ungroup()
-
-
-at_home_pm_merged <- read_rds("Output/at_home_pm_merged.rds") 
 
 
 health_merged4 <- health_merged3 %>% 
@@ -84,10 +83,6 @@ health_merged4 <- health_merged3 %>%
   ungroup()
 
 
-kids_medical_records <- read_rds("Output/kids_medical_records.rds") %>% 
-  select(-visit_date)
-
-
 health_merged5 <- health_merged4 %>% 
   left_join(kids_medical_records, by = c("area", "home", "home_winter_id", "winter_id", 
                                       "child_id_num", "treatment")) %>% 
@@ -96,10 +91,6 @@ health_merged5 <- health_merged4 %>%
          treatment, sample_date, sampling_day, at_home_location, 
          pm_at_home_sampling_day, pm_at_home_sampling_period, csq_date:med_rec_comments) %>% 
   ungroup()
-
-
-kids_lrti <- read_rds("Output/kids_lrti.rds") %>% 
-  select(-home_id)
 
 
 health_merged6 <- health_merged5 %>% 
@@ -112,16 +103,20 @@ health_merged6 <- health_merged5 %>%
   ungroup() 
 
 
-#write_rds(health_merged6, "Output/health_data_merged.rds")
-#write_csv(health_merged6, "Output/health_data_merged.csv")
+#write_rds(health_merged6, paste0(output_path, "Output/health_data_merged.rds"))
+#write_csv(health_merged6, paste0(output_path, "Output/health_data_merged.csv"))
 ```
 
 
 # Merge full health data with exposure data
 ```{r}
-exposure_analysis_data_medium <- read_rds("Output/exposure_analysis_data_medium.rds") 
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-health_data_merged <- read_rds("Output/health_data_merged.rds")
+exposure_analysis_data_medium <- 
+  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
+
+health_data_merged <- 
+  read_rds(paste0(output_path, "Output/health_data_merged.rds"))
 
 
 
@@ -133,17 +128,18 @@ health_exposure_data_sampling_day <- health_data_merged %>%
                    "child_id_num", "sampling_day"))
 
 
-#write_rds(health_exposure_data_sampling_day, "Output/health_exposure_data_sampling_day.rds")
-#write_csv(health_exposure_data_sampling_day, "Output/health_exposure_data_sampling_day.csv")
+#write_rds(health_exposure_data_sampling_day, paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
+#write_csv(health_exposure_data_sampling_day, paste0(output_path, "Output/health_exposure_data_sampling_day.csv"))
 
 
-health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
 
 
 save_var_names <- data.frame(t(health_exposure_data_sampling_day)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 
-#write_csv(save_var_names, "Output/kids_data_var_names.csv")
+#write_csv(save_var_names, paste0(output_path, "Output/kids_data_var_names.csv"))
 ```
 
