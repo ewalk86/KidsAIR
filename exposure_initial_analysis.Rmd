@@ -3,6 +3,8 @@ title: "KidsAIR: initial exposure analysis"
 author: "Ethan Walker"
 date: "Started 2 Feb 2020, Updated 13 April 2020"
 output: pdf_document
+header-includes:
+    - \usepackage[labelformat=empty]{caption}
 ---
 
 ```{r setup, include=FALSE}
@@ -18,10 +20,10 @@ library(broom.mixed)
 library(zoo)
 library(lme4)
 library(lmerTest)
-library(ggmap)
 library(mctest)
-library(GGally)
 library(tidyverse)
+library(knitr)
+library(kableExtra)
 ```
 
 # Load individual datasets
@@ -54,19 +56,29 @@ analysis_data <- exposure_analysis_data_short %>%
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
   ungroup()
 
 # Variables to use:
-## education_3level, income_3level, race_parent_2level, race_child_2level
+## education_3level, income_3level, race_parent_2level, 
 ## total_residents_2level, residents_under5_2level, resident_smokes
 
 table(analysis_data$residents_smoke)
 median(analysis_data$home_furry, na.rm = TRUE)
 
-pm_demographics_results <- lm(log(pm_mean_sampling_period) ~ residents_smoke, 
+pm_demographics_results <- lm(log(pm_mean_sampling_period) ~ education_3level, 
                               data = analysis_data)
+
 summary(pm_demographics_results)
-tidy(pm_demographics_results)
+glance(pm_demographics_results)
+
+tidy(pm_demographics_results) %>% 
+    filter(term != '(Intercept)') %>% 
+    mutate(estimate = round(estimate, digits = 2),
+           'p-value' = round(p.value, digits = 2),
+           term = gsub("education_3level", "Education:  ", term)) %>% 
+    select(term, estimate, 'p-value')
+
 plot(pm_demographics_results)
 ```
 
@@ -146,6 +158,74 @@ pm_stove_grades_plot <- pm_stove_grades %>%
   ggplot() + 
     geom_boxplot(aes(stove_grade, mean_pm))
 pm_stove_grades_plot
+```
+
+
+```{r}
+analysis_function <- function(covar, label, 
+                              dataset = exposure_analysis_data_short){
+  
+  analysis_data <- dataset %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  rename(analysis_covar = covar) %>% 
+  ungroup() %>% 
+  select(pm_mean_sampling_period, analysis_covar) 
+  
+  analysis_results <- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
+  
+  tidy_results <<- tidy(analysis_results) %>% 
+    filter(term != '(Intercept)') %>% 
+    mutate(estimate = round(estimate, digits = 2),
+           'p-value' = round(p.value, digits = 2),
+           term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
+    select(term, estimate, 'p-value')
+  
+}
+
+d1 <- analysis_function("education_3level", "Education")
+d2 <- analysis_function("income_3level", "Income")
+d3 <- analysis_function("race_parent_2level", "Parent race")
+d4 <- analysis_function("total_residents_2level", "Total residents")
+d5 <- analysis_function("residents_under5_2level", "Residents under 5 y/o")
+d6 <- analysis_function("residents_smoke", "Residents smoke")
+
+d7 <- analysis_function("home_type_2level", "Home type")
+d8 <- analysis_function("home_year_built_2level", "Home age")
+d9 <- analysis_function("home_sqft_2level", "home sqft")
+d10 <- analysis_function("home_floors_2level", "Home floors")
+d11 <- analysis_function("home_bedrooms_2level", "Home bedrooms")
+d12 <- analysis_function("home_windows_2level", "Home windows")
+d13 <- analysis_function("home_pets_2level", "Pets - total")
+d14 <- analysis_function("home_furry_2level", "Pets - furry")
+d15 <- analysis_function("secondary_heat_3level", "Secondary heating")
+d16 <- analysis_function("stove_age_3level", "Stove age")
+d17 <- analysis_function("stove_cert", "Stove EPA certified")
+d18 <- analysis_function("chimney_clean_3level", "Chimney cleaned")
+d19 <- analysis_function("home_damp", "Home - damp")
+d20 <- analysis_function("home_mold", "Home - mold")
+d21 <- analysis_function("home_fireplace", "Home fireplace")
+d22 <- analysis_function("home_furnace", "Home furnace")
+
+d23 <- analysis_function("burn_level_3level", "Burn level")
+d24 <- analysis_function("wood_collect_2level", "Wood collect time")
+d25 <- analysis_function("wood_collect_method_2level", "Wood collect method")
+d26 <- analysis_function("wood_cords", "Wood cords")
+
+table_data <- rbind(d1, d2, d3, d4, d5, d6,
+                    d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, d17, d18,
+                    d19, d20, d21, d22,
+                    d23, d24, d25, d26)
+
+kable(table_data, 
+      caption = "Indoor PM2.5 (log) and covariate associations") %>% 
+   kable_styling() %>% 
+   row_spec(0, bold = TRUE) %>% 
+   pack_rows("Demographic variables", 1, 8) %>%
+   pack_rows("Home characteristics", 9, 31) %>%
+   pack_rows("Stove use", 32, 36) %>%
+   footnote(c("PM2.5 = fine particulate matter"))
 ```
 
 
