@@ -1,17 +1,18 @@
 ---
-title: "KidsAIR: initial exposure analysis"
+title: "KidsAIR: covariate associations exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 13 April 2020"
+date: "Started 2 Feb 2020, Updated 16 April 2020"
 output: pdf_document
 header-includes:
     - \usepackage[labelformat=empty]{caption}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, eval = FALSE, include = FALSE,
+                      message = FALSE, warning = FALSE)
 ```
 
-```{r, message=FALSE}
+```{r, eval=TRUE, include=TRUE}
 library(readxl)
 library(naniar)
 library(lubridate)
@@ -26,8 +27,10 @@ library(knitr)
 library(kableExtra)
 ```
 
+
+```{r, eval=TRUE, include=TRUE}
 # Load individual datasets
-```{r}
+
 input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/Input/")
 output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 input_file <- c("exposure_analysis_data_long_new.rds")
@@ -49,9 +52,235 @@ health_exposure_data_sampling_day <-
   read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
+```{r, eval=TRUE, include=TRUE}
+####### Format SUMs data to merge with analysis data below
+sums_temp_change <- sums_rolling_pm_data %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home, sampling_day) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  group_by(area, home, sampling_day) %>% 
+  mutate(time_diff = (lead(datetime_sums) - datetime_sums)) %>% 
+  mutate(lead_temp = if_else(time_diff < 20, lead(temp_c_sums, 4), lead(temp_c_sums)),
+         lead_temp = if_else(time_diff > 25, 999, lead_temp)) %>% 
+  replace_with_na(replace = list(lead_temp = 999)) %>% 
+  mutate(temp_diff = lead_temp - temp_c_sums,
+         # change temp in the following line
+         temp_diff_check = if_else(temp_diff >= 5, 1, 0),
+         heat_event = if_else(temp_diff_check == 1 & lag(temp_diff_check) == 1, 0,
+                              temp_diff_check),
+         heat_event = if_else(is.na(temp_diff_check), 1,
+                              heat_event)) %>% 
+  group_by(area, home, sampling_day) %>% 
+  mutate(sums_events_sampling_day = sum(heat_event, na.rm = TRUE),
+         sums_events_sampling_day_cat = cut(sums_events_sampling_day, 
+                                            breaks = c(0, 2, 50),
+                           labels = c("<2", "2+"),
+                                 right = FALSE)) %>% 
+  distinct(sampling_day, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  select(area:pm_rolling_20, sums_mean_winter:sums_mean_sampling_period,
+         time_diff:sums_events_sampling_day_cat) %>% 
+  arrange(area, home, sample_date) %>% 
+  group_by(home) %>% 
+  mutate(sums_events_sampling_period = mean(sums_events_sampling_day, na.rm = TRUE)) %>% 
+  select(area, home, home_winter_id, sums_events_sampling_period) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  ungroup()
+
+####### Format ambient data to merge with analysis data below
+ambient_data <- exposure_analysis_data_long %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  #filter(area == "AK") %>% 
+  filter(!is.na(sampling_day)) %>% 
+  filter(!is.na(sample_date)) %>%
+  select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
+         zip:mean_temp_roll_4day) %>% 
+  group_by(home) %>% 
+  mutate(amb_pm_sampling_period_5 = mean(amb_pm_24hr, na.rm = TRUE)/5,
+         mean_temp_sampling_period_5 = mean(mean_temp, na.rm = TRUE)/5) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  ungroup()
+
+####### Format home activity data to merge with analysis data below
+home_activity_data <- exposure_analysis_data_medium %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  distinct(sampling_day, .keep_all = TRUE) %>% 
+  group_by(area, home) %>% 
+  mutate_at(vars(starts_with("home_act")), as.numeric) %>% 
+  mutate_at(vars(starts_with("home_act")), funs(. - 1)) %>% 
+  mutate_at(vars(starts_with("home_act")), funs(sum(.))) %>% 
+  ungroup() %>% 
+  distinct(area, home, .keep_all = TRUE) %>% 
+  select(home, area, sampling_day, starts_with("home_act"))
+
+####### Format full data to use for analysis
+analysis_data <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  mutate(moisture_closest_2level = cut(moisture_closest, breaks = c(0, 10.5, 100),
+                                 labels = c("<10.5", "10.5+"),
+                                 right = FALSE),
+         moisture_winter_2level = cut(mean_moisture_winter, breaks = c(0, 10.5, 100),
+                                 labels = c("<10.5", "10.5+"),
+                                 right = FALSE)) %>% 
+  mutate(temp_max_2level = cut(temp_indoor_max, breaks = c(0, 30, 100),
+                                 labels = c("<30", "30+"),
+                                 right = FALSE),
+         temp_min_2level = cut(temp_indoor_min, breaks = c(0, 16.5, 100),
+                                 labels = c("<16.5", "16.5+"),
+                                 right = FALSE),
+         rh_max_2level = cut(rh_indoor_max, breaks = c(0, 40, 100),
+                                 labels = c("<40", "40+"),
+                                 right = FALSE),
+         rh_min_2level = cut(rh_indoor_min, breaks = c(0, 20, 100),
+                                 labels = c("<20", "20+"),
+                                 right = FALSE)) %>% 
+  mutate(sums_mean_sampling_period_5 = sums_mean_sampling_period/5,
+         temp_perc_25_2level = cut(temp_perc_25, breaks = c(0, 50, 100),
+                                 labels = c("<50", "50+"),
+                                 right = FALSE),
+         temp_perc_27_2level = cut(temp_perc_27, breaks = c(0, 35, 100),
+                                 labels = c("<35", "35+"),
+                                 right = FALSE),
+         temp_perc_30_2level = cut(temp_perc_30, breaks = c(0, 10, 100),
+                                 labels = c("<10", "10+"),
+                                 right = FALSE)) %>% 
+  left_join(sums_temp_change, by = c("area", "home")) %>% 
+  left_join(ambient_data, by = c("area", "home")) %>% 
+  select(-starts_with("home_act")) %>% 
+  left_join(home_activity_data, by = c("area", "home"))
+
+####### Function to run analysis
+analysis_function <- function(covar, label, 
+                              dataset = analysis_data){
+  
+  analysis_data <- dataset %>% 
+    filter(winter_id == 1 & treatment == "Placebo") %>% 
+    group_by(area, home) %>% 
+    distinct(home, .keep_all = TRUE) %>% 
+    rename(analysis_covar = covar) %>% 
+    ungroup() %>% 
+    select(pm_mean_sampling_period, analysis_covar) 
+  
+  analysis_results <- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
+  
+  tidy_results <<- tidy(analysis_results) %>% 
+    filter(term != '(Intercept)') %>% 
+    mutate(estimate = round(estimate, digits = 2),
+           'p-value' = round(p.value, digits = 2),
+           term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
+    select(term, estimate, 'p-value')
+  
+}
+
+####### Variables to run through fuction and save results
+d1 <- analysis_function("education_3level", "Education")
+d2 <- analysis_function("income_3level", "Income")
+d3 <- analysis_function("race_parent_2level", "Parent race")
+d4 <- analysis_function("total_residents_2level", "Total residents")
+d5 <- analysis_function("residents_under5_2level", "Residents under 5 y/o")
+d6 <- analysis_function("residents_smoke", "Residents smoke")
+
+d7 <- analysis_function("home_type_2level", "Home type")
+d8 <- analysis_function("home_year_built_2level", "Home age")
+d9 <- analysis_function("home_sqft_2level", "home sqft")
+d10 <- analysis_function("home_floors_2level", "Home floors")
+d11 <- analysis_function("home_bedrooms_2level", "Home bedrooms")
+d12 <- analysis_function("home_windows_2level", "Home windows")
+d13 <- analysis_function("home_pets_2level", "Pets - total")
+d14 <- analysis_function("home_furry_2level", "Pets - furry")
+d15 <- analysis_function("secondary_heat_3level", "Secondary heating")
+d16 <- analysis_function("stove_age_3level", "Stove age")
+d17 <- analysis_function("stove_cert", "Stove EPA certified")
+d18 <- analysis_function("chimney_clean_3level", "Chimney cleaned")
+d19 <- analysis_function("home_damp", "Home - damp")
+d20 <- analysis_function("home_mold", "Home - mold")
+d21 <- analysis_function("home_fireplace", "Home fireplace")
+d22 <- analysis_function("home_furnace", "Home furnace")
+
+d23 <- analysis_function("burn_level_3level", "Burn level")
+d24 <- analysis_function("wood_collect_2level", "Wood collect time")
+d25 <- analysis_function("wood_collect_method_2level", "Wood collect method")
+d26 <- analysis_function("wood_cords", "Wood cords")
+
+d27 <- analysis_function("moisture_closest", "Wood moisture - closest to sampling")
+d28 <- analysis_function("moisture_closest_2level", "Wood moisture - closest to sampling")
+d29 <- analysis_function("mean_moisture_winter", "Wood moisture - Winter mean")
+d30 <- analysis_function("moisture_winter_2level", "Wood moisture - Winter mean")
+
+d31 <- analysis_function("temp_min_5", "Minimum indoor temp - per 5 degree increase")
+d32 <- analysis_function("temp_max_5", "Maximum indoor temp - per 5 degree increase")
+d33 <- analysis_function("rh_min_5", "Minimum indoor RH - per 5% increase")
+d34 <- analysis_function("rh_max_5", "Maximum indoor RH - per 5% increase")
+d35 <- analysis_function("temp_min_2level", "Minimum indoor temp")
+d36 <- analysis_function("temp_max_2level", "Maximum indoor temp")
+d37 <- analysis_function("rh_min_2level", "Minimum indoor RH")
+d38 <- analysis_function("rh_max_2level", "Maximum indoor RH")
+
+d39 <- analysis_function("sums_mean_sampling_period_5", "SUMs mean temperature")
+d40 <- analysis_function("temp_perc_25_2level", "SUMs - % obs > 25 degrees C")
+d41 <- analysis_function("temp_perc_27_2level", "SUMs - % obs > 27 degrees C")
+d42 <- analysis_function("temp_perc_30_2level", "SUMs - % obs > 30 degrees C")
+d43 <- analysis_function("sums_events_sampling_period", 
+                         "Mean daily SUMs events - 5+ degree C temp increase in 20 min")
+
+d44 <- analysis_function("amb_pm_sampling_period_5", "Mean ambient PM2.5 - per 5ug/m3 increase")
+d45 <- analysis_function("mean_temp_sampling_period_5", 
+                         "Mean ambient temp - per 5 degree increase")
+
+d46 <- analysis_function("home_act_gas", "Home activity - gas appliance")
+d47 <- analysis_function("home_act_elect", "Home activity - electric appliance")
+d48 <- analysis_function("home_act_propane", "Home activity - propane appliance")
+d49 <- analysis_function("home_act_oil", "Home activity - oil appliance")
+d50 <- analysis_function("home_act_other", "Home activity - other appliance")
+d51 <- analysis_function("home_act_smoking", "Home activity - smoking")
+d52 <- analysis_function("home_act_incense", "Home activity - incense")
+d53 <- analysis_function("home_act_candle", "Home activity - candle")
+d54 <- analysis_function("home_act_windows", "Home activity - windows open")
+d55 <- analysis_function("home_act_door", "Home activity - doors open")
+d56 <- analysis_function("home_act_sweep", "Home activity - cleaning")
+
+d57 <- analysis_function("stove_grade_3level", "Stove grade")
+
+####### Combine results to use in a table
+table_data <- rbind(d1, d2, d3, d4, d5, d6,
+                    d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, d17, d18,
+                    d19, d20, d21, d22,
+                    d23, d24, d25, d26,
+                    d27, d28, d29, d30,
+                    d31, d32, d33, d34, d35, d36, d37, d38,
+                    d39, d40, d41, d42, d43,
+                    d44, d45,
+                    d46, d47, d48, d49, d50, d51, d52, d53, d54, d55, d56,
+                    d57)
+
+####### Print full table of results
+kable(table_data, longtable = TRUE,
+      caption = "Indoor PM2.5 (natural log transformed) and covariate associations") %>% 
+   kable_styling(latex_options = "repeat_header") %>% 
+   row_spec(0, bold = TRUE) %>% 
+   pack_rows("Demographic variables", 1, 8) %>%
+   pack_rows("Home characteristics", 9, 31) %>%
+   pack_rows("Stove use", 32, 36) %>%
+   pack_rows("Wood moisture content", 37, 40) %>%
+   pack_rows("Indoor temperature and relative humidity", 41, 48) %>%
+   pack_rows("Stove Use Monitors (SUMs) temperature", 49, 53) %>%
+   pack_rows("Ambient data", 54, 55) %>%
+   pack_rows("Home activities - Sum of all sampling days", 56, 66) %>%
+   pack_rows("Stove grade", 67, 68) %>%
+   footnote(c("PM2.5 = fine particulate matter", 
+              "PM2.5 and all covariates have been averaged or summed to produce 1 observation per sampling period"))
+```
+
+
+```{r}
+###### Chunks below are useful for checking individual associations
 
 # Demographics
-```{r}
+
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -82,9 +311,9 @@ tidy(pm_demographics_results) %>%
 plot(pm_demographics_results)
 ```
 
-
-# Home characteristics
 ```{r}
+# Home characteristics
+
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -107,9 +336,9 @@ tidy(pm_home_char_results)
 plot(pm_home_char_results)
 ```
 
-
-# Stove use
 ```{r}
+# Stove use
+
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -134,9 +363,9 @@ pm_stove_use_plot <- pm_stove_use %>%
 pm_stove_use_plot
 ```
 
-
-# Stove grades
 ```{r}
+# Stove grades
+
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -160,77 +389,9 @@ pm_stove_grades_plot <- pm_stove_grades %>%
 pm_stove_grades_plot
 ```
 
-
 ```{r}
-analysis_function <- function(covar, label, 
-                              dataset = exposure_analysis_data_short){
-  
-  analysis_data <- dataset %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area, home) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  rename(analysis_covar = covar) %>% 
-  ungroup() %>% 
-  select(pm_mean_sampling_period, analysis_covar) 
-  
-  analysis_results <- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
-  
-  tidy_results <<- tidy(analysis_results) %>% 
-    filter(term != '(Intercept)') %>% 
-    mutate(estimate = round(estimate, digits = 2),
-           'p-value' = round(p.value, digits = 2),
-           term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
-    select(term, estimate, 'p-value')
-  
-}
-
-d1 <- analysis_function("education_3level", "Education")
-d2 <- analysis_function("income_3level", "Income")
-d3 <- analysis_function("race_parent_2level", "Parent race")
-d4 <- analysis_function("total_residents_2level", "Total residents")
-d5 <- analysis_function("residents_under5_2level", "Residents under 5 y/o")
-d6 <- analysis_function("residents_smoke", "Residents smoke")
-
-d7 <- analysis_function("home_type_2level", "Home type")
-d8 <- analysis_function("home_year_built_2level", "Home age")
-d9 <- analysis_function("home_sqft_2level", "home sqft")
-d10 <- analysis_function("home_floors_2level", "Home floors")
-d11 <- analysis_function("home_bedrooms_2level", "Home bedrooms")
-d12 <- analysis_function("home_windows_2level", "Home windows")
-d13 <- analysis_function("home_pets_2level", "Pets - total")
-d14 <- analysis_function("home_furry_2level", "Pets - furry")
-d15 <- analysis_function("secondary_heat_3level", "Secondary heating")
-d16 <- analysis_function("stove_age_3level", "Stove age")
-d17 <- analysis_function("stove_cert", "Stove EPA certified")
-d18 <- analysis_function("chimney_clean_3level", "Chimney cleaned")
-d19 <- analysis_function("home_damp", "Home - damp")
-d20 <- analysis_function("home_mold", "Home - mold")
-d21 <- analysis_function("home_fireplace", "Home fireplace")
-d22 <- analysis_function("home_furnace", "Home furnace")
-
-d23 <- analysis_function("burn_level_3level", "Burn level")
-d24 <- analysis_function("wood_collect_2level", "Wood collect time")
-d25 <- analysis_function("wood_collect_method_2level", "Wood collect method")
-d26 <- analysis_function("wood_cords", "Wood cords")
-
-table_data <- rbind(d1, d2, d3, d4, d5, d6,
-                    d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, d17, d18,
-                    d19, d20, d21, d22,
-                    d23, d24, d25, d26)
-
-kable(table_data, 
-      caption = "Indoor PM2.5 (log) and covariate associations") %>% 
-   kable_styling() %>% 
-   row_spec(0, bold = TRUE) %>% 
-   pack_rows("Demographic variables", 1, 8) %>%
-   pack_rows("Home characteristics", 9, 31) %>%
-   pack_rows("Stove use", 32, 36) %>%
-   footnote(c("PM2.5 = fine particulate matter"))
-```
-
-
 # Home activity
-```{r}
+
 analysis_data <- exposure_analysis_data_medium %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -253,9 +414,9 @@ plot(pm_home_act_results,
 qqnorm(residuals(pm_home_act_results), main = "QQ Plot")
 ```
 
-
-# Wood moisture content
 ```{r}
+# Wood moisture content
+ 
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -282,9 +443,9 @@ summary(pm_moisture_results)
 plot(pm_moisture_results)
 ```
 
-
-# Indoor temp/RH
 ```{r}
+# Indoor temp/RH
+
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -318,10 +479,9 @@ tidy(pm_temp_rh_results)
 plot(pm_temp_rh_results)
 ```
 
-
-
-# SUMs - by sampling day
 ```{r}
+# SUMs - by sampling day
+
 analysis_data <- exposure_analysis_data_medium %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -356,10 +516,9 @@ plot(pm_sums_results,
 qqnorm(residuals(pm_sums_results), main = "QQ Plot")
 ```
 
-
-
-# SUMs - by sampling period
 ```{r}
+# SUMs - by sampling period
+
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
@@ -394,10 +553,9 @@ plot(pm_sums_results,
 qqnorm(residuals(pm_sums_results), main = "QQ Plot")
 ```
 
-
-
-# SUMs - mean PM per SUMs interval
 ```{r}
+# SUMs - mean PM per SUMs interval
+
 analysis_data <- sums_rolling_pm_data %>% 
   mutate(temp_c_sums_5 = temp_c_sums/5)
 
@@ -422,10 +580,9 @@ pm_sums_plot <- analysis_data %>%
 pm_sums_plot
 ```
 
-
-
-# SUMs - events per sampling day 
 ```{r}
+# SUMs - events per sampling day 
+
 sums_temp_change <- sums_rolling_pm_data %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home, sampling_day) %>% 
@@ -443,23 +600,24 @@ sums_temp_change <- sums_rolling_pm_data %>%
          heat_event = if_else(is.na(temp_diff_check), 1,
                               heat_event)) %>% 
   group_by(area, home, sampling_day) %>% 
-  mutate(sums_events = sum(heat_event, na.rm = TRUE),
-         sums_events_cat = cut(sums_events, breaks = c(0, 2, 50),
+  mutate(sums_events_sampling_day = sum(heat_event, na.rm = TRUE),
+         sums_events_sampling_day_cat = cut(sums_events_sampling_day, 
+                                            breaks = c(0, 2, 50),
                            labels = c("<2", "2+"),
                                  right = FALSE)) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
   ungroup() %>% 
   select(area:pm_rolling_20, sums_mean_winter:sums_mean_sampling_period,
-         time_diff:sums_events_cat) %>% 
-  arrange(area, home, sample_date)
+         time_diff:sums_events_sampling_day_cat) %>% 
+  arrange(area, home, sample_date) 
 
 
 median(sums_temp_change$sums_events, na.rm = TRUE)
-table(sums_temp_change$sums_events_cat)
+table(sums_temp_change$sums_events_sampling_day_cat)
 
-pm_sums_model <- lmer(pm_mean_sampling_day ~ sums_events_cat + 
+pm_sums_model <- lmer(pm_mean_sampling_day ~ sums_events_sampling_day_cat + 
                         (1 | home), data = sums_temp_change)
-pm_sums_model <- lmer(log(pm_mean_sampling_day) ~ sums_events_cat + 
+pm_sums_model <- lmer(log(pm_mean_sampling_day) ~ sums_events_sampling_day_cat + 
                         (1 | home), data = sums_temp_change)
 
 summary(pm_sums_model)
@@ -477,10 +635,9 @@ pm_sums_plot <- sums_temp_change %>%
 pm_sums_plot
 ```
 
-
-
-# Ambient temp/PM - by sampling date
 ```{r}
+# Ambient temp/PM - by sampling date
+
 analysis_data <- exposure_analysis_data_long %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   #filter(area == "AK") %>% 
@@ -534,79 +691,3 @@ pm_sums_plot
 
 
 
-# Run tests for multicollinearity between different covariates
-Goal is to check for vars that have a lot of overlap and eliminate some from
-consideration to include in models
-
-First, use `mctest` package to check for multicollinearity among similar variables
-https://cran.r-project.org/web/packages/mctest/mctest.pdf 
-
-Notes on multicollinearity:
-
-https://datascienceplus.com/multicollinearity-in-r/ 
-https://www.theanalysisfactor.com/eight-ways-to-detect-multicollinearity/ 
-
-```{r}
-# Filter data for specific variables; select pm variable
-pm_mean_sampling_period <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  select(pm_mean_sampling_period, income_3level, residents_smoke) %>% 
-  mutate_all(as.numeric) %>% 
-  na.exclude() %>% 
-  select(pm_mean_sampling_period)
-
-# Filter data for specific variables; select predictor variables
-other_vars <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  select(pm_mean_sampling_period, income_3level, residents_smoke) %>% 
-  mutate_all(as.numeric) %>% 
-  na.exclude() %>% 
-  select(-pm_mean_sampling_period)
-
-
-# Use `omcdiag` to assess overall multicollinearity
-omcdiag(other_vars, pm_mean_sampling_period)
-
-
-# Use `imcdiag` to assess multicollinearity between individual variables
-imcdiag(other_vars, pm_mean_sampling_period)
-
-# Specify a method to assess
-imcdiag(other_vars, pm_mean_sampling_period, method = "Fi")
-```
-
-# Initial variables to use for model selection (these have less overlap):
-Demographics: income_3level, total_residents_2level, residents_smoke
-Home Characteristics: home_type_2level, home_floors_2level, stove_age_3level,
-                      chimney_clean_3level, home_mold, home_fireplace
-Home Activity: home_act_gas, home_act_smoking
-Others (make some categorical): amb_pm_24hr, mean_temp, sums_mean_sampling_day, 
-       moisture_closest, stove_grade_3level
-
-# Also try individual chi-square tests and correlations b/w two vars
-
-```{r}
-test_data <- exposure_analysis_data_medium %>% 
-  filter(winter_id == 1) %>% 
-  filter(!is.na(pm_mean_sampling_day))
-
-chisqu_results <- chisq.test(test_data$home_floors_2level, 
-                             test_data$home_windows_2level)
-chisqu_results
-
-
-
-cor_results <- cor.test(test_data$temp_indoor_max, 
-                        test_data$mean_temp)
-cor_results
-```
-
-If variables have very high overlap, then only use the one with the strongest
-association with PM for consideration in the model.
-
-Once variables are narrowed down, use best subsets selection (exposure_models.RMD) 
-to help inform a final model.
-
-Run sensitivity analyses to see if adding other variables back in makes a difference.
