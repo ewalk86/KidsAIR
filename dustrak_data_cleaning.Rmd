@@ -462,7 +462,7 @@ kids_pm_new <-
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "273", location = "WMT")
+pm_time_plot_function(id = "501", location = "WMT")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)

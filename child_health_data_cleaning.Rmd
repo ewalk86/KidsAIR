@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 14 April 2020"
+date: "Started 27 Feb 2020, Updated 20 April 2020"
 output: pdf_document 
 ---
 
@@ -24,12 +24,12 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load data
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-kids_linked_ids <- read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 demographics_clean <- 
-  read_rds(paste0(output_path, "Output/demographics_clean.rds"))
-pm_clean <- read_rds(paste0(output_path, "Output/pm_clean.rds"))
+  read_rds(paste0(file_path, "Output/demographics_clean.rds"))
+pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
 ```
 
 
@@ -37,7 +37,7 @@ pm_clean <- read_rds(paste0(output_path, "Output/pm_clean.rds"))
 
 # Load and merge files from different locations
 ```{r}
-wmt_athomelog_initial <- read_xlsx("Input/WMT/wmt_athomelog_20200227.xlsx") %>% 
+wmt_athomelog_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_athomelog_20200227.xlsx")) %>% 
   mutate(home_winter_id = as.factor(HomeWinterID),
          child_id_num = as.factor(ChildID),
          area = "WMT",
@@ -77,7 +77,7 @@ wmt_athomelog_initial <- read_xlsx("Input/WMT/wmt_athomelog_20200227.xlsx") %>%
   select(home_winter_id:location_22)
 
 
-nn_athomelog_initial <- read_xlsx("Input/NN/nn_athomelog_20200227.xlsx") %>% 
+nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_athomelog_20200416.xlsx")) %>% 
   mutate(home_winter_id = as.factor(HomeWinterID),
          child_id_num = as.factor(ChildID),
          area = "NN",
@@ -117,7 +117,7 @@ nn_athomelog_initial <- read_xlsx("Input/NN/nn_athomelog_20200227.xlsx") %>%
   select(home_winter_id:location_22)
 
 
-ak_athomelog_initial <- read_xlsx("Input/AK/ak_athomelog_20200227.xlsx") %>% 
+ak_athomelog_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_athomelog_20200227.xlsx")) %>% 
   mutate(home_winter_id = as.factor(HomeWinterID),
          child_id_num = as.factor(ChildID),
          area = "AK",
@@ -170,7 +170,7 @@ kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
 # Format at-home-log and merge with PM data
 ```{r}
 kids_at_home_log <- 
-  read_rds(paste0(output_path, "Output/kids_at_home_log.rds")) %>% 
+  read_rds(paste0(file_path, "Output/kids_at_home_log.rds")) %>% 
   arrange(area, home_winter_id, at_home_day)
 
 kids_at_home_log_new <- kids_at_home_log %>% 
@@ -300,12 +300,12 @@ at_home_pm_merged <- pm_clean %>%
   arrange(area, home_winter_id, child_id_num, at_home, sampling_day)
 
 
-#write_rds(at_home_pm_merged, paste0(output_path, "Output/at_home_pm_merged.rds"))
-#write_csv(at_home_pm_merged, paste0(output_path, "Output/at_home_pm_merged.csv"))
+#write_rds(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.rds"))
+#write_csv(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.csv"))
 
 
 at_home_pm_merged <- 
-  read_rds(paste0(output_path, "Output/at_home_pm_merged.rds"))
+  read_rds(paste0(file_path, "Output/at_home_pm_merged.rds"))
 ```
 
 
@@ -350,7 +350,7 @@ wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx"
   
 
 
-nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %>%
+nn_medicalvisit_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_medicalvisit_20200416.xlsx")) %>%
   mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
          HR = if_else(HR < 50, -999, HR),
          SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
@@ -383,11 +383,12 @@ nn_medicalvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200227.xlsx") %
   ungroup() %>% 
   # spread 3 moisture samples back to wide format
   spread(sample, value) %>%
+  replace_with_na(replace = list(med_visit_mean_temp = "NaN")) %>%
   select(home_winter_id:med_visit_mean_temp)
 
 
 
-ak_medicalvisit_initial <- read_xlsx("Input/AK/ak_medicalvisit_20200227.xlsx") %>% 
+ak_medicalvisit_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_medicalvisit_20200416.xlsx")) %>% 
   mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
          HR = if_else(HR < 50, -999, HR),
          SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
@@ -420,6 +421,7 @@ ak_medicalvisit_initial <- read_xlsx("Input/AK/ak_medicalvisit_20200227.xlsx") %
   ungroup() %>% 
   # spread 3 moisture samples back to wide format
   spread(sample, value) %>%
+  replace_with_na(replace = list(med_visit_mean_temp = "NaN")) %>%
   select(home_winter_id:med_visit_mean_temp)
 
 
@@ -430,15 +432,15 @@ kids_med_visit <- rbind(wmt_medicalvisit_initial, nn_medicalvisit_initial,
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 
-# write_rds(kids_med_visit, "Output/kids_med_visit.rds")
+# write_rds(kids_med_visit, paste0(file_path, "Output/kids_med_visit.rds"))
 
-kids_med_visit <- read_rds("Output/kids_med_visit.rds")
+kids_med_visit <- read_rds(paste0(file_path, "Output/kids_med_visit.rds"))
 
 save_var_names <- data.frame(t(kids_med_visit)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/medvisit_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/medvisit_var_names.csv"))
 ```
 
 
@@ -447,7 +449,7 @@ write_csv(save_var_names, "Output/medvisit_var_names.csv")
 
 # Load and merge files from different locations
 ```{r}
-wmt_birthinfancy_initial <- read_xlsx("Input/WMT/wmt_birthinfancy_20200227.xlsx") %>% 
+wmt_birthinfancy_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_birthinfancy_20200227.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "WMT",
@@ -472,25 +474,73 @@ wmt_birthinfancy_initial <- read_xlsx("Input/WMT/wmt_birthinfancy_20200227.xlsx"
   select(home_winter_id:sibling_school)
          
 
-# Waiting on files from NN and AK
+nn_birthinfancy_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_birthinfancy_20200416.xlsx")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "NN",
+         gender = as.character(Gender),
+         bw_lbs = as.numeric(BirthweightLbs),
+         bw_oz = as.numeric(BirthWeightOz),
+         birth_weight_oz = as.numeric((bw_lbs*16)+bw_oz),
+         mom_age = as.numeric(AgeOfMom),
+         breastfeed_current = as.character(CurrentlyBreastfeeding),
+         breastfeed_past = as.character(DidBreastfeed),
+         bf_years = as.numeric(HowLongYears),
+         bf_months = as.numeric(HowLongMonths),
+         breastfeed_months = as.numeric((bf_years*12)+bf_months),
+         flu_shot = as.character(FluShot),
+         flu_shot_planned = as.character(FluShotPlanned),
+         asthma_meds = as.character(AsthmaMeds),
+         child_school = as.character(Attend),
+         school_hours = as.numeric(HoursDay),
+         school_days = as.numeric(DaysWeek),
+         school_hours_week = as.numeric(school_hours*school_days),
+         sibling_school = as.character(SibSchool)) %>% 
+  select(home_winter_id:sibling_school)
+
+
+ak_birthinfancy_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_birthinfancy_20200416.xlsx")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "AK",
+         gender = as.character(Gender),
+         bw_lbs = as.numeric(BirthweightLbs),
+         bw_oz = as.numeric(BirthWeightOz),
+         birth_weight_oz = as.numeric((bw_lbs*16)+bw_oz),
+         mom_age = as.numeric(AgeOfMom),
+         breastfeed_current = as.character(CurrentlyBreastfeeding),
+         breastfeed_past = as.character(DidBreastfeed),
+         bf_years = as.numeric(HowLongYears),
+         bf_months = as.numeric(HowLongMonths),
+         breastfeed_months = as.numeric((bf_years*12)+bf_months),
+         flu_shot = as.character(FluShot),
+         flu_shot_planned = as.character(FluShotPlanned),
+         asthma_meds = as.character(AsthmaMeds),
+         child_school = as.character(Attend),
+         school_hours = as.numeric(HoursDay),
+         school_days = as.numeric(DaysWeek),
+         school_hours_week = as.numeric(school_hours*school_days),
+         sibling_school = as.character(SibSchool)) %>% 
+  select(home_winter_id:sibling_school)
 
 
 
 # Combine logs from all areas
-kids_birth_infancy <- wmt_birthinfancy_initial %>% 
+kids_birth_infancy <- rbind(wmt_birthinfancy_initial, nn_birthinfancy_initial,
+                            ak_birthinfancy_initial) %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(kids_birth_infancy, "Output/kids_birth_infancy.rds")
+# write_rds(kids_birth_infancy, paste0(file_path, "Output/kids_birth_infancy.rds"))
 
-kids_birth_infancy <- read_rds("Output/kids_birth_infancy.rds")
+kids_birth_infancy <- read_rds(paste0(file_path, "Output/kids_birth_infancy.rds"))
 
 
 
-save_var_names <- data.frame(t(wmt_birthinfancy_initial)) %>% 
+save_var_names <- data.frame(t(kids_birth_infancy)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/birthinfancy_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/birthinfancy_var_names.csv"))
 ```
 
 
@@ -499,7 +549,8 @@ write_csv(save_var_names, "Output/birthinfancy_var_names.csv")
 
 # Load and merge files from different locations
 ```{r}
-wmt_childhomewinter_initial <- read_xlsx("Input/WMT/wmt_childhomewinter_20200227.xlsx") %>% 
+wmt_childhomewinter_initial <- 
+  read_xlsx(paste0(file_path, "Input/WMT/wmt_childhomewinter_20200227.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          home_id = as.character(HomeID),
          child_id_num = as.character(ChildID),
@@ -527,9 +578,9 @@ wmt_childhomewinter_initial <- read_xlsx("Input/WMT/wmt_childhomewinter_20200227
 child_home_winter <- wmt_childhomewinter_initial %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(child_home_winter, "Output/child_home_winter.rds")
+# write_rds(child_home_winter, paste0(file_path, "Output/child_home_winter.rds"))
 
-child_home_winter <- read_rds("Output/child_home_winter.rds")
+child_home_winter <- read_rds(paste0(file_path, "Output/child_home_winter.rds"))
 
 ```
 
@@ -539,7 +590,8 @@ child_home_winter <- read_rds("Output/child_home_winter.rds")
 
 # Load and merge files from different locations
 ```{r}
-wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>% 
+wmt_csq_initial <- 
+  read_xlsx(paste0(file_path, "Input/WMT/wmt_csq_20200227.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "WMT",
@@ -574,25 +626,94 @@ wmt_csq_initial <- read_xlsx("Input/WMT/wmt_csq_20200227.xlsx") %>%
   select(home_winter_id:csq_comments)
          
 
-# Waiting on files from NN and AK
+nn_csq_initial <- 
+  read_xlsx(paste0(file_path, "Input/NN/nn_csq_20200416.xlsx")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "NN",
+         csq_date = ymd(Date),
+         csq_collect = as.character(HowCollected),
+         csq_sick_2_weeks = as.character(Illin2Weeks),
+         csq_still_sick = as.character(StillSick),
+         csq_first_symptom_date = ymd(FirstSymptomDate),
+         csq_symptom_free_date = ymd(SymptomFreeDate),
+         csq_miss_work = as.character(MissWork),
+         csq_miss_work_days = as.character(DaysMissed),
+         csq_see_dr = as.character(SeeDr),
+         csq_dr_diagnosis = as.character(DrDiagnosis),
+         csq_new_meds = as.character(NewMeds),
+         csq_fever_2weeks = as.character(Fever),
+         csq_temp_2weeks = as.numeric(Temperature),
+         csq_rapid_breathing_2weeks = as.character(RapidBreathing),
+         csq_difficult_breathing_2weeks = as.character(DifficultBreathing),
+         csq_noisy_breathing_2weeks = as.character(NoisyBreathing),
+         csq_runny_nose_2weeks = as.character(RunnyNose),
+         csq_cough_2weeks = as.character(Coughing),
+         csq_wheeze_2weeks = as.character(Wheezing),
+         csq_fever_current = as.character(FeverStill),
+         csq_rapid_breathing_current = as.character(RapidBreathingStill),
+         csq_difficult_breathing_current = as.character(DifficultBreathingStill),
+         csq_noisy_breathing_current = as.character(NoisyBreathingStill),
+         csq_runny_nose_current = as.character(RunnyNoseStill),
+         csq_cough_current = as.character(CoughingStill),
+         csq_wheeze_current = as.character(WheezingStill),
+         csq_comments = as.character(`REPLACE(REPLACE(Comments, '\\n', ''), '\\r', '')`)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, -99, -99.9, 999, 0)) %>% 
+  select(home_winter_id:csq_comments)
+
+
+ak_csq_initial <- 
+  read_xlsx(paste0(file_path, "Input/AK/ak_csq_20200416.xlsx")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "AK",
+         csq_date = ymd(Date),
+         csq_collect = as.character(HowCollected),
+         csq_sick_2_weeks = as.character(Illin2Weeks),
+         csq_still_sick = as.character(StillSick),
+         csq_first_symptom_date = ymd(FirstSymptomDate),
+         csq_symptom_free_date = ymd(SymptomFreeDate),
+         csq_miss_work = as.character(MissWork),
+         csq_miss_work_days = as.character(DaysMissed),
+         csq_see_dr = as.character(SeeDr),
+         csq_dr_diagnosis = as.character(DrDiagnosis),
+         csq_new_meds = as.character(NewMeds),
+         csq_fever_2weeks = as.character(Fever),
+         csq_temp_2weeks = as.numeric(Temperature),
+         csq_rapid_breathing_2weeks = as.character(RapidBreathing),
+         csq_difficult_breathing_2weeks = as.character(DifficultBreathing),
+         csq_noisy_breathing_2weeks = as.character(NoisyBreathing),
+         csq_runny_nose_2weeks = as.character(RunnyNose),
+         csq_cough_2weeks = as.character(Coughing),
+         csq_wheeze_2weeks = as.character(Wheezing),
+         csq_fever_current = as.character(FeverStill),
+         csq_rapid_breathing_current = as.character(RapidBreathingStill),
+         csq_difficult_breathing_current = as.character(DifficultBreathingStill),
+         csq_noisy_breathing_current = as.character(NoisyBreathingStill),
+         csq_runny_nose_current = as.character(RunnyNoseStill),
+         csq_cough_current = as.character(CoughingStill),
+         csq_wheeze_current = as.character(WheezingStill),
+         csq_comments = as.character(`REPLACE(REPLACE(Comments, '\\n', ''), '\\r', '')`)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, -99, -99.9, 999, 0)) %>% 
+  select(home_winter_id:csq_comments)
 
 
 
 
 # Combine logs from all areas
-kids_csq <- wmt_csq_initial %>% 
+kids_csq <- rbind(wmt_csq_initial, nn_csq_initial, ak_csq_initial) %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 # write_rds(kids_csq, "Output/kids_csq.rds")
 
-kids_csq <- read_rds("Output/kids_csq.rds")
+kids_csq <- read_rds(paste0(file_path, "Output/kids_csq.rds"))
 
 
 save_var_names <- data.frame(t(wmt_csq_initial)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/csq_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/csq_var_names.csv"))
 ```
 
 
@@ -601,7 +722,8 @@ write_csv(save_var_names, "Output/csq_var_names.csv")
 
 # Load and merge files from different locations
 ```{r}
-wmt_medicalrecords_initial <- read_xlsx("Input/WMT/wmt_medicalrecords_20200227.xlsx") %>% 
+wmt_medicalrecords_initial <- 
+  read_xlsx(paste0(file_path, "Input/WMT/wmt_medicalrecords_20200227.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "WMT",
@@ -613,7 +735,30 @@ wmt_medicalrecords_initial <- read_xlsx("Input/WMT/wmt_medicalrecords_20200227.x
   select(home_winter_id:med_rec_comments)
          
 
-# Waiting on files from NN and AK
+nn_medicalrecords_initial <- 
+  read_xlsx(paste0(file_path, "Input/NN/nn_medicalrecords_20200416.xlsx")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "NN",
+         visit_date = ymd(VisitDate),
+         med_rec_visit_date = ymd(VisitDate),
+         med_rec_dr_diagnosis = as.character(DrDiag),
+         med_rec_ari = as.character(ARI),
+         med_rec_comments = as.character(DrComments)) %>% 
+  select(home_winter_id:med_rec_comments)
+
+
+ak_medicalrecords_initial <- 
+  read_xlsx(paste0(file_path, "Input/AK/ak_medicalrecords_20200416.xlsx")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         area = "AK",
+         visit_date = ymd(VisitDate),
+         med_rec_visit_date = ymd(VisitDate),
+         med_rec_dr_diagnosis = as.character(DrDiag),
+         med_rec_ari = as.character(ARI),
+         med_rec_comments = as.character(DrComments)) %>% 
+  select(home_winter_id:med_rec_comments)
 
 
 
@@ -622,9 +767,9 @@ wmt_medicalrecords_initial <- read_xlsx("Input/WMT/wmt_medicalrecords_20200227.x
 kids_medical_records <- wmt_medicalrecords_initial %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(kids_medical_records, "Output/kids_medical_records.rds")
+# write_rds(kids_medical_records, paste0(file_path, "Output/kids_medical_records.rds"))
 
-kids_medical_records <- read_rds("Output/kids_medical_records.rds")
+kids_medical_records <- read_rds(paste0(file_path, "Output/kids_medical_records.rds"))
 ```
 
 

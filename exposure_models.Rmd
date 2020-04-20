@@ -6,7 +6,8 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      eval = TRUE, include = TRUE)
 ```
 
 ```{r, message=FALSE}
@@ -156,9 +157,9 @@ analysis_data <- exposure_analysis_data_short %>%
   select(pm_mean_sampling_period, area, income_3level,  
                  residents_smoke, home_floors_2level, stove_age_3level,  
                  chimney_clean_3level, home_mold, wood_collect_2level, 
-                 home_act_door, home_act_smoking, home_act_sweep,  
-                 sums_events_sampling_period, mean_temp_sampling_period_5, 
+                 home_act_door, home_act_smoking, home_act_sweep,
                  stove_grade_3level) %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
   na.exclude()
 ```
 
@@ -169,28 +170,24 @@ Home Characteristics: home_floors_2level, stove_age_3level,
 Home Activity: home_act_door, home_act_smoking, home_act_sweep
 Others: sums_events_sampling_period, mean_temp_sampling_period_5, stove_grade_3level
 
-```{r}
-subset_model <- lm(log(pm_mean_sampling_period) ~ 
-                        income_3level + home_act_smoking + 
-                        area, data = exposure_analysis_data_short)
+Note: sums_events_sampling_period and mean_temp_sampling_period_5 have a lot of
+missing data and reduce the sample size from 93 to 43. Not considering these
+variables for model selection for now.
 
+```{r, include=FALSE}
 full_model <- lm(log(pm_mean_sampling_period) ~ area + income_3level + 
                  residents_smoke + home_floors_2level + stove_age_3level + 
                  chimney_clean_3level + home_mold + wood_collect_2level +
                  home_act_door + home_act_smoking + home_act_sweep + 
-                 sums_events_sampling_period + mean_temp_sampling_period_5 +
                  stove_grade_3level,
                  data = analysis_data)
 
+
 summary(full_model)
-r.squaredGLMM(subset_model)
+r.squaredGLMM(full_model)
+tidy(full_model)
 
-tidy_results <- tidy(full_model)
-tidy_results
-
-plot(full_model, 
-     xlab = "fitted values", ylab = "residuals")
-qqnorm(residuals(full_model), main = "QQ Plot")
+plot(full_model)
 ```
 
 # Best subsets selection using dredge() from MuMIn
@@ -200,42 +197,36 @@ before running the dredge best-subsets function below. This will ensure that the
 same dataset is being used for each potential model, which is an assumption and
 a prerequisite for comparing different model ranking like AIC.
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 options(na.action = "na.fail")
 
-all_subsets <- dredge(full_model, rank = "AIC", extra = c("R^2"))
+all_subsets_aic <- dredge(full_model, rank = "AIC", extra = c("R^2"))
+all_subsets_aicc <- dredge(full_model, rank = "AICc", extra = c("R^2"))
+all_subsets_bic <- dredge(full_model, rank = "BIC", extra = c("R^2"))
+
+write_rds(all_subsets_aic, paste0(output_path, "Output/all_subsets_aic"))
+write_rds(all_subsets_aicc, paste0(output_path, "Output/all_subsets_aicc"))
+write_rds(all_subsets_bic, paste0(output_path, "Output/all_subsets_bic"))
 ```
 
-
-# Linear mixed model with repeated measures
 ```{r}
-subset_model <- lmer(log(pm_mean_daily) ~ 
-                        education_3level + income_3level + race_parent_2level + 
-                        area + sampling_day + day_of_week +
-                        (1 | home), data = exposure_analysis_data_long)
+all_subsets_aic <- read_rds(paste0(output_path, "Output/all_subsets_aic"))
+all_subsets_aicc <- read_rds(paste0(output_path, "Output/all_subsets_aicc"))
+all_subsets_bic <- read_rds(paste0(output_path, "Output/all_subsets_bic"))
 
-full_model <- lmer(log(pm_mean_daily) ~ 
-                        education_3level + income_3level + race_parent_2level + 
-                        total_residents_2level + residents_smoke + 
-                        home_type_2level + home_floors_2level + home_windows_2level + 
-                        stove_age_3level + chimney_clean_3level + home_mold + 
-                        home_fireplace + 
-                        wood_collect_2level + 
-                        stove_grade_3level + 
-                        home_act_gas + home_act_propane + home_act_smoking + 
-                        moisture_2level + 
-                        temp_max_5 + 
-                        temp_perc_30_cat +
-                        area + sampling_day + day_of_week +
-                        (1 | home), data = exposure_analysis_data_long)
-
-summary(full_model)
-r.squaredGLMM(full_model)
-
-tidy_results <- tidy(full_model)
-tidy_results
-
-plot(full_model, 
-     xlab = "fitted values", ylab = "residuals")
-qqnorm(residuals(full_model), main = "QQ Plot")
+head(all_subsets_aic, 10)
+head(all_subsets_aicc, 10)
+head(all_subsets_bic, 10)
 ```
+
+```{r}
+subset_model <- lm(log(pm_mean_sampling_period) ~ 
+                   income_3level + home_act_door + residents_smoke, 
+                   data = analysis_data)
+
+summary(subset_model)
+#tidy(subset_model)
+
+plot(subset_model)
+```
+
