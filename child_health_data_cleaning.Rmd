@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 20 April 2020"
+date: "Started 27 Feb 2020, Updated 22 April 2020"
 output: pdf_document 
 ---
 
@@ -17,9 +17,6 @@ library(naniar)
 library(lubridate)
 library(zoo)
 library(knitr)
-jv_palette <- c("#330099","#CC0066","#FF6633", 
-                 "#0099CC", "#FF9900","#CC6633",
-                  "#FF3366", "#33CC99", "#33999")
 ```
 
 ```{r}
@@ -27,8 +24,10 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+
 demographics_clean <- 
   read_rds(paste0(file_path, "Output/demographics_clean.rds"))
+
 pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
 ```
 
@@ -163,7 +162,7 @@ kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 
-# write_rds(kids_at_home_log, "Output/kids_at_home_log.rds")
+# write_rds(kids_at_home_log, paste0(file_path, "Output/kids_at_home_log.rds"))
 ```
 
 
@@ -313,7 +312,7 @@ at_home_pm_merged <-
 
 # Load and merge files from different locations
 ```{r}
-wmt_medicalvisit_initial <- read_xlsx("Input/WMT/wmt_medicalvisit_20200227.xlsx") %>% 
+wmt_medicalvisit_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_medicalvisit_20200227.xlsx")) %>% 
   mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
          HR = if_else(HR < 50, -999, HR),
          SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
@@ -471,6 +470,7 @@ wmt_birthinfancy_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_birthinfa
          school_days = as.numeric(DaysWeek),
          school_hours_week = as.numeric(school_hours*school_days),
          sibling_school = as.character(SibSchool)) %>% 
+  replace_with_na(replace = list(bw_lbs = 0, birth_weight_oz = 0, mom_age = 0)) %>%
   select(home_winter_id:sibling_school)
          
 
@@ -496,6 +496,7 @@ nn_birthinfancy_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_birthinfancy
          school_days = as.numeric(DaysWeek),
          school_hours_week = as.numeric(school_hours*school_days),
          sibling_school = as.character(SibSchool)) %>% 
+  replace_with_na(replace = list(bw_lbs = 0, birth_weight_oz = 0, mom_age = 0)) %>%
   select(home_winter_id:sibling_school)
 
 
@@ -521,6 +522,7 @@ ak_birthinfancy_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_birthinfancy
          school_days = as.numeric(DaysWeek),
          school_hours_week = as.numeric(school_hours*school_days),
          sibling_school = as.character(SibSchool)) %>% 
+  replace_with_na(replace = list(bw_lbs = 0, birth_weight_oz = 0, mom_age = 0)) %>% 
   select(home_winter_id:sibling_school)
 
 
@@ -547,7 +549,9 @@ write_csv(save_var_names, paste0(file_path, "Output/birthinfancy_var_names.csv")
 
 ################# Child Home Winter  ###############
 
-# Load and merge files from different locations
+As of 22 April 2020 we only have CHW files for WMT.
+The content isn't particularly necessary for data analysis, so leave out of the
+final dataset for now and see if files for NN and AK come up later.
 ```{r}
 wmt_childhomewinter_initial <- 
   read_xlsx(paste0(file_path, "Input/WMT/wmt_childhomewinter_20200227.xlsx")) %>% 
@@ -658,7 +662,7 @@ nn_csq_initial <-
          csq_cough_current = as.character(CoughingStill),
          csq_wheeze_current = as.character(WheezingStill),
          csq_comments = as.character(`REPLACE(REPLACE(Comments, '\\n', ''), '\\r', '')`)) %>% 
-  replace_with_na_all(condition = ~.x %in% c(-999, -99, -99.9, 999, 0)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-9999, -999, -99, -99.9, 999, 0)) %>% 
   select(home_winter_id:csq_comments)
 
 
@@ -704,7 +708,7 @@ ak_csq_initial <-
 kids_csq <- rbind(wmt_csq_initial, nn_csq_initial, ak_csq_initial) %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(kids_csq, "Output/kids_csq.rds")
+# write_rds(kids_csq, paste0(file_path, "Output/kids_csq.rds"))
 
 kids_csq <- read_rds(paste0(file_path, "Output/kids_csq.rds"))
 
@@ -720,7 +724,11 @@ write_csv(save_var_names, paste0(file_path, "Output/csq_var_names.csv"))
 
 ################# Medical Records ###############
 
-# Load and merge files from different locations
+These files are different for WMT compared to NN and AK
+The relevant information from NN/AK med recs seems to be in the "respiratory" 
+file. For now, I'll read those in and match with the WMT med rec file.
+
+See if WMT file for med rec/respiratory is updated once all data is input.
 ```{r}
 wmt_medicalrecords_initial <- 
   read_xlsx(paste0(file_path, "Input/WMT/wmt_medicalrecords_20200227.xlsx")) %>% 
@@ -731,41 +739,70 @@ wmt_medicalrecords_initial <-
          med_rec_visit_date = ymd(VisitDate),
          med_rec_dr_diagnosis = as.character(DrDiag),
          med_rec_ari = as.character(ARI),
-         med_rec_comments = as.character(DrComments)) %>% 
-  select(home_winter_id:med_rec_comments)
+         med_rec_comments = as.character(DrComments),
+         med_rec_meds = "NA",
+         med_rec_tests = "NA",
+         med_rec_treatments = "NA",
+         med_rec_chart_notes = "NA") %>% 
+  select(home_winter_id:med_rec_chart_notes)
          
 
 nn_medicalrecords_initial <- 
-  read_xlsx(paste0(file_path, "Input/NN/nn_medicalrecords_20200416.xlsx")) %>% 
+  read_xlsx(paste0(file_path, "Input/NN/nn_respiratory_20200416.xlsx"),
+            skip = 1,
+            col_names = c("id", "mrid", "ChildID", "HomeWinterID", "VisitDate",
+                          "DrDiag", "tests", "treatments", "meds", "Status",
+                          "DrComments"),
+            col_types = c("numeric", "numeric", "text", "text", "date",
+                          "text", "text", "text", "text",
+                          "text", "text")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "NN",
          visit_date = ymd(VisitDate),
          med_rec_visit_date = ymd(VisitDate),
          med_rec_dr_diagnosis = as.character(DrDiag),
-         med_rec_ari = as.character(ARI),
-         med_rec_comments = as.character(DrComments)) %>% 
-  select(home_winter_id:med_rec_comments)
+         med_rec_ari = as.character(Status),
+         med_rec_comments = as.character(DrComments),
+         med_rec_meds = as.character(meds),
+         med_rec_tests = as.character(tests),
+         med_rec_treatments = as.character(treatments),
+         med_rec_chart_notes = "NA") %>% 
+  select(home_winter_id:med_rec_chart_notes)
 
 
 ak_medicalrecords_initial <- 
-  read_xlsx(paste0(file_path, "Input/AK/ak_medicalrecords_20200416.xlsx")) %>% 
+  read_xlsx(paste0(file_path, "Input/AK/ak_respiratory_20200416.xlsx"),
+            skip = 1,
+            col_names = c("id", "mrid", "ChildID", "HomeWinterID", "VisitDate",
+                          "DrDiag", "tests", "treatments", "meds", 
+                          "chartnotes", "prestudy", "Status",
+                          "DrComments"),
+            col_types = c("numeric", "numeric", "text", "text", "date",
+                          "text", "text", "text", "text", "text", "text",
+                          "text", "text")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          area = "AK",
          visit_date = ymd(VisitDate),
          med_rec_visit_date = ymd(VisitDate),
          med_rec_dr_diagnosis = as.character(DrDiag),
-         med_rec_ari = as.character(ARI),
-         med_rec_comments = as.character(DrComments)) %>% 
-  select(home_winter_id:med_rec_comments)
+         med_rec_ari = as.character(Status),
+         med_rec_comments = as.character(DrComments),
+         med_rec_meds = as.character(meds),
+         med_rec_tests = as.character(tests),
+         med_rec_treatments = as.character(treatments),
+         med_rec_chart_notes = as.character(chartnotes)) %>% 
+  select(home_winter_id:med_rec_chart_notes)
 
 
 
 
 # Combine logs from all areas
-kids_medical_records <- wmt_medicalrecords_initial %>% 
-  left_join(kids_linked_ids, c("area", "home_winter_id"))
+kids_medical_records <- rbind(wmt_medicalrecords_initial, nn_medicalrecords_initial,
+                              ak_medicalrecords_initial) %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id")) %>% 
+  arrange(area, visit_date)
 
 # write_rds(kids_medical_records, paste0(file_path, "Output/kids_medical_records.rds"))
 
@@ -776,7 +813,8 @@ kids_medical_records <- read_rds(paste0(file_path, "Output/kids_medical_records.
 
 ################# Confirmed LRTI ###############
 
-# Load and merge files from different locations
+There isn't an LRTI file for NN/AK as of 22 April 2020. 
+Leaving WMT file for now and will check back on updated data/files later.
 ```{r}
 wmt_ari_initial <- read_xlsx("Input/WMT/wmt_ari_20200408.xlsx") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
