@@ -119,6 +119,7 @@ home_activity_data <- exposure_analysis_data_medium %>%
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(area == "WMT") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -154,11 +155,12 @@ analysis_data <- exposure_analysis_data_short %>%
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
   left_join(home_activity_data, by = c("area", "home")) %>% 
-  select(pm_mean_sampling_period, area, income_3level,  
-                 residents_smoke, home_floors_2level, stove_age_3level,  
-                 chimney_clean_3level, home_mold, wood_collect_2level, 
+  select(pm_mean_sampling_period, area, income_3level, home_act_windows, 
+                 stove_age_3level, home_windows_2level,
+                 chimney_clean_3level, wood_collect_2level, 
                  home_act_door, home_act_smoking, home_act_sweep,
-                 stove_grade_3level) %>% 
+                 stove_grade_3level, moisture_closest_2level,
+                 total_residents_2level, sums_events_sampling_period, mean_temp_sampling_period_5) %>% 
   filter(!is.na(pm_mean_sampling_period)) %>% 
   na.exclude()
 ```
@@ -168,18 +170,53 @@ Demographics: area, income_3level, residents_smoke
 Home Characteristics: home_floors_2level, stove_age_3level,
                       chimney_clean_3level, home_mold, wood_collect_2level
 Home Activity: home_act_door, home_act_smoking, home_act_sweep
-Others: sums_events_sampling_period, mean_temp_sampling_period_5, stove_grade_3level
+Others: sums_events_sampling_period, mean_temp_sampling_period_5, 
+        stove_grade_3level, moisture_closest_2level,
 
 Note: sums_events_sampling_period and mean_temp_sampling_period_5 have a lot of
 missing data and reduce the sample size from 93 to 43. Not considering these
 variables for model selection for now.
 
+Also try adding other variables in to check their impact on model selection:
+   total_residents_2level (seems impactful), home_type_2level (not impactful), 
+   home_windows_2level (seems impactful), home_act_windows (not very impactful),
+   education_3level (not impactful)
+   
+Some vars not important in any models, so removing from consideration:
+   home_mold, home_floors_2level, home_act_windows, home_type_2level
+   
+Next steps:
+Some vars (like residents_smoke), other demographics, and home activity vars
+have quite a bit of missing data. This is in addition to the missing ambient
+and SUMs data. The first step should be to account for as much of this as possible.
+See if there are ways to pull demographic data from Winter 2.
+Then, see if data for WMT is more complete in general. The idea is to minimize
+missing data for model selection and the final model to have as much power as
+possible. 
+Consider doing a more "full" model for WMT only (if there is less missing data),
+particularly since the ambient data is more reliable for WMT than the other areas.
+Then you could justify not doing a mixed model, and model selection would be easier.
+Then, using data from all areas, use the full model from WMT to work on a 
+mixed model that is likely reduced due to sparse data from the other areas.
+Since model selection is difficult with mixed models, use the WMT model to inform
+this model, while also doing sensitivity analysis to check other variables.
+Aside from the multivariable model, much of the paper could also be looking at
+simple associations between PM and some of the novel covars (SUMS, ambient data,
+stove grades, wood moisture), as well as methods for collecting and analysing 
+those vars.
+Also look into predict() function for teach/test and validating the model.
+Discussion can focus on what important predictors of indoor PM are in these homes - 
+if simple demographic data predicts as well as complex things like SUMs and wood
+moisture, or if there is a spectrum of predictors and complexity in their collection.
+
 ```{r, include=FALSE}
-full_model <- lm(log(pm_mean_sampling_period) ~ area + income_3level + 
-                 residents_smoke + home_floors_2level + stove_age_3level + 
-                 chimney_clean_3level + home_mold + wood_collect_2level +
+full_model <- lm(log(pm_mean_sampling_period) ~ income_3level + 
+                 stove_age_3level + home_windows_2level +
+                 chimney_clean_3level + wood_collect_2level + 
                  home_act_door + home_act_smoking + home_act_sweep + 
-                 stove_grade_3level,
+                 stove_grade_3level + moisture_closest_2level + 
+                 total_residents_2level + mean_temp_sampling_period_5 +
+                 sums_events_sampling_period, 
                  data = analysis_data)
 
 
@@ -189,6 +226,7 @@ tidy(full_model)
 
 plot(full_model)
 ```
+
 
 # Best subsets selection using dredge() from MuMIn
 
@@ -201,7 +239,11 @@ a prerequisite for comparing different model ranking like AIC.
 options(na.action = "na.fail")
 
 all_subsets_aic <- dredge(full_model, rank = "AIC", extra = c("R^2"))
+
 all_subsets_aicc <- dredge(full_model, rank = "AICc", extra = c("R^2"))
+par(mar = c(3,5,6,4))
+plot(all_subsets_aicc)
+
 all_subsets_bic <- dredge(full_model, rank = "BIC", extra = c("R^2"))
 
 write_rds(all_subsets_aic, paste0(output_path, "Output/all_subsets_aic"))
@@ -219,6 +261,7 @@ head(all_subsets_aicc, 10)
 head(all_subsets_bic, 10)
 ```
 
+
 ```{r}
 subset_model <- lm(log(pm_mean_sampling_period) ~ 
                    income_3level + home_act_door + residents_smoke, 
@@ -230,3 +273,43 @@ summary(subset_model)
 plot(subset_model)
 ```
 
+
+#####################
+
+
+Looking at Lasso and Ridge regression
+May be beyond the scope of this paper, but keep code and references:
+
+https://cran.r-project.org/web/packages/MuMIn/MuMIn.pdf 
+
+http://www.science.smith.edu/~jcrouser/SDS293/labs/lab10-r.html
+
+https://cran.r-project.org/web/packages/glmnet/glmnet.pdf
+
+https://cran.r-project.org/web/packages/glmmLasso/glmmLasso.pdf
+
+https://arxiv.org/pdf/1306.2427.pdf 
+
+```{r} 
+library(MuMIn)
+library(leaps)
+library(glmnet)
+library(glmmLasso)
+
+# Range of lambdas
+grid = 10^seq(10, -2, length = 100)
+
+lasso_results <- glmmLasso(log(pm_mean_sampling_period) ~ income_3level + 
+                 residents_smoke + stove_age_3level + home_windows_2level +
+                 chimney_clean_3level + wood_collect_2level + 
+                 home_act_door + home_act_smoking + home_act_sweep + 
+                 stove_grade_3level + moisture_closest_2level + 
+                 total_residents_2level,
+                 rnd = list(area = ~ 1), 
+                 lambda = grid,
+                 data = analysis_data)
+
+summary(lasso_results)
+
+predict(lasso_results)
+```

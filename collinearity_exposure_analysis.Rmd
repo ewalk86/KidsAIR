@@ -239,7 +239,7 @@ The goal is to remove variables that have overlap, and parse the covariates
 down to a reasonable number that a best-subsets selection method can handle.
 
 Based on results and potential overlap, the following vars were removed:
-         race_parent_2level, home_damp, moisture_closest_2level,
+         race_parent_2level, home_damp, 
          temp_max_5, home_act_gas, total_residents_2level, home_type_2level, 
          home_windows_2level, home_fireplace, home_act_windows 
          
@@ -252,7 +252,8 @@ Demographics: area, income_3level, residents_smoke
 Home Characteristics: home_floors_2level, stove_age_3level,
                       chimney_clean_3level, home_mold, wood_collect_2level
 Home Activity: home_act_door, home_act_smoking, home_act_sweep
-Others: sums_events_sampling_period, mean_temp_sampling_period_5, stove_grade_3level
+Others: sums_events_sampling_period, mean_temp_sampling_period_5, 
+        stove_grade_3level, moisture_closest_2level,
          
 Run sensitivity analyses to see if adding other variables back in makes a difference.
 
