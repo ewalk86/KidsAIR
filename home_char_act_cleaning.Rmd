@@ -15,6 +15,8 @@ library(readxl)
 library(naniar)
 library(lubridate)
 library(zoo)
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 ```
 
 # Load, format, and save home char data
@@ -217,7 +219,7 @@ home_char_clean <- kids_home_char %>%
 ```{r}
 ##### WMT #####
 # Load data
-home_act_initial_wmt <- read_csv("Input/WMT/wmt_home_activity_20200113.csv")
+home_act_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/wmt_home_activity_20200113.csv"))
 
 wmt_home_act <- home_act_initial_wmt %>% 
   # rename variables
@@ -246,12 +248,12 @@ wmt_home_act <- home_act_initial_wmt %>%
   arrange(home_winter_id, home_act_day)
 
 # Save as RDS
-# write_rds(wmt_home_act, "Output/wmt_home_act.rds")
+# write_rds(wmt_home_act, paste0(file_path, "Output/wmt_home_act.rds"))
 
 
 ##### NN #####
 # Load data
-home_act_initial_nn <- read_xlsx("Input/NN/nn_home_activity_20200113.xlsx")
+home_act_initial_nn <- read_xlsx(paste0(file_path, "Input/NN/nn_home_activity_20200113.xlsx"))
 
 nn_home_act <- home_act_initial_nn %>% 
   # rename variables
@@ -280,12 +282,12 @@ nn_home_act <- home_act_initial_nn %>%
   arrange(home_winter_id, home_act_day)
 
 # Save as RDS
-# write_rds(nn_home_act, "Output/nn_home_act.rds")
+# write_rds(nn_home_act, paste0(file_path, "Output/nn_home_act.rds"))
 
 
 ##### AK #####
 # Load data
-home_act_initial_ak <- read_xlsx("Input/AK/ak_home_activity_20200113.xlsx")
+home_act_initial_ak <- read_xlsx(paste0(file_path, "Input/AK/ak_home_activity_20200113.xlsx"))
 
 ak_home_act <- home_act_initial_ak %>% 
   # rename variables
@@ -314,28 +316,28 @@ ak_home_act <- home_act_initial_ak %>%
   arrange(home_winter_id, home_act_day)
 
 # Save as RDS
-# write_rds(ak_home_act, "Output/ak_home_act.rds")
+# write_rds(ak_home_act, paste0(file_path, "Output/ak_home_act.rds"))
 ```
 
 # Join home activity data from different areas
 ```{r}
-wmt_home_act <- read_rds("Output/wmt_home_act.rds")
-nn_home_act <- read_rds("Output/nn_home_act.rds")
-ak_home_act <- read_rds("Output/ak_home_act.rds")
+wmt_home_act <- read_rds(paste0(file_path, "Output/wmt_home_act.rds"))
+nn_home_act <- read_rds(paste0(file_path, "Output/nn_home_act.rds"))
+ak_home_act <- read_rds(paste0(file_path, "Output/ak_home_act.rds"))
 
 kids_home_act <- rbind(wmt_home_act, nn_home_act, ak_home_act)
 
-# write_rds(kids_home_act, "Output/kids_home_act.rds")
+# write_rds(kids_home_act, paste0(file_path, "Output/kids_home_act.rds"))
 ```
 
 # Clean up all home activity data
 ```{r}
-kids_home_act <- read_rds("Output/kids_home_act.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+kids_home_act <- read_rds(paste0(file_path, "Output/kids_home_act.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 
 home_act_clean <- kids_home_act %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(home_act_clean, "Output/home_act_clean.rds")
+# write_rds(home_act_clean, paste0(file_path, "Output/home_act_clean.rds"))
 ```
 

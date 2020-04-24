@@ -23,6 +23,7 @@ library(emmeans)
 library(broom)
 library(MuMIn)
 library(leaps)
+library(glmnet)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -91,8 +92,9 @@ sums_temp_change <- sums_rolling_pm_data %>%
 
 ####### Format ambient data to merge with analysis data below
 ambient_data <- exposure_analysis_data_long %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  #filter(area == "AK") %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  #filter(area == "WMT") %>%
   filter(!is.na(sampling_day)) %>% 
   filter(!is.na(sample_date)) %>%
   select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
@@ -105,23 +107,25 @@ ambient_data <- exposure_analysis_data_long %>%
 
 ####### Format home activity data to merge with analysis data below
 home_activity_data <- exposure_analysis_data_medium %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area, home) %>% 
+  filter(treatment == "Placebo") %>% 
+  #filter(winter_id == 1) %>% 
+  select(home, area, home_winter_id, sampling_day, starts_with("home_act")) %>% 
+  group_by(area, home, home_winter_id) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
-  group_by(area, home) %>% 
+  group_by(area, home, home_winter_id) %>% 
   mutate_at(vars(starts_with("home_act")), as.numeric) %>% 
   mutate_at(vars(starts_with("home_act")), funs(. - 1)) %>% 
   mutate_at(vars(starts_with("home_act")), funs(sum(.))) %>% 
   ungroup() %>% 
-  distinct(area, home, .keep_all = TRUE) %>% 
-  select(home, area, sampling_day, starts_with("home_act"))
+  distinct(area, home,  home_winter_id, .keep_all = TRUE) 
 
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
   filter(area == "WMT") %>% 
   group_by(area, home) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
+  distinct(home, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
   mutate(moisture_closest_2level = cut(moisture_closest, breaks = c(0, 10.5, 100),
                                  labels = c("<10.5", "10.5+"),
@@ -151,18 +155,27 @@ analysis_data <- exposure_analysis_data_short %>%
          temp_perc_30_2level = cut(temp_perc_30, breaks = c(0, 10, 100),
                                  labels = c("<10", "10+"),
                                  right = FALSE)) %>% 
-  left_join(sums_temp_change, by = c("area", "home")) %>% 
+  group_by(home) %>% 
+  mutate(residents_smoke = if_else(winter_id == 1 & is.na(residents_smoke),
+                                   lead(residents_smoke), residents_smoke)) %>% 
+  ungroup() %>% 
+  left_join(sums_temp_change, by = c("area", "home", "home_winter_id")) %>% 
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
-  left_join(home_activity_data, by = c("area", "home")) %>% 
-  select(pm_mean_sampling_period, area, income_3level, home_act_windows, 
+  left_join(home_activity_data, by = c("area", "home", "home_winter_id")) %>% 
+  select(pm_mean_sampling_period, area, income_3level, 
                  stove_age_3level, home_windows_2level,
                  chimney_clean_3level, wood_collect_2level, 
-                 home_act_door, home_act_smoking, home_act_sweep,
+                 home_act_door, home_act_smoking, home_act_sweep, home_act_windows, 
                  stove_grade_3level, moisture_closest_2level,
-                 total_residents_2level, sums_events_sampling_period, mean_temp_sampling_period_5) %>% 
-  filter(!is.na(pm_mean_sampling_period)) %>% 
-  na.exclude()
+                 total_residents_2level, mean_temp_sampling_period_5) %>% 
+  filter(!is.na(pm_mean_sampling_period)) 
+
+dep_var <- analysis_data$pm_mean_sampling_period
+
+ind_vars <- analysis_data %>% 
+  select(-pm_mean_sampling_period, -area) %>% 
+  data.matrix()
 ```
 
 Initial variables to use for model selection (14) from collinearity RMD:
@@ -277,7 +290,7 @@ plot(subset_model)
 #####################
 
 
-Looking at Lasso and Ridge regression
+Looking at Lasso regression
 May be beyond the scope of this paper, but keep code and references:
 
 https://cran.r-project.org/web/packages/MuMIn/MuMIn.pdf 
@@ -313,3 +326,46 @@ summary(lasso_results)
 
 predict(lasso_results)
 ```
+
+Looking at Ridge regression:
+
+https://drsimonj.svbtle.com/ridge-regression-with-glmnet
+
+```{r}
+ridge_results <- cv.glmnet(x = ind_vars, y = dep_var, alpha = 0)
+
+plot(ridge_results)
+
+opt_lambda <- ridge_results$lambda.min
+opt_lambda
+
+fit <- ridge_results$glmnet.fit
+summary(fit)
+
+y_predicted <- predict(fit, s = opt_lambda, newx = ind_vars)
+
+# Sum of Squares Total and Error
+sst <- sum((dep_var - mean(dep_var))^2)
+sse <- sum((y_predicted - dep_var)^2)
+
+# R squared
+rsq <- 1 - sse / sst
+rsq
+```
+
+# Train and test datasets
+
+```{r}
+# Random sample indexes
+train_index <- sample(1:nrow(adult), 0.8 * nrow(adult))
+test_index <- setdiff(1:nrow(adult), train_index)
+
+
+
+dep_var <- analysis_data$pm_mean_sampling_period
+
+ind_vars <- analysis_data %>% 
+  select(-pm_mean_sampling_period, -area) %>% 
+  data.matrix()
+```
+
