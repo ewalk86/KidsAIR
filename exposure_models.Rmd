@@ -123,7 +123,7 @@ home_activity_data <- exposure_analysis_data_medium %>%
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
-  filter(area == "WMT") %>% 
+  #filter(area == "WMT") %>% 
   group_by(area, home) %>% 
   distinct(home, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -163,13 +163,17 @@ analysis_data <- exposure_analysis_data_short %>%
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
   left_join(home_activity_data, by = c("area", "home", "home_winter_id")) %>% 
-  select(pm_mean_sampling_period, area, income_3level, 
-                 stove_age_3level, home_windows_2level,
-                 chimney_clean_3level, wood_collect_2level, 
-                 home_act_door, home_act_smoking, home_act_sweep, home_act_windows, 
-                 stove_grade_3level, moisture_closest_2level,
-                 total_residents_2level, mean_temp_sampling_period_5) %>% 
+  select(pm_mean_sampling_period, income_3level, 
+         stove_age_3level, home_windows_2level,
+         chimney_clean_3level, wood_collect_2level,
+         stove_grade_3level)
   filter(!is.na(pm_mean_sampling_period)) 
+  replace_with_na(replace = list(mean_temp_sampling_period_5 = "NaN")) 
+  
+# Check % missing data
+#mean(is.na(analysis_data))
+  
+  
 
 dep_var <- analysis_data$pm_mean_sampling_period
 
@@ -367,5 +371,36 @@ dep_var <- analysis_data$pm_mean_sampling_period
 ind_vars <- analysis_data %>% 
   select(-pm_mean_sampling_period, -area) %>% 
   data.matrix()
+```
+
+
+Looking at model selection and averaging after multiple imputation
+
+```{r}
+library(MAMI)
+#library(Amelia)
+library(mice)
+
+
+# Using mice package
+
+# Look for patterns in missing data
+md.pattern(analysis_data)
+
+# Impute missing data; m = 5 datasets (check % missing data and match)
+imputed_data <- mice(analysis_data, m=5)
+summary(imputed_data)
+
+# Sample one of the imputed datasets
+check1 <- complete(imputed_data, 3)
+
+# Using MAMI package, perform model averaging and selection
+model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
+                  outcome = "pm_mean_sampling_period",
+                  method = "MA.criterion", criterion = "AIC",
+                  inference = "+boot", B = 15, X.org = analysis_data, print.time = TRUE)
+
+summary(model_ave)
+plot(model_ave)
 ```
 
