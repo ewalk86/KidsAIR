@@ -116,6 +116,7 @@ home_activity_data <- exposure_analysis_data_medium %>%
   mutate_at(vars(starts_with("home_act")), as.numeric) %>% 
   mutate_at(vars(starts_with("home_act")), funs(. - 1)) %>% 
   mutate_at(vars(starts_with("home_act")), funs(sum(.))) %>% 
+  mutate_at(vars(starts_with("home_act")), factor) %>%
   ungroup() %>% 
   distinct(area, home,  home_winter_id, .keep_all = TRUE) 
 
@@ -163,23 +164,7 @@ analysis_data <- exposure_analysis_data_short %>%
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
   left_join(home_activity_data, by = c("area", "home", "home_winter_id")) %>% 
-  select(pm_mean_sampling_period, income_3level, 
-         stove_age_3level, home_windows_2level,
-         chimney_clean_3level, wood_collect_2level,
-         stove_grade_3level)
-  filter(!is.na(pm_mean_sampling_period)) 
   replace_with_na(replace = list(mean_temp_sampling_period_5 = "NaN")) 
-  
-# Check % missing data
-#mean(is.na(analysis_data))
-  
-  
-
-dep_var <- analysis_data$pm_mean_sampling_period
-
-ind_vars <- analysis_data %>% 
-  select(-pm_mean_sampling_period, -area) %>% 
-  data.matrix()
 ```
 
 Initial variables to use for model selection (14) from collinearity RMD:
@@ -376,29 +361,85 @@ ind_vars <- analysis_data %>%
 
 Looking at model selection and averaging after multiple imputation
 
+Helpful manuals and vignettes:
+
+https://cran.r-project.org/web/packages/mice/mice.pdf
+
 ```{r}
-library(MAMI)
-#library(Amelia)
 library(mice)
 
+# Select analysis vars
+selected_vars <- analysis_data %>% 
+  select(area, pm_mean_sampling_period, income_3level, residents_smoke, 
+         stove_age_3level, home_windows_2level,
+         chimney_clean_3level, wood_collect_2level,
+         home_act_door, home_act_sweep, home_act_windows, 
+         sums_events_sampling_period, mean_temp_sampling_period_5, 
+         stove_grade_3level, moisture_closest_2level) %>% 
+  mutate(home_act_door = factor(home_act_door, levels = c(0,1,2,3,4,5,6)),
+         home_act_sweep = factor(home_act_sweep, levels = c(0,1,2,3,4,5,6)),
+         home_act_windows = factor(home_act_windows, levels = c(0,1,2,3,4,5,6)),
+         area = factor(area, levels = c("AK", "NN", "WMT")))
+  
+# Check % missing data
+mean(is.na(selected_vars))
 
 # Using mice package
 
 # Look for patterns in missing data
-md.pattern(analysis_data)
+md.pattern(selected_vars)
 
-# Impute missing data; m = 5 datasets (check % missing data and match)
-imputed_data <- mice(analysis_data, m=5)
+
+
+# Impute missing data; m = 20 datasets (check % missing data and match)
+imputed_data <- mice(selected_vars, m=5,
+                     method = c("polyreg", "pmm", "polr", "logreg", "polr",
+                                "logreg", "polr", "logreg", "polr", "polr",
+                                "polr", "pmm", "pmm", "polr", "logreg"))
+
 summary(imputed_data)
+
+# Can add "long" or "broad arguments
+complete(imputed_data, "long")
 
 # Sample one of the imputed datasets
 check1 <- complete(imputed_data, 3)
 
+densityplot(selected_vars$pm_mean_sampling_period)
+
+# Use seed to get the exact same results from random sampling
+# seed = 123
+
+# See vignette #2 for setting up predictor matrices and relationships b/w vars
+
+# Check for convergence
+## In general, we would like the streams to intermingle and be free of any trends 
+## at the later iterations.
+plot(imputed_data)
+
+# Check that the imputation method matches the data type correctly
+## particularly for PM that should be log transformed, and the factors
+
+stripplot(imputed_data)
+
+# Can do regression on the imputed data - either pooled or individual datasets
+
+```
+
+http://mami.r-forge.r-project.org/MAMI_manual.pdf 
+
+```{r}
+library(MAMI)
+
+
 # Using MAMI package, perform model averaging and selection
 model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
-                  outcome = "pm_mean_sampling_period",
-                  method = "MA.criterion", criterion = "AIC",
-                  inference = "+boot", B = 15, X.org = analysis_data, print.time = TRUE)
+                  outcome = "pm_mean_sampling_period", 
+                  method = "MA.criterion", criterion = "AIC", print.time = TRUE,
+                  add.transformation = c("log(pm_mean_sampling_period)"))
+
+
+                  #inference = "+boot", B = 2, X.org = selected_vars
 
 summary(model_ave)
 plot(model_ave)
