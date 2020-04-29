@@ -367,6 +367,8 @@ https://cran.r-project.org/web/packages/mice/mice.pdf
 
 ```{r}
 library(mice)
+library(pan)
+library(multilevel)
 
 # Select analysis vars
 selected_vars <- analysis_data %>% 
@@ -379,25 +381,54 @@ selected_vars <- analysis_data %>%
   mutate(home_act_door = factor(home_act_door, levels = c(0,1,2,3,4,5,6)),
          home_act_sweep = factor(home_act_sweep, levels = c(0,1,2,3,4,5,6)),
          home_act_windows = factor(home_act_windows, levels = c(0,1,2,3,4,5,6)),
-         area = factor(area, levels = c("AK", "NN", "WMT")))
+         area = factor(area, levels = c("AK", "NN", "WMT")),
+         log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>% 
+  select(-pm_mean_sampling_period) %>% 
+  filter(!is.na(income_3level) & !is.na(home_windows_2level))
   
+# Look at structure of data and check variable types
+str(selected_vars)
+
 # Check % missing data
 mean(is.na(selected_vars))
 
 # Using mice package
 
 # Look for patterns in missing data
-md.pattern(selected_vars)
+missing_patterns <- md.pattern(selected_vars)
 
+missing_patterns
+
+sum(missing_patterns[, "residents_smoke"] == 0)
+
+hist(selected_vars$pm_mean_sampling_period)
+
+# Check for distribution between vars and missingness - see if there are patterns
+## No obvious patterns in the missing data
+## Missing covars do not seem to be related to the outcomes
+missing_hist <- selected_vars %>% 
+  mutate(missing_var = if_else(is.na(moisture_closest_2level), "missing yes", "missing no")) %>% 
+  ggplot() +
+    geom_bar(aes(log_pm_mean_sampling_period), color = "red") +
+    facet_wrap(~missing_var)
+missing_hist
+
+# Check ICC 
+multilevel::ICC1(aov(mean_temp_sampling_period_5 ~ area, data = selected_vars))
 
 
 # Impute missing data; m = 20 datasets (check % missing data and match)
-imputed_data <- mice(selected_vars, m=5,
-                     method = c("polyreg", "pmm", "polr", "logreg", "polr",
+imputed_data <- mice(selected_vars, m=5, maxit = 5,
+                     method = c("polyreg", "polr", "logreg", "polr",
                                 "logreg", "polr", "logreg", "polr", "polr",
-                                "polr", "pmm", "pmm", "polr", "logreg"))
+                                "polr", "pmm", "pmm", "polr", "logreg", "pmm"))
 
-summary(imputed_data)
+# Compare imputed summary to original summary
+summary(selected_vars)
+summary(complete(imputed_data))
+
+# Look at imputation methods for each var; consider changing
+imputed_data$method
 
 # Can add "long" or "broad arguments
 complete(imputed_data, "long")
@@ -405,12 +436,16 @@ complete(imputed_data, "long")
 # Sample one of the imputed datasets
 check1 <- complete(imputed_data, 3)
 
-densityplot(selected_vars$pm_mean_sampling_period)
+densityplot(selected_vars$log_pm_mean_sampling_period)
 
 # Use seed to get the exact same results from random sampling
 # seed = 123
 
 # See vignette #2 for setting up predictor matrices and relationships b/w vars
+
+# Print predictor matrix
+## Keep considering, but I don't see a reason to alter this as of now
+imputed_data$pred
 
 # Check for convergence
 ## In general, we would like the streams to intermingle and be free of any trends 
@@ -423,23 +458,22 @@ plot(imputed_data)
 stripplot(imputed_data)
 
 # Can do regression on the imputed data - either pooled or individual datasets
-
 ```
+
+The above seems to be a good method of imputing the missing data, so moving on 
+to model selection/averaging
 
 http://mami.r-forge.r-project.org/MAMI_manual.pdf 
 
 ```{r}
 library(MAMI)
 
-
 # Using MAMI package, perform model averaging and selection
+## Will take ~20 to 30 mins with 5 iterations and bootstrap
 model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
-                  outcome = "pm_mean_sampling_period", 
+                  outcome = "log_pm_mean_sampling_period", 
                   method = "MA.criterion", criterion = "AIC", print.time = TRUE,
-                  add.transformation = c("log(pm_mean_sampling_period)"))
-
-
-                  #inference = "+boot", B = 2, X.org = selected_vars
+                  inference = "+boot", B = 2, X.org = selected_vars)
 
 summary(model_ave)
 plot(model_ave)
