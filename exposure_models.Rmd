@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: exposure model"
 author: "Ethan Walker"
-date: "Started 19 March 2020, Updated 16 April 2020"
+date: "Started 19 March 2020, Updated 30 April 2020"
 output: pdf_document
 ---
 
@@ -32,25 +32,22 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```{r}
 # Load individual datasets
 
-input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/Input/")
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-input_file <- c("exposure_analysis_data_long_new.rds")
-output_file <- c("exposure_analysis_data_long_new.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
 exposure_analysis_data_medium <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds")) 
 
 exposure_analysis_data_short <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_short.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_short.rds"))
 
 sums_rolling_pm_data <- 
-  read_rds(paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+  read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 ```{r}
@@ -98,7 +95,7 @@ ambient_data <- exposure_analysis_data_long %>%
   filter(!is.na(sampling_day)) %>% 
   filter(!is.na(sample_date)) %>%
   select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
-         zip:mean_temp_roll_4day) %>% 
+         amb_pm_24hr:mean_temp_roll_4day) %>% 
   group_by(home) %>% 
   mutate(amb_pm_sampling_period_5 = mean(amb_pm_24hr, na.rm = TRUE)/5,
          mean_temp_sampling_period_5 = mean(mean_temp, na.rm = TRUE)/5) %>% 
@@ -116,7 +113,6 @@ home_activity_data <- exposure_analysis_data_medium %>%
   mutate_at(vars(starts_with("home_act")), as.numeric) %>% 
   mutate_at(vars(starts_with("home_act")), funs(. - 1)) %>% 
   mutate_at(vars(starts_with("home_act")), funs(sum(.))) %>% 
-  mutate_at(vars(starts_with("home_act")), factor) %>%
   ungroup() %>% 
   distinct(area, home,  home_winter_id, .keep_all = TRUE) 
 
@@ -164,7 +160,19 @@ analysis_data <- exposure_analysis_data_short %>%
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
   left_join(home_activity_data, by = c("area", "home", "home_winter_id")) %>% 
-  replace_with_na(replace = list(mean_temp_sampling_period_5 = "NaN")) 
+  replace_with_na(replace = list(mean_temp_sampling_period_5 = "NaN")) %>% 
+  mutate(home_act_door_2level = cut(home_act_door, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_smoke_2level = cut(home_act_smoking, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_windows_2level = cut(home_act_windows, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_sweep_2level = cut(home_act_sweep, breaks = c(0, 3, 7),
+                                 labels = c("<3", "3+"),
+                                 right = FALSE))
 ```
 
 Initial variables to use for model selection (14) from collinearity RMD:
@@ -372,19 +380,18 @@ library(multilevel)
 
 # Select analysis vars
 selected_vars <- analysis_data %>% 
-  select(area, pm_mean_sampling_period, income_3level, residents_smoke, 
+  select(area, pm_mean_sampling_period, income_3level, 
          stove_age_3level, home_windows_2level,
-         chimney_clean_3level, wood_collect_2level,
-         home_act_door, home_act_sweep, home_act_windows, 
+         chimney_clean_3level, 
+         home_act_door_2level, home_act_windows_2level, home_act_smoke_2level,
          sums_events_sampling_period, mean_temp_sampling_period_5, 
-         stove_grade_3level, moisture_closest_2level) %>% 
-  mutate(home_act_door = factor(home_act_door, levels = c(0,1,2,3,4,5,6)),
-         home_act_sweep = factor(home_act_sweep, levels = c(0,1,2,3,4,5,6)),
-         home_act_windows = factor(home_act_windows, levels = c(0,1,2,3,4,5,6)),
-         area = factor(area, levels = c("AK", "NN", "WMT")),
+         amb_pm_sampling_period_5, stove_grade_3level, moisture_closest_2level) %>% 
+  mutate(area = factor(area, levels = c("AK", "NN", "WMT")),
          log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>% 
   select(-pm_mean_sampling_period) %>% 
-  filter(!is.na(income_3level) & !is.na(home_windows_2level))
+  filter(!is.na(income_3level) & !is.na(home_windows_2level)) %>% 
+  filter(area == "WMT") %>% 
+  select(-area)
   
 # Look at structure of data and check variable types
 str(selected_vars)
@@ -419,9 +426,9 @@ multilevel::ICC1(aov(mean_temp_sampling_period_5 ~ area, data = selected_vars))
 
 # Impute missing data; m = 20 datasets (check % missing data and match)
 imputed_data <- mice(selected_vars, m=5, maxit = 5,
-                     method = c("polyreg", "polr", "logreg", "polr",
-                                "logreg", "polr", "logreg", "polr", "polr",
-                                "polr", "pmm", "pmm", "polr", "logreg", "pmm"))
+                     method = c("polr", "polr", "logreg", "polr", 
+                                "logreg", "logreg", "logreg", "pmm", "pmm",
+                                "pmm", "polr", "logreg", "pmm"))
 
 # Compare imputed summary to original summary
 summary(selected_vars)

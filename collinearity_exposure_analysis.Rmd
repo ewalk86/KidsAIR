@@ -96,7 +96,7 @@ ambient_data <- exposure_analysis_data_long %>%
   filter(!is.na(sampling_day)) %>% 
   filter(!is.na(sample_date)) %>%
   select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
-         zip:mean_temp_roll_4day) %>% 
+         amb_pm_24hr:mean_temp_roll_4day) %>% 
   group_by(home) %>% 
   mutate(amb_pm_sampling_period_5 = mean(amb_pm_24hr, na.rm = TRUE)/5,
          mean_temp_sampling_period_5 = mean(mean_temp, na.rm = TRUE)/5) %>% 

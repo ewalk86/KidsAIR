@@ -94,7 +94,7 @@ ambient_data <- exposure_analysis_data_long %>%
   filter(!is.na(sampling_day)) %>% 
   filter(!is.na(sample_date)) %>%
   select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
-         zip:mean_temp_roll_4day) %>% 
+         amb_pm_24hr:mean_temp_roll_4day) %>% 
   group_by(home) %>% 
   mutate(amb_pm_sampling_period_5 = mean(amb_pm_24hr, na.rm = TRUE)/5,
          mean_temp_sampling_period_5 = mean(mean_temp, na.rm = TRUE)/5) %>% 
@@ -116,7 +116,7 @@ home_activity_data <- exposure_analysis_data_medium %>%
 
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(winter_id == 1 & treatment == "Placebo" & area == "WMT") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -151,7 +151,20 @@ analysis_data <- exposure_analysis_data_short %>%
   left_join(sums_temp_change, by = c("area", "home")) %>% 
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
-  left_join(home_activity_data, by = c("area", "home"))
+  left_join(home_activity_data, by = c("area", "home")) %>% 
+  mutate(home_act_door_2level = cut(home_act_door, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_smoke_2level = cut(home_act_smoking, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_windows_2level = cut(home_act_windows, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_sweep_2level = cut(home_act_sweep, breaks = c(0, 3, 7),
+                                 labels = c("<3", "3+"),
+                                 right = FALSE))
+  
 
 ####### Function to run analysis
 analysis_function <- function(covar, label, 
@@ -167,12 +180,14 @@ analysis_function <- function(covar, label,
   
   analysis_results <- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
   
-  tidy_results <<- tidy(analysis_results) %>% 
+  tidy_results <<- tidy(analysis_results, conf.int = TRUE) %>% 
     filter(term != '(Intercept)') %>% 
-    mutate(estimate = round(estimate, digits = 2),
-           'p-value' = round(p.value, digits = 2),
-           term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
-    select(term, estimate, 'p-value')
+    mutate(Estimate = round(estimate, digits = 2),
+           'P-value' = round(p.value, digits = 2),
+           'Upper 95% CL' = round(conf.high, digits = 2),
+           'Lower 95% CL' = round(conf.low, digits = 2),
+           Term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
+    select(Term, Estimate, 'Lower 95% CL', 'Upper 95% CL', 'P-value')
   
 }
 
@@ -225,7 +240,7 @@ d40 <- analysis_function("temp_perc_25_2level", "SUMs - % obs > 25 degrees C")
 d41 <- analysis_function("temp_perc_27_2level", "SUMs - % obs > 27 degrees C")
 d42 <- analysis_function("temp_perc_30_2level", "SUMs - % obs > 30 degrees C")
 d43 <- analysis_function("sums_events_sampling_period", 
-                         "Mean daily SUMs events - 5+ degree C temp increase in 20 min")
+                         "Daily SUMs events - 5C temp increase in 20 min")
 
 d44 <- analysis_function("amb_pm_sampling_period_5", "Mean ambient PM2.5 - per 5ug/m3 increase")
 d45 <- analysis_function("mean_temp_sampling_period_5", 
@@ -242,8 +257,12 @@ d53 <- analysis_function("home_act_candle", "Home activity - candle")
 d54 <- analysis_function("home_act_windows", "Home activity - windows open")
 d55 <- analysis_function("home_act_door", "Home activity - doors open")
 d56 <- analysis_function("home_act_sweep", "Home activity - cleaning")
+d57 <- analysis_function("home_act_smoke_2level", "Home activity - smoking 2 level")
+d58 <- analysis_function("home_act_windows_2level", "Home activity - windows 2 level")
+d59 <- analysis_function("home_act_door_2level", "Home activity - doors 2 level")
+d60 <- analysis_function("home_act_sweep_2level", "Home activity - cleaning 2 level")
 
-d57 <- analysis_function("stove_grade_3level", "Stove grade")
+d61 <- analysis_function("stove_grade_3level", "Stove grade")
 
 ####### Combine results to use in a table
 table_data <- rbind(d1, d2, d3, d4, d5, d6,
@@ -255,7 +274,8 @@ table_data <- rbind(d1, d2, d3, d4, d5, d6,
                     d39, d40, d41, d42, d43,
                     d44, d45,
                     d46, d47, d48, d49, d50, d51, d52, d53, d54, d55, d56,
-                    d57)
+                    d57, d58, d59, d60,
+                    d61)
 
 ####### Print full table of results
 kable(table_data, longtable = TRUE,
@@ -269,8 +289,8 @@ kable(table_data, longtable = TRUE,
    pack_rows("Indoor temperature and relative humidity", 41, 48) %>%
    pack_rows("Stove Use Monitors (SUMs) temperature", 49, 53) %>%
    pack_rows("Ambient data", 54, 55) %>%
-   pack_rows("Home activities - Sum of all sampling days", 56, 66) %>%
-   pack_rows("Stove grade", 67, 68) %>%
+   pack_rows("Home activities - Sum of all sampling days", 56, 69) %>%
+   pack_rows("Stove grade", 70, 71) %>%
    footnote(c("PM2.5 = fine particulate matter", 
               "PM2.5 and all covariates have been averaged or summed to produce 1 observation per sampling period"))
 ```

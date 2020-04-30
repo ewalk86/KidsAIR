@@ -31,25 +31,22 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 ```
 
 ```{r}
-input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/Input/")
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-input_file <- c("exposure_analysis_data_long_new.rds")
-output_file <- c("exposure_analysis_data_long_new.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
 exposure_analysis_data_medium <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds")) 
 
 exposure_analysis_data_short <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_short.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_short.rds"))
 
 sums_rolling_pm_data <- 
-  read_rds(paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+  read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 
@@ -166,7 +163,7 @@ wmt_plot <- exposure_analysis_data_medium %>%
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
                color="black", fill = "azure", size = 1.2) +
-    geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
+    geom_point(aes(long_home, lat_home, fill = mean_amb_pm, size = mean_amb_pm), 
                shape = 21, color = "black") +
     geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
                color = "black") +
@@ -191,7 +188,7 @@ nn_plot <- exposure_analysis_data_medium %>%
                color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_pm, lat_pm), shape = 24, size = 3, fill = "yellow",
                color = "black") +
-    geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
+    geom_point(aes(long_home, lat_home, fill = mean_amb_pm, size = mean_amb_pm), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "NN mean ambient PM at each zipcode during indoor PM sampling",
@@ -214,7 +211,7 @@ ak_plot <- exposure_analysis_data_medium %>%
                color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_pm, lat_pm), shape = 24, size = 5, fill = "yellow",
                color = "black") +
-    geom_point(aes(long_zip, lat_zip, fill = mean_amb_pm, size = mean_amb_pm), 
+    geom_point(aes(long_home, lat_home, fill = mean_amb_pm, size = mean_amb_pm), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "AK mean ambient PM at each zipcode during indoor PM sampling",
@@ -251,7 +248,7 @@ wmt_plot <- exposure_analysis_data_medium %>%
   ggplot() +
     geom_polygon(data=wmt_map, aes(x=long, y=lat, group=group), 
                color="black", fill = "azure", size = 1.2) +
-    geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
+    geom_point(aes(long_home, lat_home, fill = mean_amb_temp, size = mean_amb_temp), 
                shape = 21, color = "black") +
     geom_point(aes(long_temp, lat_temp), shape = 24, size = 3, fill = "yellow",
                color = "black") +
@@ -277,7 +274,7 @@ nn_plot <- exposure_analysis_data_medium %>%
                color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_temp, lat_temp), shape = 24, size = 3, fill = "yellow",
                color = "black") +
-    geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
+    geom_point(aes(long_home, lat_home, fill = mean_amb_temp, size = mean_amb_temp), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "NN mean ambient Temp at each zipcode during indoor PM sampling",
@@ -301,7 +298,7 @@ ak_plot <- exposure_analysis_data_medium %>%
                color="black", fill = "azure", size = 1.2) +
     geom_point(aes(long_temp, lat_temp), shape = 24, size = 5, fill = "yellow",
                color = "black") +
-    geom_point(aes(long_zip, lat_zip, fill = mean_amb_temp, size = mean_amb_temp), 
+    geom_point(aes(long_home, lat_home, fill = mean_amb_temp, size = mean_amb_temp), 
                shape = 21, color = "black") +
     theme_void() +
     labs(title = "AK mean ambient Temp at each zipcode during indoor PM sampling",

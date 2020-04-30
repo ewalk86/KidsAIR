@@ -403,42 +403,13 @@ exposure_analysis_data_long <-
 
 kids_amb_pm_data <- 
   read_rds(paste0(output_path, "Output/kids_amb_pm_data_new.rds")) %>% 
-  mutate(sample_date = amb_pm_date) %>% 
-  distinct(zip, .keep_all = TRUE)
+  mutate(sample_date = amb_pm_date)
 
 kids_amb_temp_data <- 
   read_rds(paste0(output_path, "Output/kids_amb_temp_data_new.rds")) %>% 
   mutate(sample_date = temp_date) %>% 
-  mutate(sample_date = as.character(sample_date)) %>% 
-  distinct(zip, .keep_all = TRUE)
+  mutate(sample_date = as.character(sample_date)) 
 
-wmt_zipcodes <- read_csv(paste0(output_path, "Input/WMT/wmt_zipcodes.csv")) %>% 
-  rename_all(tolower)
-
-nn_zipcodes <- read_csv(paste0(output_path, "Input/NN/nn_zipcodes.csv")) %>% 
-  rename_all(tolower) 
-
-ak_zipcodes <- read_csv(paste0(output_path, "Input/AK/ak_zipcodes.csv")) %>% 
-  rename_all(tolower) 
-
-kids_zipcodes <- rbind(wmt_zipcodes, nn_zipcodes, ak_zipcodes) %>% 
-  mutate(home = gsub(home, pattern = "_", replacement = ""),
-         home = gsub(home, pattern = " ", replacement = "")) %>% 
-  left_join(kids_amb_pm_data, by = "zip") %>% 
-  select(home, zip, lat_pm, long_pm) %>% 
-  left_join(kids_amb_temp_data, by = "zip") %>% 
-  select(home, zip, lat_zip, long_zip, lat_pm, long_pm, lat_temp, long_temp)
-
-kids_amb_pm_data <- 
-  read_rds(paste0(output_path, "Output/kids_amb_pm_data_new.rds")) %>% 
-  mutate(sample_date = amb_pm_date) %>% 
-  select(-lat_zip, -long_zip, -lat_pm, -long_pm)
-
-kids_amb_temp_data <- 
-  read_rds(paste0(output_path, "Output/kids_amb_temp_data_new.rds")) %>% 
-  mutate(sample_date = temp_date) %>% 
-  mutate(sample_date = as.character(sample_date)) %>% 
-  select(-lat_zip, -long_zip, -lat_temp, -long_temp)
 
 
 
@@ -466,9 +437,9 @@ exposure_analysis_data_long_new <- exposure_analysis_data_long %>%
                                             "$20,000-$49,999", 
                                             "$50,000+"))) %>% 
   ungroup() %>% 
-  left_join(kids_zipcodes, by = "home") %>% 
-  left_join(kids_amb_pm_data, by = c("area", "zip", "sample_date")) %>% 
-  left_join(kids_amb_temp_data, by = c("area", "zip", "sample_date")) %>%
+  left_join(kids_amb_pm_data, by = c("area", "home", "sample_date")) %>% 
+  select(-zip, -lat_home, -long_home) %>% 
+  left_join(kids_amb_temp_data, by = c("area", "home", "sample_date")) %>%
   arrange(area, home, home_winter_id, sample_date)
 
 
