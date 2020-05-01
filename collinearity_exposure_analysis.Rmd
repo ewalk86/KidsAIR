@@ -31,25 +31,22 @@ library(kableExtra)
 ```{r, eval=TRUE, include=TRUE}
 # Load individual datasets
 
-input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/Input/")
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-input_file <- c("exposure_analysis_data_long_new.rds")
-output_file <- c("exposure_analysis_data_long_new.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
 exposure_analysis_data_medium <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds")) 
 
 exposure_analysis_data_short <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_short.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_short.rds"))
 
 sums_rolling_pm_data <- 
-  read_rds(paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+  read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 ```{r, eval=TRUE, include=TRUE}
@@ -91,8 +88,9 @@ sums_temp_change <- sums_rolling_pm_data %>%
 
 ####### Format ambient data to merge with analysis data below
 ambient_data <- exposure_analysis_data_long %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  #filter(area == "AK") %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  #filter(area == "WMT") %>%
   filter(!is.na(sampling_day)) %>% 
   filter(!is.na(sample_date)) %>%
   select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
@@ -105,22 +103,25 @@ ambient_data <- exposure_analysis_data_long %>%
 
 ####### Format home activity data to merge with analysis data below
 home_activity_data <- exposure_analysis_data_medium %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area, home) %>% 
+  filter(treatment == "Placebo") %>% 
+  #filter(winter_id == 1) %>% 
+  select(home, area, home_winter_id, sampling_day, starts_with("home_act")) %>% 
+  group_by(area, home, home_winter_id) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
-  group_by(area, home) %>% 
+  group_by(area, home, home_winter_id) %>% 
   mutate_at(vars(starts_with("home_act")), as.numeric) %>% 
   mutate_at(vars(starts_with("home_act")), funs(. - 1)) %>% 
   mutate_at(vars(starts_with("home_act")), funs(sum(.))) %>% 
   ungroup() %>% 
-  distinct(area, home, .keep_all = TRUE) %>% 
-  select(home, area, sampling_day, starts_with("home_act"))
+  distinct(area, home,  home_winter_id, .keep_all = TRUE) 
 
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  filter(area == "WMT") %>% 
   group_by(area, home) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
+  distinct(home, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
   mutate(moisture_closest_2level = cut(moisture_closest, breaks = c(0, 10.5, 100),
                                  labels = c("<10.5", "10.5+"),
@@ -150,11 +151,27 @@ analysis_data <- exposure_analysis_data_short %>%
          temp_perc_30_2level = cut(temp_perc_30, breaks = c(0, 10, 100),
                                  labels = c("<10", "10+"),
                                  right = FALSE)) %>% 
-  left_join(sums_temp_change, by = c("area", "home")) %>% 
+  group_by(home) %>% 
+  mutate(residents_smoke = if_else(winter_id == 1 & is.na(residents_smoke),
+                                   lead(residents_smoke), residents_smoke)) %>% 
+  ungroup() %>% 
+  left_join(sums_temp_change, by = c("area", "home", "home_winter_id")) %>% 
   left_join(ambient_data, by = c("area", "home")) %>% 
   select(-starts_with("home_act")) %>% 
-  left_join(home_activity_data, by = c("area", "home")) %>% 
-  mutate(area = as.factor(area))
+  left_join(home_activity_data, by = c("area", "home", "home_winter_id")) %>% 
+  replace_with_na(replace = list(mean_temp_sampling_period_5 = "NaN")) %>% 
+  mutate(home_act_door_2level = cut(home_act_door, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_smoke_2level = cut(home_act_smoking, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_windows_2level = cut(home_act_windows, breaks = c(0, 1, 7),
+                                 labels = c("<1", "1+"),
+                                 right = FALSE),
+         home_act_sweep_2level = cut(home_act_sweep, breaks = c(0, 3, 7),
+                                 labels = c("<3", "3+"),
+                                 right = FALSE))
 ```
 
 
@@ -175,16 +192,21 @@ https://www.theanalysisfactor.com/eight-ways-to-detect-multicollinearity/
 ```{r, eval=TRUE, include=TRUE}
 # Filter data for specific variables; select pm variable
 pm_mean_sampling_period <- analysis_data %>% 
-  select(pm_mean_sampling_period, area, income_3level, 
+  select(pm_mean_sampling_period, income_3level, 
          residents_smoke,
          home_floors_2level, 
-         stove_age_3level, chimney_clean_3level, home_mold,
+         home_pets_2level,
+         chimney_clean_3level, 
+         stove_cert, 
          wood_collect_2level,
+         moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
-         home_act_smoking, 
-         home_act_door, home_act_sweep,
+         amb_pm_sampling_period_5,
+         home_act_smoke_2level, 
+         home_act_door_2level,
          stove_grade_3level) %>% 
+  #mutate(area = factor(area)) %>% 
   mutate_all(as.numeric) %>% 
   filter(!is.na(pm_mean_sampling_period)) %>% 
   #na.exclude() %>% 
@@ -192,16 +214,21 @@ pm_mean_sampling_period <- analysis_data %>%
 
 # Filter data for specific variables; select predictor variables
 other_vars <- analysis_data %>% 
-  select(pm_mean_sampling_period, area, income_3level, 
+  select(pm_mean_sampling_period, income_3level, 
          residents_smoke,
          home_floors_2level, 
-         stove_age_3level, chimney_clean_3level, home_mold,
+         home_pets_2level,
+         chimney_clean_3level, 
+         stove_cert, 
          wood_collect_2level,
+         moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
-         home_act_smoking, 
-         home_act_door, home_act_sweep,
+         amb_pm_sampling_period_5,
+         home_act_smoke_2level, 
+         home_act_door_2level,
          stove_grade_3level) %>% 
+  #mutate(area = factor(area)) %>% 
   mutate_all(as.numeric) %>% 
   filter(!is.na(pm_mean_sampling_period)) %>% 
   #na.exclude() %>% 
@@ -209,39 +236,47 @@ other_vars <- analysis_data %>%
 
 
 # Use `omcdiag` to assess overall multicollinearity
-omcdiag(other_vars, pm_mean_sampling_period)
+#omcdiag(other_vars, pm_mean_sampling_period)
 
 
 # Use `imcdiag` to assess multicollinearity between individual variables
-imcdiag(other_vars, pm_mean_sampling_period)
+#imcdiag(other_vars, pm_mean_sampling_period)
 
 # Specify a method to assess
-imcdiag(other_vars, pm_mean_sampling_period, method = "VIF")
+imcdiag(other_vars, log(pm_mean_sampling_period), method = "VIF")
 ```
 
 Initially assessed the following variables for collinearity, based on simple
 associations with mean PM over the sampling period:
-         pm_mean_sampling_period, area, income_3level, total_residents_2level,
-         race_parent_2level, residents_smoke,
-         home_type_2level, home_floors_2level, home_windows_2level,
-         stove_age_3level, chimney_clean_3level, home_damp, home_mold,
-         home_fireplace,
+         pm_mean_sampling_period, income_3level, area,
+         residents_smoke,
+         home_floors_2level, 
+         home_pets_2level,
+         stove_age_3level, chimney_clean_3level, 
+         stove_cert, home_mold,
          wood_collect_2level,
          moisture_closest_2level,
-         temp_max_5,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
-         home_act_gas, home_act_smoking, home_act_windows, 
-         home_act_door, home_act_sweep,
-         stove_grade_3level
+         amb_pm_sampling_period_5,
+         home_act_smoke_2level, 
+         home_act_door_2level,
+         stove_grade_3level,
+         race_parent_2level, home_damp, 
+         temp_max_5, home_act_gas, home_type_2level, 
+         home_windows_2level, home_fireplace 
 
 The goal is to remove variables that have overlap, and parse the covariates
 down to a reasonable number that a best-subsets selection method can handle.
 
+This is the first sign that `area` has overlap with the other covariates that
+will be difficult to deal with. Removing `area` lowers the VIF for several 
+of the variables. 
+
 Based on results and potential overlap, the following vars were removed:
-         race_parent_2level, home_damp, 
-         temp_max_5, home_act_gas, total_residents_2level, home_type_2level, 
-         home_windows_2level, home_fireplace, home_act_windows 
+         race_parent_2level, home_damp, home_mold, stove_age_3level,
+         temp_max_5, home_act_gas, home_type_2level, 
+         home_windows_2level, home_fireplace 
          
 With the above variables removed, the VIF is at 5 or below for all variables.
 There is still a question of how to handle the "area" variable, but I will
@@ -249,11 +284,11 @@ run best-subsets next and go from there.
 
 Initial variables to use for model selection (14):
 Demographics: area, income_3level, residents_smoke
-Home Characteristics: home_floors_2level, stove_age_3level,
-                      chimney_clean_3level, home_mold, wood_collect_2level
-Home Activity: home_act_door, home_act_smoking, home_act_sweep
+Home Characteristics: home_floors_2level, home_pets_2level, stove_cert, 
+                      chimney_clean_3level, wood_collect_2level, 
+Home Activity: home_act_door_2level, home_act_smoke_2level
 Others: sums_events_sampling_period, mean_temp_sampling_period_5, 
-        stove_grade_3level, moisture_closest_2level,
+        stove_grade_3level, moisture_closest_2level, amb_pm_sampling_period_5,
          
 Run sensitivity analyses to see if adding other variables back in makes a difference.
 

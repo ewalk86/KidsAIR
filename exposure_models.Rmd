@@ -50,6 +50,10 @@ health_exposure_data_sampling_day <-
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
+**Note**
+
+Add some of the variables created below to the full dataset
+
 ```{r}
 # Prep and merge data
 
@@ -175,36 +179,38 @@ analysis_data <- exposure_analysis_data_short %>%
                                  right = FALSE))
 ```
 
-Initial variables to use for model selection (14) from collinearity RMD:
+**Step 1**
+
+The model selection process begins with simple associations between mean
+PM2.5 over the 6-day sampling period and covariates in the dataset. See
+the `exposure_covariate_associations.rmd` file for this process.
+
+Variables that are associated with PM2.5 are selected and assessed for collinearity
+in the `collinearity_exposure_analysis.rmd`. Variables that have high overlap
+are selected out of the pool of potential covariates to parse down the options;
+however, these variables can be used in sensitivity analyses later.
+
+Initial variables to use for model selection (14):
 Demographics: area, income_3level, residents_smoke
-Home Characteristics: home_floors_2level, stove_age_3level,
-                      chimney_clean_3level, home_mold, wood_collect_2level
-Home Activity: home_act_door, home_act_smoking, home_act_sweep
+Home Characteristics: home_floors_2level, home_pets_2level, stove_cert, 
+                      chimney_clean_3level, wood_collect_2level, 
+Home Activity: home_act_door_2level, home_act_smoke_2level
 Others: sums_events_sampling_period, mean_temp_sampling_period_5, 
-        stove_grade_3level, moisture_closest_2level,
+        stove_grade_3level, moisture_closest_2level, amb_pm_sampling_period_5,
 
-Note: sums_events_sampling_period and mean_temp_sampling_period_5 have a lot of
-missing data and reduce the sample size from 93 to 43. Not considering these
-variables for model selection for now.
-
-Also try adding other variables in to check their impact on model selection:
-   total_residents_2level (seems impactful), home_type_2level (not impactful), 
-   home_windows_2level (seems impactful), home_act_windows (not very impactful),
-   education_3level (not impactful)
    
-Some vars not important in any models, so removing from consideration:
-   home_mold, home_floors_2level, home_act_windows, home_type_2level
-   
-Next steps:
+**Missing data notes**
 Some vars (like residents_smoke), other demographics, and home activity vars
 have quite a bit of missing data. This is in addition to the missing ambient
 and SUMs data. The first step should be to account for as much of this as possible.
 See if there are ways to pull demographic data from Winter 2.
 Then, see if data for WMT is more complete in general. The idea is to minimize
-missing data for model selection and the final model to have as much power as
+missing data for model selection and the final model to have as many observations as
 possible. 
 Consider doing a more "full" model for WMT only (if there is less missing data),
 particularly since the ambient data is more reliable for WMT than the other areas.
+(ambient temp/PM data for WMT is based on geolocated lat/long, whereas NN and AK
+are based on zipcode and have much less spatial variation).
 Then you could justify not doing a mixed model, and model selection would be easier.
 Then, using data from all areas, use the full model from WMT to work on a 
 mixed model that is likely reduced due to sparse data from the other areas.
@@ -218,6 +224,158 @@ Also look into predict() function for teach/test and validating the model.
 Discussion can focus on what important predictors of indoor PM are in these homes - 
 if simple demographic data predicts as well as complex things like SUMs and wood
 moisture, or if there is a spectrum of predictors and complexity in their collection.
+
+
+**Looking at model selection and averaging after multiple imputation**
+
+After assessing many model selection possibilities, using multiple imputation
+and model selection from imputed datasets seems to be the best option.
+There is not a huge amount of missing data, but it is spread out enough
+that it eliminates a larger percentage of the homes from consideration for
+model selection. Multiple imputation gives us a full dataset to work with,
+and there are documented techniques of using this data for model selection.
+
+Helpful manuals and vignettes:
+
+https://cran.r-project.org/web/packages/mice/mice.pdf
+
+
+First, select analysis variables
+```{r}
+library(mice)
+#library(pan)
+#library(multilevel)
+
+# Select analysis vars
+selected_vars <- analysis_data %>% 
+  filter(area == "WMT") %>% 
+  select(pm_mean_sampling_period, income_3level, 
+         residents_smoke, home_floors_2level, home_pets_2level,
+         chimney_clean_3level, stove_cert, wood_collect_2level,
+         moisture_closest_2level, sums_events_sampling_period,
+         mean_temp_sampling_period_5, amb_pm_sampling_period_5,
+         home_act_smoke_2level, home_act_door_2level, stove_grade_3level) %>% 
+  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>% 
+  select(-pm_mean_sampling_period) 
+```
+
+**Note**
+
+When selecting data above, WMT has 63 observations
+When use `na.exclude()` to only use complete data (what is needed for AIC selection),
+the observations drops to 30. While there is only 10% missing data, it is spread
+out enough that excluding it to have complete observations means we can only use
+less than half for model selection. This would be a very biased version of model
+selection to exclude that much data, which justifies multiple imputation to 
+impute the 10% missing data and use that for model selection.
+The missing observations are even more extreme for NN and AK.
+
+Next, assess data structure and patterns of missing data
+Document missing data thoroughly for manuscript
+```{r}
+# Look at structure of data and check variable types
+str(selected_vars)
+
+# Check % missing data
+mean(is.na(selected_vars)) # 10%
+
+# Using mice package
+
+# Look for patterns in missing data
+missing_patterns <- md.pattern(selected_vars)
+
+missing_patterns
+
+sum(missing_patterns[, "residents_smoke"] == 0)
+
+hist(selected_vars$pm_mean_sampling_period)
+
+# Check for distribution between vars and missingness - see if there are patterns
+## No obvious patterns in the missing data
+## Missing covars do not seem to be related to the outcomes
+missing_hist <- selected_vars %>% 
+  mutate(missing_var = if_else(is.na(moisture_closest_2level), "missing yes", "missing no")) %>% 
+  ggplot() +
+    geom_bar(aes(log_pm_mean_sampling_period), color = "red") +
+    facet_wrap(~missing_var)
+missing_hist
+
+# Check ICC 
+multilevel::ICC1(aov(mean_temp_sampling_period_5 ~ area, data = selected_vars))
+```
+
+
+Next, use `mice()` to impute the missing data
+Assess imputed data for summary stats and convergence
+```{r}
+# Impute missing data; m = 10 datasets (check % missing data and match)
+imputed_data <- mice(selected_vars, m=5, maxit = 5,
+                     method = c("polr", "logreg", "logreg", "logreg", "polr",
+                                "polr", "logreg", "logreg", "pmm", "pmm",
+                                "pmm", "logreg", "logreg", "polr", "pmm"))
+
+# Compare imputed summary to original summary
+summary(selected_vars)
+summary(complete(imputed_data))
+
+# Look at imputation methods for each var; consider changing
+imputed_data$method
+
+# Can add "long" or "broad arguments
+complete(imputed_data, "long")
+
+# Sample one of the imputed datasets
+check1 <- complete(imputed_data, 3)
+
+densityplot(selected_vars$log_pm_mean_sampling_period)
+
+# Use seed to get the exact same results from random sampling
+# seed = 123
+
+# See vignette #2 for setting up predictor matrices and relationships b/w vars
+
+# Print predictor matrix
+## Keep considering, but I don't see a reason to alter this as of now
+imputed_data$pred
+
+# Check for convergence
+## In general, we would like the streams to intermingle and be free of any trends 
+## at the later iterations.
+plot(imputed_data)
+
+# Check that the imputation method matches the data type correctly
+## particularly for PM that should be log transformed, and the factors
+
+stripplot(imputed_data)
+
+# Can do regression on the imputed data - either pooled or individual datasets
+```
+
+The above seems to be a good method of imputing the missing data, so moving on 
+to model selection/averaging
+
+http://mami.r-forge.r-project.org/MAMI_manual.pdf 
+
+```{r}
+library(MAMI)
+
+# Using MAMI package, perform model averaging and selection
+## Will take ~20 to 30 mins with 5 iterations and bootstrap
+model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
+                  outcome = "log_pm_mean_sampling_period", 
+                  method = "MA.criterion", criterion = "AIC", print.time = TRUE,
+                  inference = "+boot", B = 2, X.org = selected_vars)
+
+summary(model_ave)
+plot(model_ave)
+```
+
+
+##################### 
+
+Below are other options/ideas for model selection
+Not using for now, but keep for resources
+
 
 ```{r, include=FALSE}
 full_model <- lm(log(pm_mean_sampling_period) ~ income_3level + 
@@ -282,9 +440,6 @@ summary(subset_model)
 
 plot(subset_model)
 ```
-
-
-#####################
 
 
 Looking at Lasso regression
@@ -366,123 +521,4 @@ ind_vars <- analysis_data %>%
   data.matrix()
 ```
 
-
-Looking at model selection and averaging after multiple imputation
-
-Helpful manuals and vignettes:
-
-https://cran.r-project.org/web/packages/mice/mice.pdf
-
-```{r}
-library(mice)
-library(pan)
-library(multilevel)
-
-# Select analysis vars
-selected_vars <- analysis_data %>% 
-  select(area, pm_mean_sampling_period, income_3level, 
-         stove_age_3level, home_windows_2level,
-         chimney_clean_3level, 
-         home_act_door_2level, home_act_windows_2level, home_act_smoke_2level,
-         sums_events_sampling_period, mean_temp_sampling_period_5, 
-         amb_pm_sampling_period_5, stove_grade_3level, moisture_closest_2level) %>% 
-  mutate(area = factor(area, levels = c("AK", "NN", "WMT")),
-         log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>% 
-  select(-pm_mean_sampling_period) %>% 
-  filter(!is.na(income_3level) & !is.na(home_windows_2level)) %>% 
-  filter(area == "WMT") %>% 
-  select(-area)
-  
-# Look at structure of data and check variable types
-str(selected_vars)
-
-# Check % missing data
-mean(is.na(selected_vars))
-
-# Using mice package
-
-# Look for patterns in missing data
-missing_patterns <- md.pattern(selected_vars)
-
-missing_patterns
-
-sum(missing_patterns[, "residents_smoke"] == 0)
-
-hist(selected_vars$pm_mean_sampling_period)
-
-# Check for distribution between vars and missingness - see if there are patterns
-## No obvious patterns in the missing data
-## Missing covars do not seem to be related to the outcomes
-missing_hist <- selected_vars %>% 
-  mutate(missing_var = if_else(is.na(moisture_closest_2level), "missing yes", "missing no")) %>% 
-  ggplot() +
-    geom_bar(aes(log_pm_mean_sampling_period), color = "red") +
-    facet_wrap(~missing_var)
-missing_hist
-
-# Check ICC 
-multilevel::ICC1(aov(mean_temp_sampling_period_5 ~ area, data = selected_vars))
-
-
-# Impute missing data; m = 20 datasets (check % missing data and match)
-imputed_data <- mice(selected_vars, m=5, maxit = 5,
-                     method = c("polr", "polr", "logreg", "polr", 
-                                "logreg", "logreg", "logreg", "pmm", "pmm",
-                                "pmm", "polr", "logreg", "pmm"))
-
-# Compare imputed summary to original summary
-summary(selected_vars)
-summary(complete(imputed_data))
-
-# Look at imputation methods for each var; consider changing
-imputed_data$method
-
-# Can add "long" or "broad arguments
-complete(imputed_data, "long")
-
-# Sample one of the imputed datasets
-check1 <- complete(imputed_data, 3)
-
-densityplot(selected_vars$log_pm_mean_sampling_period)
-
-# Use seed to get the exact same results from random sampling
-# seed = 123
-
-# See vignette #2 for setting up predictor matrices and relationships b/w vars
-
-# Print predictor matrix
-## Keep considering, but I don't see a reason to alter this as of now
-imputed_data$pred
-
-# Check for convergence
-## In general, we would like the streams to intermingle and be free of any trends 
-## at the later iterations.
-plot(imputed_data)
-
-# Check that the imputation method matches the data type correctly
-## particularly for PM that should be log transformed, and the factors
-
-stripplot(imputed_data)
-
-# Can do regression on the imputed data - either pooled or individual datasets
-```
-
-The above seems to be a good method of imputing the missing data, so moving on 
-to model selection/averaging
-
-http://mami.r-forge.r-project.org/MAMI_manual.pdf 
-
-```{r}
-library(MAMI)
-
-# Using MAMI package, perform model averaging and selection
-## Will take ~20 to 30 mins with 5 iterations and bootstrap
-model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
-                  outcome = "log_pm_mean_sampling_period", 
-                  method = "MA.criterion", criterion = "AIC", print.time = TRUE,
-                  inference = "+boot", B = 2, X.org = selected_vars)
-
-summary(model_ave)
-plot(model_ave)
-```
 

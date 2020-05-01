@@ -31,25 +31,22 @@ library(kableExtra)
 ```{r, eval=TRUE, include=TRUE}
 # Load individual datasets
 
-input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/Input/")
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-input_file <- c("exposure_analysis_data_long_new.rds")
-output_file <- c("exposure_analysis_data_long_new.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
 exposure_analysis_data_medium <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds")) 
 
 exposure_analysis_data_short <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_short.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_short.rds"))
 
 sums_rolling_pm_data <- 
-  read_rds(paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+  read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 ```{r, eval=TRUE, include=TRUE}
