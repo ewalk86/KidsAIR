@@ -248,15 +248,15 @@ library(mice)
 
 # Select analysis vars
 selected_vars <- analysis_data %>% 
-  filter(area == "WMT") %>% 
-  select(pm_mean_sampling_period, income_3level, 
+  #filter(area == "WMT") %>% 
+  select(home, area, pm_mean_sampling_period, income_3level, 
          residents_smoke, home_floors_2level, home_pets_2level,
          chimney_clean_3level, stove_cert, wood_collect_2level,
          moisture_closest_2level, sums_events_sampling_period,
          mean_temp_sampling_period_5, amb_pm_sampling_period_5,
          home_act_smoke_2level, home_act_door_2level, stove_grade_3level) %>% 
-  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>% 
-  select(-pm_mean_sampling_period) 
+  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period))  
+  #select(-pm_mean_sampling_period) 
 ```
 
 **Note**
@@ -288,17 +288,85 @@ missing_patterns
 
 sum(missing_patterns[, "residents_smoke"] == 0)
 
-hist(selected_vars$pm_mean_sampling_period)
+hist(selected_vars$log_pm_mean_sampling_period)
 
 # Check for distribution between vars and missingness - see if there are patterns
 ## No obvious patterns in the missing data
 ## Missing covars do not seem to be related to the outcomes
+
+# Histogram
 missing_hist <- selected_vars %>% 
-  mutate(missing_var = if_else(is.na(moisture_closest_2level), "missing yes", "missing no")) %>% 
+  mutate(missing_var = if_else(is.na(residents_smoke), "missing yes", "missing no")) %>% 
   ggplot() +
     geom_bar(aes(log_pm_mean_sampling_period), color = "red") +
-    facet_wrap(~missing_var)
+    facet_wrap(~missing_var) +
+    theme_minimal()
 missing_hist
+
+
+# Summary Statistics
+missing_summary <- selected_vars %>% 
+  mutate(missing_var = if_else(is.na(residents_smoke), "missing yes", "missing no")) %>%
+  group_by(area, missing_var) %>% 
+  summarize(n = n(),
+            mean_pm = mean(pm_mean_sampling_period, na.rm = TRUE), 
+            sd_pm = sd(pm_mean_sampling_period, na.rm = TRUE),
+            median_pm = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+  group_by(area) %>% 
+  mutate(total_n = sum(n),
+         perc_miss = n/total_n*100) %>% 
+  select(area, missing_var, n, perc_miss, mean_pm, sd_pm, median_pm)
+missing_summary
+
+
+# T-tests
+missing_test <- selected_vars %>% 
+  mutate(missing_var = if_else(is.na(residents_smoke), "missing yes", "missing no")) %>% 
+  filter(!is.na(log_pm_mean_sampling_period) & !is.na(missing_var))
+
+
+ak_data <- missing_test %>% 
+  filter(area == "AK")
+
+nn_data <- missing_test %>% 
+  filter(area == "NN")
+
+wmt_data <- missing_test %>% 
+  filter(area == "WMT")
+
+t.test(log_pm_mean_sampling_period ~ missing_var, data = ak_data)
+t.test(log_pm_mean_sampling_period ~ missing_var, data = nn_data)
+t.test(log_pm_mean_sampling_period ~ missing_var, data = wmt_data)
+
+
+# Complete case vs missing data comparison
+complete_case <- selected_vars %>% 
+  na.exclude()
+
+missing_summary <- complete_case %>% 
+  group_by(area) %>% 
+  summarize(n = n(),
+            mean_pm = mean(pm_mean_sampling_period, na.rm = TRUE), 
+            sd_pm = sd(pm_mean_sampling_period, na.rm = TRUE),
+            median_pm = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+  group_by(area) %>% 
+  select(area, n, mean_pm, sd_pm, median_pm)
+missing_summary
+
+missing_data <- selected_vars %>% 
+  group_by(home) %>% 
+  filter_at(vars(pm_mean_sampling_period:stove_grade_3level), any_vars(is.na(.)))
+
+missing_summary <- missing_data %>% 
+  group_by(area) %>% 
+  summarize(n = n(),
+            mean_pm = mean(pm_mean_sampling_period, na.rm = TRUE), 
+            sd_pm = sd(pm_mean_sampling_period, na.rm = TRUE),
+            median_pm = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+  group_by(area) %>% 
+  select(area, n, mean_pm, sd_pm, median_pm)
+missing_summary
+
 
 # Check ICC 
 multilevel::ICC1(aov(mean_temp_sampling_period_5 ~ area, data = selected_vars))
@@ -308,8 +376,11 @@ multilevel::ICC1(aov(mean_temp_sampling_period_5 ~ area, data = selected_vars))
 Next, use `mice()` to impute the missing data
 Assess imputed data for summary stats and convergence
 ```{r}
+# set seed to be able to replicate imputation
+set.seed(123)
+
 # Impute missing data; m = 10 datasets (check % missing data and match)
-imputed_data <- mice(selected_vars, m=5, maxit = 5,
+imputed_data <- mice(selected_vars, m=10, maxit = 5,
                      method = c("polr", "logreg", "logreg", "logreg", "polr",
                                 "polr", "logreg", "logreg", "pmm", "pmm",
                                 "pmm", "logreg", "logreg", "polr", "pmm"))
