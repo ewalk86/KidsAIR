@@ -113,7 +113,7 @@ home_activity_data <- exposure_analysis_data_medium %>%
 
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo" & area == "WMT") %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -188,6 +188,17 @@ analysis_function <- function(covar, label,
   
 }
 
+analysis_function <- function(covar, label, 
+                              dataset = analysis_data){
+  
+  analysis_data <- dataset %>% 
+    filter(winter_id == 1 & treatment == "Placebo") %>% 
+    rename(analysis_covar = covar) 
+  
+  table(analysis_data$analysis_covar)
+  
+}
+
 ####### Variables to run through fuction and save results
 d1 <- analysis_function("education_3level", "Education")
 d2 <- analysis_function("income_3level", "Income")
@@ -217,6 +228,10 @@ d23 <- analysis_function("burn_level_3level", "Burn level")
 d24 <- analysis_function("wood_collect_2level", "Wood collect time")
 d25 <- analysis_function("wood_collect_method_2level", "Wood collect method")
 d26 <- analysis_function("wood_cords", "Wood cords")
+data_check <- analysis_data %>% 
+  filter(area == "NN")
+table(data_check$education_3level)
+table(!is.na(data_check$mean_temp_sampling_period_5))
 
 d27 <- analysis_function("moisture_closest", "Wood moisture - closest to sampling")
 d28 <- analysis_function("moisture_closest_2level", "Wood moisture - closest to sampling")
