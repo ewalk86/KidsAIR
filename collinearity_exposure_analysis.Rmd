@@ -192,19 +192,20 @@ https://www.theanalysisfactor.com/eight-ways-to-detect-multicollinearity/
 ```{r, eval=TRUE, include=TRUE}
 # Filter data for specific variables; select pm variable
 pm_mean_sampling_period <- analysis_data %>% 
-  select(pm_mean_sampling_period, income_3level, 
+  select(pm_mean_sampling_period, 
+         income_3level, 
          residents_smoke,
+         home_year_built_2level,
          home_floors_2level, 
          home_pets_2level,
+         stove_age_3level,
          chimney_clean_3level, 
-         stove_cert, 
+         home_fireplace,
          wood_collect_2level,
          moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
          amb_pm_sampling_period_5,
-         home_act_smoke_2level, 
-         home_act_door_2level,
          stove_grade_3level) %>% 
   #mutate(area = factor(area)) %>% 
   mutate_all(as.numeric) %>% 
@@ -214,19 +215,20 @@ pm_mean_sampling_period <- analysis_data %>%
 
 # Filter data for specific variables; select predictor variables
 other_vars <- analysis_data %>% 
-  select(pm_mean_sampling_period, income_3level, 
+  select(pm_mean_sampling_period, 
+         income_3level, 
          residents_smoke,
+         home_year_built_2level,
          home_floors_2level, 
          home_pets_2level,
+         stove_age_3level,
          chimney_clean_3level, 
-         stove_cert, 
+         home_fireplace,
          wood_collect_2level,
          moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
          amb_pm_sampling_period_5,
-         home_act_smoke_2level, 
-         home_act_door_2level,
          stove_grade_3level) %>% 
   #mutate(area = factor(area)) %>% 
   mutate_all(as.numeric) %>% 
