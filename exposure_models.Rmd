@@ -124,7 +124,7 @@ home_activity_data <- exposure_analysis_data_medium %>%
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
-  #filter(area == "WMT") %>% 
+  filter(area == "WMT") %>% 
   group_by(area, home) %>% 
   distinct(home, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 

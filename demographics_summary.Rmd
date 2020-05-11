@@ -28,10 +28,11 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load individual datasets
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-demographics_clean <- read_rds("Output/demographics_clean.rds") 
-pm_clean <- read_rds("Output/pm_clean.rds")
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+demographics_clean <- read_rds(paste0(file_path, "Output/demographics_clean.rds")) 
+pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
 ```
 
 
@@ -62,10 +63,11 @@ demographics_filtered <- demographics_clean %>%
 
 ```{r, include=FALSE}
 # Summarize numeric vars
-kids_dems <- demographics_filtered %>%  
-  mutate(total_residents = as.numeric(total_residents),
-         residents_under_five = as.numeric(residents_under_five)) %>% 
+kids_dems <- demographics_clean %>%  
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>%
   distinct(home, .keep_all = TRUE) %>%  
+  filter(!is.na(gender_parent)) %>% 
   group_by(area) %>% 
   summarize("Mean" = mean(total_residents, na.rm = TRUE), 
             "SD" = sd(total_residents, na.rm = TRUE),
