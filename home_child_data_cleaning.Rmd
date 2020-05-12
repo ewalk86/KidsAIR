@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial home/child data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 11 May 2020"
+date: "Started 19 Nov 2019, Updated 12 May 2020"
 output: pdf_document
 ---
 
@@ -66,7 +66,7 @@ wmt_homewinter_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_homewinter_
 wmt_parent_demographics_initial <-
   read_xlsx(paste0(file_path, "Input/WMT/wmt_parent_demographics_20191126.xlsx")) %>% 
   rename_all(tolower) %>% 
-  filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
+  #filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
   select(homewinterid, gender, hispanic, race, income, education,
          totalres, underfive) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -82,11 +82,17 @@ wmt_parent_demographics_initial <-
 
 # join all files from above
 joined1 <- wmt_homewinter_initial %>% 
-  left_join(wmt_parent_demographics_initial, by = "home_winter_id") %>% 
-  left_join(wmt_home_initial, by = "home_id") %>% 
-  left_join(wmt_child_initial, by = "home_id") %>% 
-  mutate(area = "WMT") %>% 
-  filter(!is.na(enrolled)) 
+  full_join(wmt_parent_demographics_initial, by = "home_winter_id") %>% 
+  #mutate(home_id = if_else(home_winter_id == 275, "153", home_id)) %>% 
+  ### 1st big filter - remove those with no home_id
+  ### All other past this point should be considered "enrolled"
+  filter(!is.na(home_id)) %>% 
+  full_join(wmt_home_initial, by = "home_id") %>% 
+  full_join(wmt_child_initial, by = "home_id") %>% 
+  filter(!is.na(home_winter_id)) %>% 
+  mutate(area = "WMT") 
+  ### Once data is joined for all areas, filter for homes with treatment assignment
+  ### This will help further refine data for analysis and be a number in the flow chart
   
 
 # create dataset of id's and treatment assignment
@@ -142,12 +148,15 @@ nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_home_20191216.xlsx")
 nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homewinter_20191216.xlsx")) %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
-  filter(winterid != 3) %>% # filter for winterid == 1 or 2. What about missing intervention date?
   mutate(home_winter_id = as.character(homewinterid),
          home_id = as.character(homeid),
          winter_id = as.character(winterid),
          intervention_date = interventiondate,
          intervention_time = interventiontime) %>% 
+  mutate(winter_id = as.numeric(winter_id),
+         winter_id = if_else(home_id == 62 | home_id == 45, winter_id + 1, winter_id),
+         winter_id = as.character(winter_id)) %>% 
+  filter(winter_id == 1 | winter_id ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
@@ -155,7 +164,7 @@ nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homewinter_201
 nn_parent_demographics_initial <-
   read_xlsx(paste0(file_path, "Input/NN/nn_parent_demographics_20191216.xlsx")) %>% 
   rename_all(tolower) %>% 
-  filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
+  #filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
   select(homewinterid, gender, hispanic, race, income, education,
          totalres, underfive) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -171,11 +180,15 @@ nn_parent_demographics_initial <-
 
 # join all files from above
 joined1 <- nn_homewinter_initial %>% 
-  left_join(nn_parent_demographics_initial, by = "home_winter_id") %>% 
-  left_join(nn_home_initial, by = "home_id") %>% 
-  left_join(nn_child_initial, by = "home_id") %>% 
-  mutate(area = "NN") %>% 
-  filter(!is.na(enrolled))
+  full_join(nn_parent_demographics_initial, by = "home_winter_id") %>% 
+  ### 1st big filter - remove those with no home_id
+  ### All other past this point should be considered "enrolled"
+  filter(!is.na(home_id)) %>% 
+  full_join(nn_home_initial, by = "home_id") %>% 
+  full_join(nn_child_initial, by = "home_id") %>% 
+  mutate(area = "NN") 
+  ### Once data is joined for all areas, filter for homes with treatment assignment
+  ### This will help further refine data for analysis and be a number in the flow chart
   
 
 # create dataset of id's and treatment assignment
@@ -241,7 +254,7 @@ ak_homewinter_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_homewinter_201
 ak_parent_demographics_initial <-
   read_xlsx(paste0(file_path, "Input/AK/ak_parent_demographics_20191216.xlsx")) %>% 
   rename_all(tolower) %>% 
-  filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
+  #filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
   select(homewinterid, gender, hispanic, race, income, education,
          totalres, underfive) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -257,11 +270,15 @@ ak_parent_demographics_initial <-
 
 # join all files from above
 joined1 <- ak_homewinter_initial %>% 
-  left_join(ak_parent_demographics_initial, by = "home_winter_id") %>% 
-  left_join(ak_home_initial, by = "home_id") %>% 
-  left_join(ak_child_initial, by = "home_id") %>% 
-  mutate(area = "AK") %>% 
-  filter(!is.na(enrolled))
+  full_join(ak_parent_demographics_initial, by = "home_winter_id") %>% 
+  ### 1st big filter - remove those with no home_id
+  ### All other past this point should be considered "enrolled"
+  filter(!is.na(home_id)) %>% 
+  full_join(ak_home_initial, by = "home_id") %>% 
+  full_join(ak_child_initial, by = "home_id") %>% 
+  mutate(area = "AK") 
+  ### Once data is joined for all areas, filter for homes with treatment assignment
+  ### This will help further refine data for analysis and be a number in the flow chart
   
 
 # create dataset of id's and treatment assignment
@@ -281,6 +298,29 @@ write_rds(ak_home_ids_linked, paste0(file_path, "Output/ak_ids_linked.rds"))
 write_rds(ak_child_demographics, paste0(file_path, "Output/ak_demographic_data.rds"))
 ```
 
+# Count total observations in dataset for homes and kids
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+ak_demographics <- read_rds(paste0(file_path, "Output/ak_demographic_data.rds"))
+nn_demographics <- read_rds(paste0(file_path, "Output/nn_demographic_data.rds"))
+wmt_demographics <- read_rds(paste0(file_path, "Output/wmt_demographic_data.rds"))
+
+kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %>% 
+  mutate(home_id = as.numeric(home_id)) %>% 
+  filter(home_id < 1000) %>%
+  mutate(home_id = as.character(home_id)) %>% 
+  # distinct(area, home_id)  # distinct homes in database = 360
+  filter(!is.na(child_id_num)) %>% 
+  # distinct(area, child_id_num, .keep_all = TRUE) %>%  # distinct kids in database = 512
+  # distinct(area, home_id, .keep_all = TRUE) %>% # distinct homes with kids in databse = 340
+  ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
+  filter(!is.na(treatment)) %>%  
+  distinct(area, child_id_num, .keep_all = TRUE) %>%   # distinct kids with treatment = 512
+  distinct(area, home_id, .keep_all = TRUE)  # distinct homes with kids with treatment = 340
+```
+
+
 # Combine linked id data for WMT, NN, AK
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
@@ -289,16 +329,20 @@ ak_ids <- read_rds(paste0(file_path, "Output/ak_ids_linked.rds"))
 nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds"))
 wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds"))
 
-kids_ids <- rbind(ak_ids, nn_ids, wmt_ids)
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
+  mutate(home_id = as.numeric(home_id)) %>% 
+  filter(home_id < 1000) %>%  
+  mutate(home_id = as.character(home_id)) %>% 
+  # distinct(area, home_id)  # enrolled homes in database = 360
+  filter(!is.na(treatment)) %>% 
+  # distinct(area, home_id)  # randomized homes with treatment assignment = 342
+  ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
+  filter(home != "WMA222" & home != "WMA233") %>% 
+  #distinct(area, home_id)  # randomized homes with treatment assignment = 340
+  ungroup() %>% 
+  arrange(area, home)
 
-#write_rds(kids_ids, paste0(file_path, "Output/kids_linked_ids.rds")
-
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds")) %>% 
-  mutate(winter_id = as.numeric(winter_id),
-         winter_id = if_else(home == "CH218", winter_id + 1, winter_id)) %>% 
-  filter(winter_id == 1 | winter_id == 2)
-
-#write_rds(kids_linked_ids, paste0(file_path, "Output/kids_linked_ids.rds"))
+write_rds(kids_ids, paste0(file_path, "Output/kids_linked_ids.rds"))
 ```
 
 # Combine demographic data for WMT, NN, AK
@@ -309,30 +353,20 @@ ak_demographics <- read_rds(paste0(file_path, "Output/ak_demographic_data.rds"))
 nn_demographics <- read_rds(paste0(file_path, "Output/nn_demographic_data.rds"))
 wmt_demographics <- read_rds(paste0(file_path, "Output/wmt_demographic_data.rds"))
 
-kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics)
-
-# write_rds(kids_demographics, paste0(file_path, "Output/kids_combined_demographics.rds"))
-
-kids_demographics <- read_rds(paste0(file_path, "Output/kids_combined_demographics.rds"))
-```
-
-# Clean demographics data
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-kids_demographics <- read_rds(paste0(file_path, "Output/kids_combined_demographics.rds"))
-
-demographics_clean <- kids_demographics %>% 
+kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %>% 
+  mutate(home_id = as.numeric(home_id)) %>% 
+  filter(home_id < 1000) %>%
+  mutate(home_id = as.character(home_id)) %>% 
+  filter(!is.na(child_id_num)) %>% 
+  filter(!is.na(treatment)) %>% 
   separate(intervention_time, c("trash", "intervention_time"), sep = " ") %>% 
   unite(intervention_datetime, c("intervention_date", "intervention_time"),
         sep = " ", remove = FALSE) %>% 
   mutate(intervention_datetime = ymd_hms(intervention_datetime)) %>% 
   select(-trash) %>% 
-  mutate(home_winter_id = as.numeric(home_winter_id),
-         home_winter_id = if_else(home == "CH218" & winter_id == 1, 77, home_winter_id),
-         home_winter_id = if_else(home == "CH218" & winter_id == 2, 111, home_winter_id),
-         home_winter_id = as.factor(home_winter_id)) %>% 
-  filter(winter_id == 1 | winter_id == 2)
+  ungroup() %>% 
+  arrange(area, home, child_id_char)
 
-# write_rds(demographics_clean, paste0(file_path, "Output/demographics_clean.rds"))
+write_rds(kids_demographics, paste0(file_path, "Output/kids_combined_demographics.rds"))
 ```
 

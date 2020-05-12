@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: household demographics summary'
 author: "Ethan Walker"
-date: "Started 27 Jan 2020, Updated 25 March 2020"
+date: "Started 27 Jan 2020, Updated 12 May 2020"
 output:
   beamer_presentation: default
   powerpoint_presentation: default
@@ -31,8 +31,76 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
-demographics_clean <- read_rds(paste0(file_path, "Output/demographics_clean.rds")) 
+demographics_initial <- read_rds(paste0(file_path, "Output/demographics_clean.rds")) 
 pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
+```
+
+
+```{r}
+# number of placebo households, total and by area
+placebo_homes <- kids_linked_ids %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  count(area)
+
+# number of placebo households, total and by area
+treatment_homes <- kids_linked_ids %>% 
+  filter(winter_id == 1) %>% 
+  count(treatment)
+
+# number of placebo households, total and by area
+treatment_kids <- demographics_initial %>% 
+  filter(winter_id == 2) %>% 
+  count(treatment)
+```
+
+```{r}
+# add new vars to dataset
+
+```
+
+```{r}
+# summary data for manuscript tables
+demo_funct_total <- function(var, data = demographics_clean){
+
+demographics_summary <- demographics_clean %>% 
+  rename(new_var = var) %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(area) %>% 
+  mutate(area_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = n()/total_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  select(new_var, n, percent)
+demographics_summary
+}
+
+demo_funct_total("gender_parent")
+
+
+demo_funct_area <- function(var, data = demographics_clean){
+
+demographics_summary <- demographics_clean %>% 
+  rename(new_var = var) %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(area) %>% 
+  mutate(area_n = n()) %>% 
+  group_by(area, new_var) %>% 
+  mutate(n = n(),
+         percent = n()/area_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  select(new_var, n, percent)
+demographics_summary
+}
+
+demo_funct_area("gender_parent")
 ```
 
 
