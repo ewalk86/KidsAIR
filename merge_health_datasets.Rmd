@@ -38,7 +38,8 @@ kids_csq <-
   read_rds(paste0(output_path, "Output/kids_csq.rds"))
 kids_lrti <- 
   read_rds(paste0(output_path, "Output/kids_lrti.rds")) %>% 
-  select(-home_id)
+  select(-home_id) %>% 
+  mutate(winter_id = as.character(winter_id))
 kids_medical_records <- 
   read_rds(paste0(output_path, "Output/kids_medical_records.rds")) %>% 
   select(-visit_date)
@@ -123,15 +124,16 @@ health_data_merged <-
 health_exposure_data_sampling_day <- health_data_merged %>% 
   select(-pm_mean_sampling_day, -pm_mean_sampling_period, day_of_week) %>% 
   mutate(winter_id = as.character(winter_id)) %>% 
-  left_join(exposure_analysis_data_medium,
+  right_join(exposure_analysis_data_medium,
             by = c("area", "home", "home_winter_id", "winter_id", "treatment",
                    "child_id_num", "sampling_day"))
 
 
-#write_rds(health_exposure_data_sampling_day, paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
-#write_csv(health_exposure_data_sampling_day, paste0(output_path, "Output/health_exposure_data_sampling_day.csv"))
+write_rds(health_exposure_data_sampling_day, paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
+write_csv(health_exposure_data_sampling_day, paste0(output_path, "Output/health_exposure_data_sampling_day.csv"))
+```
 
-
+```{r}
 health_exposure_data_sampling_day <- 
   read_rds(paste0(output_path, "Output/health_exposure_data_sampling_day.rds"))
 

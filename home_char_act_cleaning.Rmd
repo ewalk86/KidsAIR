@@ -175,8 +175,9 @@ kids_home_char <- rbind(wmt_home_char, nn_home_char, ak_home_char)
 
 # Clean up all home characteristics data
 ```{r}
-kids_home_char <- read_rds("Output/kids_home_char.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_home_char <- read_rds(paste0(file_path, "Output/kids_home_char.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 
 home_char_clean <- kids_home_char %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
@@ -210,7 +211,7 @@ home_char_clean <- kids_home_char %>%
   ungroup() %>% 
   arrange(area, home, winter_id)
 
-# write_rds(home_char_clean, "Output/home_char_clean.rds")
+write_rds(home_char_clean, paste0(file_path, "Output/home_char_clean.rds"))
 ```
 
 ###############################################
@@ -332,12 +333,13 @@ kids_home_act <- rbind(wmt_home_act, nn_home_act, ak_home_act)
 
 # Clean up all home activity data
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 kids_home_act <- read_rds(paste0(file_path, "Output/kids_home_act.rds"))
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 
 home_act_clean <- kids_home_act %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(home_act_clean, paste0(file_path, "Output/home_act_clean.rds"))
+write_rds(home_act_clean, paste0(file_path, "Output/home_act_clean.rds"))
 ```
 

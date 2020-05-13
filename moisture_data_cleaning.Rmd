@@ -137,8 +137,9 @@ kids_moisture <- rbind(wmt_moisture, nn_moisture, ak_moisture)
 
 # Clean up all moisture data
 ```{r}
-kids_moisture <- read_rds("Output/kids_moisture.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_moisture <- read_rds(paste0(file_path, "Output/kids_moisture.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 
 moisture_clean <- kids_moisture %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
@@ -150,6 +151,6 @@ moisture_clean <- kids_moisture %>%
          moisture_3 = if_else(moisture_3 < 5, 5, moisture_3),
          moisture_ave = if_else(moisture_ave < 5, 5, moisture_ave))
 
-# write_rds(moisture_clean, "Output/moisture_clean.rds")
+write_rds(moisture_clean, paste0(file_path, "Output/moisture_clean.rds"))
 ```
 

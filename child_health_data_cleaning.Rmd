@@ -162,7 +162,7 @@ kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 
-# write_rds(kids_at_home_log, paste0(file_path, "Output/kids_at_home_log.rds"))
+write_rds(kids_at_home_log, paste0(file_path, "Output/kids_at_home_log.rds"))
 ```
 
 
@@ -299,12 +299,8 @@ at_home_pm_merged <- pm_clean %>%
   arrange(area, home_winter_id, child_id_num, at_home, sampling_day)
 
 
-#write_rds(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.rds"))
-#write_csv(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.csv"))
-
-
-at_home_pm_merged <- 
-  read_rds(paste0(file_path, "Output/at_home_pm_merged.rds"))
+write_rds(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.rds"))
+write_csv(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.csv"))
 ```
 
 
@@ -431,8 +427,10 @@ kids_med_visit <- rbind(wmt_medicalvisit_initial, nn_medicalvisit_initial,
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 
-# write_rds(kids_med_visit, paste0(file_path, "Output/kids_med_visit.rds"))
+write_rds(kids_med_visit, paste0(file_path, "Output/kids_med_visit.rds"))
+```
 
+```{r}
 kids_med_visit <- read_rds(paste0(file_path, "Output/kids_med_visit.rds"))
 
 save_var_names <- data.frame(t(kids_med_visit)) %>% 
@@ -532,8 +530,10 @@ kids_birth_infancy <- rbind(wmt_birthinfancy_initial, nn_birthinfancy_initial,
                             ak_birthinfancy_initial) %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(kids_birth_infancy, paste0(file_path, "Output/kids_birth_infancy.rds"))
+write_rds(kids_birth_infancy, paste0(file_path, "Output/kids_birth_infancy.rds"))
+```
 
+```{r}
 kids_birth_infancy <- read_rds(paste0(file_path, "Output/kids_birth_infancy.rds"))
 
 
@@ -582,10 +582,7 @@ wmt_childhomewinter_initial <-
 child_home_winter <- wmt_childhomewinter_initial %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(child_home_winter, paste0(file_path, "Output/child_home_winter.rds"))
-
-child_home_winter <- read_rds(paste0(file_path, "Output/child_home_winter.rds"))
-
+write_rds(child_home_winter, paste0(file_path, "Output/child_home_winter.rds"))
 ```
 
 
@@ -708,8 +705,10 @@ ak_csq_initial <-
 kids_csq <- rbind(wmt_csq_initial, nn_csq_initial, ak_csq_initial) %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(kids_csq, paste0(file_path, "Output/kids_csq.rds"))
+write_rds(kids_csq, paste0(file_path, "Output/kids_csq.rds"))
+```
 
+```{r}
 kids_csq <- read_rds(paste0(file_path, "Output/kids_csq.rds"))
 
 
@@ -804,9 +803,7 @@ kids_medical_records <- rbind(wmt_medicalrecords_initial, nn_medicalrecords_init
   left_join(kids_linked_ids, c("area", "home_winter_id")) %>% 
   arrange(area, visit_date)
 
-# write_rds(kids_medical_records, paste0(file_path, "Output/kids_medical_records.rds"))
-
-kids_medical_records <- read_rds(paste0(file_path, "Output/kids_medical_records.rds"))
+write_rds(kids_medical_records, paste0(file_path, "Output/kids_medical_records.rds"))
 ```
 
 
@@ -837,9 +834,6 @@ wmt_ari_initial <- read_xlsx("Input/WMT/wmt_ari_20200408.xlsx") %>%
 kids_lrti <- wmt_ari_initial %>% 
   left_join(kids_linked_ids, c("area", "home_winter_id"))
 
-# write_rds(kids_lrti, "Output/kids_lrti.rds")
-
-kids_lrti <- read_rds("Output/kids_lrti.rds")
-
+write_rds(kids_lrti, "Output/kids_lrti.rds")
 ```
 

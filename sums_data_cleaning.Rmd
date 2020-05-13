@@ -1074,8 +1074,9 @@ all_sums_filtered <- rbind(wmt_sums_filtered, nn_sums_filtered, ak_sums_filtered
 
 # Continue cleaning up SUMs data
 ```{r}
-all_sums_filtered <- read_rds("Output/all_sums_filtered.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+all_sums_filtered <- read_rds(paste0(file_path, "Output/all_sums_filtered.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds")) %>% 
   select(home_winter_id, area, treatment)
 
 
@@ -1091,12 +1092,12 @@ sums_clean <- all_sums_filtered %>%
   left_join(kids_linked_ids, by = c("area", "home_winter_id"))
   
 
-# write_rds(sums_clean, "Output/sums_clean.rds")
+write_rds(sums_clean, paste0(file_path, "Output/sums_clean.rds"))
 
 
 ########## New cleaning on 6 Feb 2020 ##########
 
-sums_clean <- read_rds("Output/sums_clean.rds")
+sums_clean <- read_rds(paste0(file_path, "Output/sums_clean.rds"))
 
 # This cleaning is a bit of a desperation attempt to try and salvage most of the
 # SUMs data. Because of the way data was collected and files were saved, it
@@ -1132,12 +1133,13 @@ sums_new <- sums_clean %>%
   ungroup() %>% 
   arrange(area, home, winter_id, datetime_sums)
 
-# write_rds(sums_new, "Output/sums_clean.rds")
+write_rds(sums_new, paste0(file_path, "Output/sums_clean.rds"))
 ```
 
 # Plot temp over time for individual home to check for trends visually
 ```{r}
-sums_clean <- read_rds("Output/sums_clean.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+sums_clean <- read_rds(paste0(file_path, "Output/sums_clean.rds"))
 
 sums_time_trends_plot <- sums_clean %>% 
   filter(home == "CH405") %>% 
@@ -1164,7 +1166,8 @@ sums_time_trends_plot
 ## Update once data collection is finished in April 2020
 ```{r}
 # Load SUMs data
-sums_clean <- read_rds("Output/sums_clean.rds") 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+sums_clean <- read_rds(paste0(file_path, "Output/sums_clean.rds")) 
 
 check <- sums_clean %>% 
   filter(home_winter_id == 82 & area == "AK")
@@ -1195,7 +1198,8 @@ sums_check <- sums_clean %>%
 # Thresholds for heating events
 ```{r}
 # Load SUMs data
-sums_clean <- read_rds("Output/sums_clean.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+sums_clean <- read_rds(paste0(file_path, "Output/sums_clean.rds"))
 
 
 sums_events_25 <- sums_clean %>% 

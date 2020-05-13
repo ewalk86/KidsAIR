@@ -61,9 +61,9 @@ treatment_kids <- demographics_initial %>%
 
 ```{r}
 # summary data for manuscript tables
-demo_funct_total <- function(var, data = demographics_clean){
+demo_funct_total <- function(var, data = demographics_initial){
 
-demographics_summary <- demographics_clean %>% 
+demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
@@ -80,11 +80,13 @@ demographics_summary
 }
 
 demo_funct_total("gender_parent")
+demo_funct_total("hispanic_parent")
+demo_funct_total("race_parent")
 
 
-demo_funct_area <- function(var, data = demographics_clean){
+demo_funct_area <- function(var, data = demographics_initial){
 
-demographics_summary <- demographics_clean %>% 
+demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
@@ -101,6 +103,8 @@ demographics_summary
 }
 
 demo_funct_area("gender_parent")
+demo_funct_area("hispanic_parent")
+demo_funct_area("race_parent")
 ```
 
 

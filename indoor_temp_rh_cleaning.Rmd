@@ -125,12 +125,13 @@ kids_indoor_temp_rh <- rbind(wmt_temp_rh, nn_temp_rh, ak_temp_rh)
 
 # Clean up all temp/rh data
 ```{r}
-kids_indoor_temp_rh <- read_rds("Output/kids_indoor_temp_rh.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_indoor_temp_rh <- read_rds(paste0(file_path, "Output/kids_indoor_temp_rh.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 
 indoor_temp_rh_clean <- kids_indoor_temp_rh %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id"))
 
-# write_rds(indoor_temp_rh_clean, "Output/indoor_temp_rh_clean.rds")
+write_rds(indoor_temp_rh_clean, paste0(file_path, "Output/indoor_temp_rh_clean.rds"))
 ```
 

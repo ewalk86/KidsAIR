@@ -50,79 +50,13 @@ health_exposure_data_sampling_day <-
 ```
 
 ```{r, eval=TRUE, include=TRUE}
-# Prep and merge data
-
-####### Format SUMs data to merge with analysis data below
-sums_temp_change <- sums_rolling_pm_data %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area, home, sampling_day) %>% 
-  distinct(datetime_sums, .keep_all = TRUE) %>% 
-  group_by(area, home, sampling_day) %>% 
-  mutate(time_diff = (lead(datetime_sums) - datetime_sums)) %>% 
-  mutate(lead_temp = if_else(time_diff < 20, lead(temp_c_sums, 4), lead(temp_c_sums)),
-         lead_temp = if_else(time_diff > 25, 999, lead_temp)) %>% 
-  replace_with_na(replace = list(lead_temp = 999)) %>% 
-  mutate(temp_diff = lead_temp - temp_c_sums,
-         # change temp in the following line
-         temp_diff_check = if_else(temp_diff >= 5, 1, 0),
-         heat_event = if_else(temp_diff_check == 1 & lag(temp_diff_check) == 1, 0,
-                              temp_diff_check),
-         heat_event = if_else(is.na(temp_diff_check), 1,
-                              heat_event)) %>% 
-  group_by(area, home, sampling_day) %>% 
-  mutate(sums_events_sampling_day = sum(heat_event, na.rm = TRUE),
-         sums_events_sampling_day_cat = cut(sums_events_sampling_day, 
-                                            breaks = c(0, 2, 50),
-                           labels = c("<2", "2+"),
-                                 right = FALSE)) %>% 
-  distinct(sampling_day, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  select(area:pm_rolling_20, sums_mean_winter:sums_mean_sampling_period,
-         time_diff:sums_events_sampling_day_cat) %>% 
-  arrange(area, home, sample_date) %>% 
-  group_by(home) %>% 
-  mutate(sums_events_sampling_period = mean(sums_events_sampling_day, na.rm = TRUE)) %>% 
-  select(area, home, home_winter_id, sums_events_sampling_period) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  ungroup()
-
-####### Format ambient data to merge with analysis data below
-ambient_data <- exposure_analysis_data_long %>% 
-  filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
-  #filter(area == "WMT") %>%
-  filter(!is.na(sampling_day)) %>% 
-  filter(!is.na(sample_date)) %>%
-  select(area, home, child_id_char, sample_date, sampling_day, pm_mean_daily,
-         amb_pm_24hr:mean_temp_roll_4day) %>% 
-  group_by(home) %>% 
-  mutate(amb_pm_sampling_period_5 = mean(amb_pm_24hr, na.rm = TRUE)/5,
-         mean_temp_sampling_period_5 = mean(mean_temp, na.rm = TRUE)/5) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  ungroup()
-
-####### Format home activity data to merge with analysis data below
-home_activity_data <- exposure_analysis_data_medium %>% 
-  filter(treatment == "Placebo") %>% 
-  #filter(winter_id == 1) %>% 
-  select(home, area, home_winter_id, sampling_day, starts_with("home_act")) %>% 
-  group_by(area, home, home_winter_id) %>% 
-  distinct(sampling_day, .keep_all = TRUE) %>% 
-  group_by(area, home, home_winter_id) %>% 
-  mutate_at(vars(starts_with("home_act")), as.numeric) %>% 
-  mutate_at(vars(starts_with("home_act")), funs(. - 1)) %>% 
-  mutate_at(vars(starts_with("home_act")), funs(sum(.))) %>% 
-  ungroup() %>% 
-  distinct(area, home,  home_winter_id, .keep_all = TRUE) 
-
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
-  filter(area == "WMT") %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
   group_by(area, home) %>% 
-  distinct(home, winter_id, .keep_all = TRUE) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
+  # dichotomize variables by median value
   mutate(moisture_closest_2level = cut(moisture_closest, breaks = c(0, 10.5, 100),
                                  labels = c("<10.5", "10.5+"),
                                  right = FALSE),
@@ -151,25 +85,16 @@ analysis_data <- exposure_analysis_data_short %>%
          temp_perc_30_2level = cut(temp_perc_30, breaks = c(0, 10, 100),
                                  labels = c("<10", "10+"),
                                  right = FALSE)) %>% 
-  group_by(home) %>% 
-  mutate(residents_smoke = if_else(winter_id == 1 & is.na(residents_smoke),
-                                   lead(residents_smoke), residents_smoke)) %>% 
-  ungroup() %>% 
-  left_join(sums_temp_change, by = c("area", "home", "home_winter_id")) %>% 
-  left_join(ambient_data, by = c("area", "home")) %>% 
-  select(-starts_with("home_act")) %>% 
-  left_join(home_activity_data, by = c("area", "home", "home_winter_id")) %>% 
-  replace_with_na(replace = list(mean_temp_sampling_period_5 = "NaN")) %>% 
-  mutate(home_act_door_2level = cut(home_act_door, breaks = c(0, 1, 7),
+  mutate(home_act_door_2level = cut(home_act_door_sum, breaks = c(0, 1, 7),
                                  labels = c("<1", "1+"),
                                  right = FALSE),
-         home_act_smoke_2level = cut(home_act_smoking, breaks = c(0, 1, 7),
+         home_act_smoke_2level = cut(home_act_smoking_sum, breaks = c(0, 1, 7),
                                  labels = c("<1", "1+"),
                                  right = FALSE),
-         home_act_windows_2level = cut(home_act_windows, breaks = c(0, 1, 7),
+         home_act_windows_2level = cut(home_act_windows_sum, breaks = c(0, 1, 7),
                                  labels = c("<1", "1+"),
                                  right = FALSE),
-         home_act_sweep_2level = cut(home_act_sweep, breaks = c(0, 3, 7),
+         home_act_sweep_2level = cut(home_act_sweep_sum, breaks = c(0, 3, 7),
                                  labels = c("<3", "3+"),
                                  right = FALSE))
 ```
