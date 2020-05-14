@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge health datasets"
 author: "Ethan Walker"
-date: "Started 27 March 2020, Updated 22 April 2020"
+date: "Started 27 March 2020, Updated 14 May 2020"
 output: pdf_document
 ---
 
@@ -104,8 +104,8 @@ health_merged6 <- health_merged5 %>%
   ungroup() 
 
 
-#write_rds(health_merged6, paste0(output_path, "Output/health_data_merged.rds"))
-#write_csv(health_merged6, paste0(output_path, "Output/health_data_merged.csv"))
+write_rds(health_merged6, paste0(output_path, "Output/health_data_merged.rds"))
+write_csv(health_merged6, paste0(output_path, "Output/health_data_merged.csv"))
 ```
 
 

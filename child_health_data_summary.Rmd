@@ -28,11 +28,13 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 ```{r}
 # Load data
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
-demographics_clean <- read_rds("Output/demographics_clean.rds")
-pm_clean <- read_rds("Output/pm_clean.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-kids_med_visit <- read_rds("Output/kids_med_visit.rds") 
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+demographics_clean <- read_rds(paste0(file_path, "Output/demographics_clean.rds"))
+pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
+
+kids_med_visit <- read_rds(paste0(file_path, "Output/kids_med_visit.rds")) 
 ```
 
 

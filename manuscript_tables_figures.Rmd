@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 13 May 2020, Updated 13 May 2020"
+date: "Started 13 May 2020, Updated 14 May 2020"
 output:
   powerpoint_presentation: default
 ---
@@ -196,4 +196,49 @@ num_funct_total("residents_under_five")
 num_funct_area("residents_under_five")
 num_funct_total("home_bedrooms")
 num_funct_area("home_bedrooms")
+num_funct_total("pm_mean_sampling_period")
+num_funct_area("pm_mean_sampling_period")
+num_funct_total("pm_sample_interval")
+num_funct_area("pm_sample_interval")
+num_funct_total("moisture_closest")
+num_funct_area("moisture_closest")
+num_funct_total("temp_indoor_max")
+num_funct_area("temp_indoor_max")
+num_funct_total("rh_indoor_max")
+num_funct_area("rh_indoor_max")
+num_funct_total("mean_temp")
+num_funct_area("mean_temp")
+num_funct_total("amb_pm_24hr")
+num_funct_area("amb_pm_24hr")
 ```
+
+
+```{r}
+other_vars_total <- exposure_analysis_data_short %>% 
+  rename(new_var = home_act_sweep_sum) %>% 
+  mutate(new_var = as.numeric(new_var)) %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  arrange(new_var) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  filter(!is.na(new_var)) %>% 
+  select(area, home, new_var) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+other_vars_total
+
+other_vars_area <- exposure_analysis_data_short %>% 
+  rename(new_var = home_act_sweep_sum) %>% 
+  mutate(new_var = as.numeric(new_var)) %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  arrange(new_var) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  filter(!is.na(new_var)) %>% 
+  select(area, home, new_var) %>% 
+  group_by(area) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+other_vars_area
+```
+

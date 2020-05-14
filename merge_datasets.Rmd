@@ -22,14 +22,14 @@ library(zoo)
 output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 pm_clean <- 
-  read_rds(paste0(output_path, "Output/pm_clean.rds"))
+  read_rds(paste0(output_path, "Output/pm_clean.rds")) 
 sums_clean <- 
   read_rds(paste0(output_path, "Output/sums_clean.rds"))
 
 kids_linked_ids <- 
   read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
 demographics_clean <- 
-  read_rds(paste0(output_path, "Output/demographics_clean.rds"))
+  read_rds(paste0(output_path, "Output/demographics_clean.rds")) 
 moisture_clean <- 
   read_rds(paste0(output_path, "Output/moisture_clean.rds"))
 indoor_temp_rh_clean <- 
@@ -37,7 +37,7 @@ indoor_temp_rh_clean <-
 stove_use_clean <- 
   read_rds(paste0(output_path, "Output/stove_use_clean.rds"))
 stove_grades_clean <- 
-  read_rds(paste0(output_path, "Output/stove_grades_clean.rds"))
+  read_rds(paste0(output_path, "Output/stove_grades_clean.rds")) 
 home_char_clean <- 
   read_rds(paste0(output_path, "Output/home_char_clean.rds"))
 home_act_clean <- 
@@ -72,7 +72,7 @@ pm_join <- pm_clean %>%
          pm_total_observations, pm_mean_sampling_period, sampling_day, 
          pm_mean_sampling_day, pm_first_datetime, pm_last_datetime,
          sample_date, pm_mean_daily, pm_daily_obs, pm_spike_1000,
-         pm_spike_2000, pm_spike_5000) %>% 
+         pm_spike_2000, pm_spike_5000, pm_sample_interval) %>% 
   group_by(area, home) %>% 
   distinct(sample_date, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -158,6 +158,11 @@ analysis_data1 <- home_act_clean %>%
 
 
 analysis_data2 <- demographics_clean %>% 
+  mutate(residents_under_five = if_else(residents_under_five == 0 & age_child_nov != 4, "NA", residents_under_five),
+         residents_under_five = if_else(residents_under_five == 0 & child_id_char == "WMA673B", "NA", residents_under_five)) %>% 
+  replace_with_na(replace = list(total_residents = "0")) %>% 
+  replace_with_na(replace = list(total_residents = "1")) %>% 
+  replace_with_na(replace = list(residents_under_five = "NA")) %>% 
   full_join(analysis_data1, by = c("area", "home", "home_winter_id", 
                                     "winter_id", "treatment")) %>% 
   filter(!is.na(home_winter_id)) %>% 
@@ -376,8 +381,8 @@ analysis_data7 <- stove_use_clean %>%
 
 
 
-#write_rds(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.rds"))
-#write_csv(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.csv"))
+write_rds(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.rds"))
+write_csv(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.csv"))
 
 
 exposure_analysis_data_long <- 
@@ -417,7 +422,7 @@ exposure_analysis_data_long_new <- exposure_analysis_data_long %>%
   mutate(total_residents = if_else(home == "WMA438", "6", total_residents),
          total_residents = if_else(home == "WMA480" & winter_id == 1, "13", total_residents),
          total_residents_2level = fct_collapse(total_residents,
-                                    "<5" = c("1", "2", "3", "4"),
+                                    "<5" = c("2", "3", "4"),
                                     "5+" = c("5", "6", "7", "8", "9", "10",
                                              "11", "12", "13", "14")),
          total_residents_2level = factor(total_residents_2level, levels = c("<5", "5+")),
@@ -442,13 +447,15 @@ exposure_analysis_data_long_new <- exposure_analysis_data_long %>%
 
 
 
-#write_rds(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
-#write_csv(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.csv"))
+write_rds(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
+write_csv(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.csv"))
 ```
 
 
 # Convert long data to medium: only keeping days with PM sampling, repeated by child_id
 ```{r}
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 exposure_analysis_data_long_new <- 
   read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
 
@@ -470,13 +477,15 @@ exposure_analysis_data_medium <- exposure_analysis_data_long_new %>%
 
 
 
-#write_rds(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
-#write_csv(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.csv"))
+write_rds(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
+write_csv(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.csv"))
 ```
 
 
 # Convert medium data to short: only keeping 1 observation per sampling period, repeated by child_id
 ```{r}
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 exposure_analysis_data_medium <- 
   read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
 exposure_analysis_data_long <- 
@@ -600,8 +609,8 @@ exposure_analysis_data_short <- exposure_analysis_data_medium %>%
 
 
 
-#write_rds(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.rds"))
-#write_csv(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.csv"))
+write_rds(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.rds"))
+write_csv(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.csv"))
 ```
 
 
@@ -661,8 +670,8 @@ pm_sums_joined3 <- pm_sums_joined2 %>%
 
 
 
-#write_rds(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.rds"))
-#write_csv(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.csv"))
+write_rds(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+write_csv(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.csv"))
 ```
 
 

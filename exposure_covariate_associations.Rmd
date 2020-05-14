@@ -104,7 +104,7 @@ analysis_function <- function(covar, label,
                               dataset = analysis_data){
   
   analysis_data <- dataset %>% 
-    filter(winter_id == 1 & treatment == "Placebo") %>% 
+    filter(winter_id == 1 & treatment == "Placebo" & area == "WMT") %>% 
     group_by(area, home) %>% 
     distinct(home, .keep_all = TRUE) %>% 
     rename(analysis_covar = covar) %>% 

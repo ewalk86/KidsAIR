@@ -27,9 +27,11 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load dataset
-home_char_clean <- read_rds("Output/home_char_clean.rds") 
-home_act_clean <- read_rds("Output/home_act_clean.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+home_char_clean <- read_rds(paste0(file_path, "Output/home_char_clean.rds")) 
+home_act_clean <- read_rds(paste0(file_path, "Output/home_act_clean.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 #pm_clean <- read_rds("Output/pm_clean.rds")
 ```
 

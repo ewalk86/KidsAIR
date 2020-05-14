@@ -237,7 +237,7 @@ missing_hist
 
 # Summary Statistics
 missing_summary <- selected_vars %>% 
-  mutate(missing_var = if_else(is.na(stove_age_3level), "missing yes", "missing no")) %>%
+  mutate(missing_var = if_else(is.na(stove_grade_3level), "missing yes", "missing no")) %>%
   group_by(area, missing_var) %>% 
   summarize(n = n(),
             mean_pm = mean(pm_mean_sampling_period, na.rm = TRUE), 
@@ -252,7 +252,7 @@ missing_summary
 
 # T-tests
 missing_test <- selected_vars %>% 
-  mutate(missing_var = if_else(is.na(stove_age_3level), "missing yes", "missing no")) %>% 
+  mutate(missing_var = if_else(is.na(stove_grade_3level), "missing yes", "missing no")) %>% 
   filter(!is.na(log_pm_mean_sampling_period) & !is.na(missing_var))
 
 
@@ -277,9 +277,9 @@ complete_case <- selected_vars %>%
 missing_summary <- complete_case %>% 
   group_by(area) %>% 
   summarize(n = n(),
-            mean_var = mean(pm_mean_sampling_period, na.rm = TRUE), 
-            sd_var = sd(pm_mean_sampling_period, na.rm = TRUE),
-            median_var = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+            mean_var = mean(mean_temp_sampling_period_5, na.rm = TRUE), 
+            sd_var = sd(mean_temp_sampling_period_5, na.rm = TRUE),
+            median_var = median(mean_temp_sampling_period_5, na.rm = TRUE)) %>% 
   group_by(area) %>% 
   select(area, n, mean_var, sd_var, median_var)
 missing_summary
@@ -301,9 +301,9 @@ missing_data <- selected_vars %>%
 missing_summary <- missing_data %>% 
   group_by(area) %>% 
   summarize(n = n(),
-            mean_var = mean(pm_mean_sampling_period, na.rm = TRUE), 
-            sd_var = sd(pm_mean_sampling_period, na.rm = TRUE),
-            median_var = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+            mean_var = mean(mean_temp_sampling_period_5, na.rm = TRUE), 
+            sd_var = sd(mean_temp_sampling_period_5, na.rm = TRUE),
+            median_var = median(mean_temp_sampling_period_5, na.rm = TRUE)) %>% 
   group_by(area) %>% 
   select(area, n, mean_var, sd_var, median_var)
 missing_summary
@@ -335,9 +335,9 @@ imputed_data <- mice(selected_vars, m=10, maxit = 40,
                                 "polr", "polr", "logreg", "logreg", "logreg",
                                 "pmm", "pmm", "pmm", "polr", "pmm"))
 
-write_rds(imputed_data, paste0(file_path, "Output/imputed_exposure_data_7may2020.rds"))
+write_rds(imputed_data, paste0(file_path, "Output/imputed_exposure_data_14may2020.rds"))
 
-imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_7may2020.rds"))
+imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_14may2020.rds"))
 
 # Compare imputed summary to original summary
 summary(selected_vars)
@@ -390,11 +390,11 @@ model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
                   outcome = "log_pm_mean_sampling_period", 
                   method = "MA.criterion", criterion = "AIC", print.time = TRUE)
 
-write_rds(model_ave, paste0(file_path, "Output/imputed_exposure_model_7may2020.rds"))
+write_rds(model_ave, paste0(file_path, "Output/imputed_exposure_model_14may2020.rds"))
 
-exposure_model <- read_rds(paste0(file_path, "Output/imputed_exposure_model_7may2020.rds"))
+exposure_model <- read_rds(paste0(file_path, "Output/imputed_exposure_model_14may2020.rds"))
 
-summary(test_model_results)
+summary(model_ave)
 
 # plot(model_ave) # only used when bootstrap used in mami
 
