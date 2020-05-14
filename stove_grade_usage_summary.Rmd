@@ -23,11 +23,13 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load data
-stove_grades_clean <- read_rds("Output/stove_grades_clean.rds") 
-stove_use_clean <- read_rds("Output/stove_use_clean.rds")
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") 
-demographics_clean <- read_rds("Output/demographics_clean.rds")
-#pm_clean <- read_rds("Output/pm_clean.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+stove_grades_clean <- read_rds(paste0(file_path, "Output/stove_grades_clean.rds")) 
+stove_use_clean <- read_rds(paste0(file_path, "Output/stove_use_clean.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+demographics_clean <- read_rds(paste0(file_path, "Output/demographics_clean.rds"))
+#pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
 ```
 
 
