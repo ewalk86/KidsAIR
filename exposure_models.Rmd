@@ -399,6 +399,16 @@ summary(model_ave)
 # plot(model_ave) # only used when bootstrap used in mami
 
 print(exposure_model)
+
+# Exponentiate results for manuscript tables
+exp_results <- as.data.frame(exposure_model$coefficients.s) %>% 
+  rownames_to_column() %>% 
+  mutate(estimate = round((exp(Estimate)-1)*100, digits = 2),
+         ci_low = round((exp(`Lower CI`)-1)*100, digits = 2),
+         ci_hi = round((exp(`Upper CI`)-1)*100, digits = 2)) %>% 
+  select(rowname, estimate, ci_low, ci_hi)
+
+exp_results
 ```
 
 

@@ -111,14 +111,14 @@ analysis_function <- function(covar, label,
     ungroup() %>% 
     select(pm_mean_sampling_period, analysis_covar) 
   
-  analysis_results <- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
+  analysis_results <<- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
   
   tidy_results <<- tidy(analysis_results, conf.int = TRUE) %>% 
     filter(term != '(Intercept)') %>% 
-    mutate(Estimate = round(estimate, digits = 2),
+    mutate(Estimate = round((exp(estimate)-1)*100, digits = 2),
            'P-value' = round(p.value, digits = 2),
-           'Upper 95% CL' = round(conf.high, digits = 2),
-           'Lower 95% CL' = round(conf.low, digits = 2),
+           'Upper 95% CL' = round((exp(conf.high)-1)*100, digits = 2),
+           'Lower 95% CL' = round((exp(conf.low)-1)*100, digits = 2),
            Term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
     select(Term, Estimate, 'Lower 95% CL', 'Upper 95% CL', 'P-value')
   
