@@ -28,8 +28,33 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 ```{r}
 # Load data
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-pm_clean <- read_rds(paste0(output_path, "Output/pm_clean.rds"))
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
+
+exposure_analysis_data_long <- 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
+
+exposure_analysis_data_medium <- 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds")) 
+
+exposure_analysis_data_short <- 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_short.rds"))
+
+sums_rolling_pm_data <- 
+  read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
+```
+
+
+```{r}
+# home that exceed PM guidelines
+pm_guidelines <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(pm_mean_sampling_period > 35) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  group_by(area) %>% 
+  count()
+pm_guidelines
 ```
 
 \pagebreak

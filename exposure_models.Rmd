@@ -376,6 +376,8 @@ stripplot(imputed_data)
 # Can do regression on the imputed data - either pooled or individual datasets
 ```
 
+
+
 The above seems to be a good method of imputing the missing data, so moving on 
 to model selection/averaging
 
@@ -410,6 +412,25 @@ exp_results <- as.data.frame(exposure_model$coefficients.s) %>%
 
 exp_results
 ```
+
+```{r}
+# Look at R^2 for final selected model
+model_results <- lm(log_pm_mean_sampling_period ~
+                      income_3level +
+                      residents_smoke +
+                      home_year_built_2level +
+                      home_floors_2level + 
+                      home_pets_2level +
+                      chimney_clean_3level +
+                      home_fireplace +
+                      wood_collect_2level +
+                      sums_events_sampling_period +
+                      mean_temp_sampling_period_5,
+                      data = imputed_exposure_data$data)
+
+summary(model_results)
+```
+
 
 
 ##################### 

@@ -57,15 +57,16 @@ sums_rolling_pm_data <-
 # number of placebo households, total and by area
 placebo_homes <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
+  #filter(treatment == "Placebo") %>% 
   distinct(home, .keep_all = TRUE) %>%
   count(area)
 placebo_homes
 
 # number of placebo households, total and by area
 treatment_homes <- health_exposure_data_sampling_day %>% 
-  filter(winter_id == 1) %>% 
+  filter(winter_id == 2) %>% 
   distinct(home, .keep_all = TRUE) %>% 
+  group_by(area) %>% 
   count(treatment)
 treatment_homes
 
@@ -74,6 +75,7 @@ treatment_kids <- health_exposure_data_sampling_day %>%
   filter(winter_id == 2) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   filter(!is.na(child_id_num)) %>% 
+  group_by(area) %>% 
   count(treatment)
 treatment_kids
 ```
