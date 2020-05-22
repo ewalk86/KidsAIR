@@ -462,14 +462,16 @@ kids_pm_new <-
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "501", location = "WMT")
+pm_time_plot_function(id = "259", location = "WMT")
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
 
+ggsave("wmt_hwid259_high_pm.jpeg")
+
 # filter data for a single home
 check_data <- kids_pm %>% 
-  filter(area == "WMT" & home_winter_id == "129") %>% 
+  filter(area == "WMT" & home_winter_id == "137") %>% 
   filter(pm < 0)
 ```
 

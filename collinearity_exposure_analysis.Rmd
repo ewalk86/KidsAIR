@@ -52,7 +52,8 @@ health_exposure_data_sampling_day <-
 ```{r, eval=TRUE, include=TRUE}
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(winter_id == 1 & treatment == "Placebo" & area == "WMT") %>% 
+  filter(home != "WMA300") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -118,20 +119,19 @@ https://www.theanalysisfactor.com/eight-ways-to-detect-multicollinearity/
 # Filter data for specific variables; select pm variable
 pm_mean_sampling_period <- analysis_data %>% 
   select(pm_mean_sampling_period, 
-         income_3level, 
+         income_3level,
          residents_smoke,
-         home_year_built_2level,
          home_floors_2level, 
+         home_sqft_2level,
          home_pets_2level,
-         stove_age_3level,
+         stove_age_3level, 
          chimney_clean_3level, 
-         home_fireplace,
          wood_collect_2level,
          moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
-         amb_pm_sampling_period_5,
-         stove_grade_3level) %>% 
+         stove_grade_3level,
+         home_fireplace) %>% 
   #mutate(area = factor(area)) %>% 
   mutate_all(as.numeric) %>% 
   filter(!is.na(pm_mean_sampling_period)) %>% 
@@ -141,20 +141,19 @@ pm_mean_sampling_period <- analysis_data %>%
 # Filter data for specific variables; select predictor variables
 other_vars <- analysis_data %>% 
   select(pm_mean_sampling_period, 
-         income_3level, 
+         income_3level,
          residents_smoke,
-         home_year_built_2level,
          home_floors_2level, 
+         home_sqft_2level,
          home_pets_2level,
-         stove_age_3level,
+         stove_age_3level, 
          chimney_clean_3level, 
-         home_fireplace,
          wood_collect_2level,
          moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
-         amb_pm_sampling_period_5,
-         stove_grade_3level) %>% 
+         stove_grade_3level,
+         home_fireplace) %>% 
   #mutate(area = factor(area)) %>% 
   mutate_all(as.numeric) %>% 
   filter(!is.na(pm_mean_sampling_period)) %>% 
@@ -177,21 +176,20 @@ Initially assessed the following variables for collinearity, based on simple
 associations with mean PM over the sampling period:
          pm_mean_sampling_period, income_3level, area,
          residents_smoke,
-         home_floors_2level, 
+         home_floors_2level, home_sqft_2level,
          home_pets_2level,
          stove_age_3level, chimney_clean_3level, 
-         stove_cert, home_mold,
+         stove_cert, 
          wood_collect_2level,
          moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
          amb_pm_sampling_period_5,
          home_act_smoke_2level, 
-         home_act_door_2level,
          stove_grade_3level,
-         race_parent_2level, home_damp, 
-         temp_max_5, home_act_gas, home_type_2level, 
-         home_windows_2level, home_fireplace 
+         race_parent_2level, residents_under5_2level,
+         home_type_2level, 
+         home_fireplace 
 
 The goal is to remove variables that have overlap, and parse the covariates
 down to a reasonable number that a best-subsets selection method can handle.

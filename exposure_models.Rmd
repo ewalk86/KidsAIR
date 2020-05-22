@@ -55,6 +55,7 @@ health_exposure_data_sampling_day <-
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -170,23 +171,22 @@ library(mice)
 
 # Select analysis vars
 selected_vars <- analysis_data %>% 
-  filter(area == "WMT") %>% 
-  select(pm_mean_sampling_period, 
-         income_3level, 
+  #filter(area == "NN") %>% 
+  select(pm_mean_sampling_period,
+         income_3level,
          residents_smoke,
-         home_year_built_2level,
          home_floors_2level, 
+         home_sqft_2level,
          home_pets_2level,
-         stove_age_3level,
+         stove_age_3level, 
          chimney_clean_3level, 
-         home_fireplace,
          wood_collect_2level,
          moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
-         amb_pm_sampling_period_5,
-         stove_grade_3level) %>% 
-  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>% 
+         stove_grade_3level,
+         home_fireplace) %>% 
+  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>%  
   select(-pm_mean_sampling_period) 
 ```
 
@@ -208,7 +208,7 @@ Document missing data thoroughly for manuscript
 str(selected_vars)
 
 # Check % missing data
-mean(is.na(selected_vars)) # 10%
+mean(is.na(selected_vars)) # 10.7% for WMT
 
 # Using mice package
 
@@ -248,11 +248,12 @@ missing_summary <- selected_vars %>%
          perc_miss = n/total_n*100) %>% 
   select(area, missing_var, n, perc_miss, mean_pm, sd_pm, median_pm)
 missing_summary
+```
 
-
+```{r}
 # T-tests
 missing_test <- selected_vars %>% 
-  mutate(missing_var = if_else(is.na(stove_grade_3level), "missing yes", "missing no")) %>% 
+  mutate(missing_var = if_else(is.na(residents_smoke), "missing yes", "missing no")) %>% 
   filter(!is.na(log_pm_mean_sampling_period) & !is.na(missing_var))
 
 
@@ -277,9 +278,9 @@ complete_case <- selected_vars %>%
 missing_summary <- complete_case %>% 
   group_by(area) %>% 
   summarize(n = n(),
-            mean_var = mean(mean_temp_sampling_period_5, na.rm = TRUE), 
-            sd_var = sd(mean_temp_sampling_period_5, na.rm = TRUE),
-            median_var = median(mean_temp_sampling_period_5, na.rm = TRUE)) %>% 
+            mean_var = mean(pm_mean_sampling_period, na.rm = TRUE), 
+            sd_var = sd(pm_mean_sampling_period, na.rm = TRUE),
+            median_var = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
   group_by(area) %>% 
   select(area, n, mean_var, sd_var, median_var)
 missing_summary
@@ -301,9 +302,9 @@ missing_data <- selected_vars %>%
 missing_summary <- missing_data %>% 
   group_by(area) %>% 
   summarize(n = n(),
-            mean_var = mean(mean_temp_sampling_period_5, na.rm = TRUE), 
-            sd_var = sd(mean_temp_sampling_period_5, na.rm = TRUE),
-            median_var = median(mean_temp_sampling_period_5, na.rm = TRUE)) %>% 
+            mean_var = mean(pm_mean_sampling_period, na.rm = TRUE), 
+            sd_var = sd(pm_mean_sampling_period, na.rm = TRUE),
+            median_var = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
   group_by(area) %>% 
   select(area, n, mean_var, sd_var, median_var)
 missing_summary
@@ -332,12 +333,12 @@ set.seed(123)
 # Impute missing data; m = 10 datasets (check % missing data and match)
 imputed_data <- mice(selected_vars, m=10, maxit = 40,
                      method = c("polr", "logreg", "logreg", "logreg", "logreg",
-                                "polr", "polr", "logreg", "logreg", "logreg",
-                                "pmm", "pmm", "pmm", "polr", "pmm"))
+                                "polr", "polr", "logreg", "logreg", "pmm",
+                                "pmm", "polr", "logreg", "pmm"))
 
-write_rds(imputed_data, paste0(file_path, "Output/imputed_exposure_data_14may2020.rds"))
+write_rds(imputed_data, paste0(file_path, "Output/imputed_exposure_data_22may2020.rds"))
 
-imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_14may2020.rds"))
+imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_22may2020.rds"))
 
 # Compare imputed summary to original summary
 summary(selected_vars)
@@ -392,9 +393,9 @@ model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
                   outcome = "log_pm_mean_sampling_period", 
                   method = "MA.criterion", criterion = "AIC", print.time = TRUE)
 
-write_rds(model_ave, paste0(file_path, "Output/imputed_exposure_model_14may2020.rds"))
+write_rds(model_ave, paste0(file_path, "Output/imputed_exposure_model_22may2020.rds"))
 
-exposure_model <- read_rds(paste0(file_path, "Output/imputed_exposure_model_14may2020.rds"))
+exposure_model <- read_rds(paste0(file_path, "Output/imputed_exposure_model_22may2020.rds"))
 
 summary(model_ave)
 
@@ -416,16 +417,9 @@ exp_results
 ```{r}
 # Look at R^2 for final selected model
 model_results <- lm(log_pm_mean_sampling_period ~
-                      income_3level +
                       residents_smoke +
-                      home_year_built_2level +
-                      home_floors_2level + 
-                      home_pets_2level +
                       chimney_clean_3level +
-                      home_fireplace +
-                      wood_collect_2level +
-                      sums_events_sampling_period +
-                      mean_temp_sampling_period_5,
+                      stove_grade_3level,
                       data = imputed_exposure_data$data)
 
 summary(model_results)

@@ -53,6 +53,7 @@ health_exposure_data_sampling_day <-
 ####### Format full data to use for analysis
 analysis_data <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -112,6 +113,9 @@ analysis_function <- function(covar, label,
     select(pm_mean_sampling_period, analysis_covar) 
   
   analysis_results <<- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
+  
+  print(table(model.frame(analysis_results)$analysis_covar))
+  #print(nobs(analysis_results))
   
   tidy_results <<- tidy(analysis_results, conf.int = TRUE) %>% 
     filter(term != '(Intercept)') %>% 

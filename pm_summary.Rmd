@@ -47,14 +47,65 @@ sums_rolling_pm_data <-
 
 
 ```{r}
-# home that exceed PM guidelines
+# homes that exceed PM guidelines
 pm_guidelines <- exposure_analysis_data_short %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   filter(pm_mean_sampling_period > 35) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   group_by(area) %>% 
   count()
 pm_guidelines
+
+
+#Pm by different levels of covariates
+pm_check <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  group_by(chimney_clean_3level) %>% 
+  summarize("n" = n(),
+            "Mean PM" = round(mean(pm_mean_sampling_period, na.rm = TRUE)), 
+            "SD PM" = round(sd(pm_mean_sampling_period, na.rm = TRUE)),
+            "Min PM" = round(min(pm_mean_sampling_period, na.rm = TRUE)), 
+            "25%" = round(quantile(pm_mean_sampling_period, 0.25, na.rm = TRUE)),
+            "Median PM" = round(median(pm_mean_sampling_period, na.rm = TRUE)),
+            "75%" = round(quantile(pm_mean_sampling_period, 0.75, na.rm = TRUE)),
+            "Max PM" = round(max(pm_mean_sampling_period, na.rm = TRUE)))
+pm_check
+
+
+# closer look at stove grade and PM
+pm_stove_grade <- exposure_analysis_data_short %>%
+  select(area, home, pm_mean_sampling_period, stove_grade_3level, 
+         treatment, winter_id, home_winter_id) %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate(stove_grade_2level = fct_collapse(stove_grade_3level,
+                                           "A" = "A",
+                                           "C or F" = c("C", "F"))) %>% 
+  group_by(stove_grade_2level) %>% 
+  summarize("n" = n(),
+            "Mean PM" = round(mean(pm_mean_sampling_period, na.rm = TRUE)), 
+            "SD PM" = round(sd(pm_mean_sampling_period, na.rm = TRUE)),
+            "Min PM" = round(min(pm_mean_sampling_period, na.rm = TRUE)), 
+            "25%" = round(quantile(pm_mean_sampling_period, 0.25, na.rm = TRUE)),
+            "Median PM" = round(median(pm_mean_sampling_period, na.rm = TRUE)),
+            "75%" = round(quantile(pm_mean_sampling_period, 0.75, na.rm = TRUE)),
+            "Max PM" = round(max(pm_mean_sampling_period, na.rm = TRUE)))
+pm_stove_grade
+
+model_data <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(area == "WMT") %>% 
+  filter(home != "WMA300") %>% 
+  distinct(home, .keep_all = TRUE)
+
+check_model <- lm(log(pm_mean_sampling_period) ~ stove_grade_3level,
+                  data = model_data)
+
+summary(check_model)
 ```
 
 \pagebreak

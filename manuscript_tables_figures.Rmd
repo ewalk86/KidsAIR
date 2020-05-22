@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 13 May 2020, Updated 14 May 2020"
+date: "Started 13 May 2020, Updated 22 May 2020"
 output:
   powerpoint_presentation: default
 ---
@@ -93,7 +93,8 @@ char_funct_total <- function(var, data = health_exposure_data_sampling_day){
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
+  filter(treatment == "Placebo") %>%
+  filter(home != "WMA300") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   mutate(total_n = n()) %>% 
@@ -113,6 +114,7 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   mutate(total_n = n()) %>% 
@@ -165,8 +167,10 @@ num_funct_total <- function(var, data = health_exposure_data_sampling_day){
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
+  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
@@ -179,10 +183,12 @@ demographics_summary
 num_funct_area <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
-  rename(new_var = var) %>% 
+  rename(new_var = var) %>%
   mutate(new_var = as.numeric(new_var)) %>% 
+  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
@@ -217,10 +223,11 @@ num_funct_area("amb_pm_24hr")
 
 ```{r}
 other_vars_total <- exposure_analysis_data_short %>% 
-  rename(new_var = home_act_sweep_sum) %>% 
+  rename(new_var = sums_events_sampling_period) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
@@ -230,10 +237,11 @@ other_vars_total <- exposure_analysis_data_short %>%
 other_vars_total
 
 other_vars_area <- exposure_analysis_data_short %>% 
-  rename(new_var = home_act_sweep_sum) %>% 
+  rename(new_var = sums_events_sampling_period) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   filter(winter_id == 1) %>% 
   filter(treatment == "Placebo") %>% 
+  filter(home != "WMA300") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
