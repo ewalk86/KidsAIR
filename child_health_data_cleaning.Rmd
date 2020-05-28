@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 22 April 2020"
+date: "Started 27 Feb 2020, Updated 28 May 2020"
 output: pdf_document 
 ---
 
@@ -41,6 +41,7 @@ wmt_athomelog_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_athomelog_20
          child_id_num = as.factor(ChildID),
          area = "WMT",
          at_home_day = as.factor(Day),
+         # rename columns and recode as factor
          at_home_7 = as.factor(AtHome1),
          location_7 = as.factor(Where1),
          at_home_8 = as.factor(AtHome2),
@@ -168,6 +169,7 @@ write_rds(kids_at_home_log, paste0(file_path, "Output/kids_at_home_log.rds"))
 
 # Format at-home-log and merge with PM data
 ```{r}
+# load data that was saved above
 kids_at_home_log <- 
   read_rds(paste0(file_path, "Output/kids_at_home_log.rds")) %>% 
   arrange(area, home_winter_id, at_home_day)
@@ -175,6 +177,7 @@ kids_at_home_log <-
 kids_at_home_log_new <- kids_at_home_log %>% 
   mutate(sampling_day = at_home_day) %>% 
   group_by(area, home_winter_id, child_id_num, sampling_day) %>% 
+  # recode factors so 1=home, 0=not home; add overnight hours
   mutate("00:00:00" = 1,
          "01:00:00" = 1,
          "02:00:00" = 1,
@@ -199,8 +202,11 @@ kids_at_home_log_new <- kids_at_home_log %>%
          "21:00:00" = as.numeric(at_home_21) - 1,
          "22:00:00" = as.numeric(at_home_22) - 1,
          "23:00:00" = 1) %>% 
+  # change data from wide to long, with row for hour of each day
   pivot_longer(cols = c("00:00:00":"23:00:00"), names_to = "sample_time",
                         values_to = "at_home") %>% 
+  # fill in overnight hours with assumption that child was home at night
+  # match hour of day with corresponding location from the log
   mutate("00:00:00" = "home",
          "01:00:00" = "home",
          "02:00:00" = "home",
@@ -236,6 +242,8 @@ kids_at_home_log_new <- kids_at_home_log %>%
   select(area, home, home_winter_id, child_id_num, winter_id, treatment,
          sampling_day, sample_time, at_home, at_home_location)  %>% 
   group_by(area, home_winter_id, child_id_num, sampling_day) %>% 
+  # recode overnight hours with assumption that child was at location they were
+  # at 10pm and 7am
   mutate(at_home = if_else(sample_time == "06:00:00", lead(at_home), at_home),
          at_home = if_else(sample_time == "05:00:00", lead(at_home), at_home),
          at_home = if_else(sample_time == "04:00:00", lead(at_home), at_home),
@@ -264,9 +272,10 @@ kids_at_home_log_new <- kids_at_home_log %>%
   ungroup() %>% 
   arrange(area, home_winter_id, child_id_num, sampling_day, sample_time)
 
-
+# start with cleaned PM dataset
 at_home_pm_merged <- pm_clean %>% 
   group_by(area, home) %>% 
+  # average the PM for sampling period, day, and hour
   mutate(pm_mean_sampling_period = mean(pm, na.rm = TRUE)) %>% 
   group_by(area, home, sampling_day) %>% 
   mutate(pm_mean_sampling_day = mean(pm, na.rm = TRUE),
@@ -277,6 +286,7 @@ at_home_pm_merged <- pm_clean %>%
   mutate(pm_mean_hour = mean(pm, na.rm = TRUE)) %>% 
   arrange(area, home_winter_id, sampling_day, desc(pm_spike_1000),
           desc(pm_spike_2000), desc(pm_spike_5000)) %>% 
+  # keep one observation per hour of sampling, with PM averaged
   distinct(sample_time, .keep_all = TRUE) %>% 
   ungroup() %>% 
   mutate(sampling_day = as.character(sampling_day)) %>% 
@@ -284,10 +294,12 @@ at_home_pm_merged <- pm_clean %>%
          sample_date, sample_time, pm_mean_hour, pm_mean_sampling_day, 
          pm_mean_sampling_period, day_of_week, pm_obs_sampling_day, 
          pm_spike_1000, pm_spike_2000, pm_spike_5000) %>% 
+  # join with at home log from above
   left_join(kids_at_home_log_new, 
             by = c("area", "home", "home_winter_id", "winter_id", "treatment",
                    "sampling_day", "sample_time")) %>% 
   group_by(area, home, home_winter_id, child_id_num, at_home) %>% 
+  # average PM during time child was at home
   mutate(pm_at_home_sampling_period = mean(pm_mean_hour, na.rm = TRUE)) %>% 
   group_by(area, home, home_winter_id, child_id_num, sampling_day, at_home) %>% 
   mutate(pm_at_home_sampling_day = mean(pm_mean_hour, na.rm = TRUE)) %>% 
@@ -309,6 +321,7 @@ write_csv(at_home_pm_merged, paste0(file_path, "Output/at_home_pm_merged.csv"))
 # Load and merge files from different locations
 ```{r}
 wmt_medicalvisit_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_medicalvisit_20200227.xlsx")) %>% 
+  # recode values to NA
   mutate(HRPulseOx = if_else(HRPulseOx < 50, -999, HRPulseOx),
          HR = if_else(HR < 50, -999, HR),
          SP02 = if_else(SP02 < 70, -999, SP02)) %>% 
@@ -334,7 +347,8 @@ wmt_medicalvisit_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_medicalvi
          med_visit_notes = as.character(Level)) %>% 
   # gather 3 temperatures to calculate average
   gather("sample", "value", c("temp1":"temp3")) %>% 
-  group_by(home_winter_id, child_id_num, med_visit_date) %>% 
+  group_by(home_winter_id, child_id_num, med_visit_date) %>%
+  # recode temps of <90 to NA
   mutate(value = if_else(value < 90, -99, value)) %>% 
   replace_with_na(replace = list(value = -99)) %>% 
   mutate(med_visit_mean_temp = mean(value, na.rm = TRUE)) %>% 
