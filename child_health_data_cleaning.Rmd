@@ -723,8 +723,7 @@ write_rds(kids_csq, paste0(file_path, "Output/kids_csq.rds"))
 ```
 
 ```{r}
-kids_csq <- read_rds(paste0(file_path, "Output/kids_csq.rds"))
-
+kids_csq <- read_rds(paste0(file_path, "Output/kids_csq.rds")) 
 
 save_var_names <- data.frame(t(wmt_csq_initial)) %>% 
   rownames_to_column() %>% 

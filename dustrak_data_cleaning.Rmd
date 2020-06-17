@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 14 Jan 2020"
+date: "Started 19 Nov 2019, Updated 16 June 2020"
 output: pdf_document
 ---
 
@@ -747,11 +747,11 @@ kids_pm_check <- kids_pm %>%
 
 # Join PM data with linked IDs and make new variables for spikes in PM
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 kids_pm <- 
-  read_rds(paste0(output_path, "Output/kids_pm_new4.rds")) 
+  read_rds(paste0(file_path, "Output/kids_pm_new4.rds")) 
 kids_linked_ids <- 
-  read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
+  read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 
 kids_pm_new5 <- kids_pm %>% 
   mutate(home_winter_id = as.character(home_winter_id)) %>% 
@@ -768,8 +768,8 @@ kids_pm_new5 <- kids_pm %>%
 
 # Save dataset
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-write_rds(kids_pm_new5, paste0(output_path, "Output/pm_clean.rds"))
+write_rds(kids_pm_new5, paste0(file_path, "Output/pm_clean.rds"))
 ```
 

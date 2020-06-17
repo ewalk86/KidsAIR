@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial home/child data work"
 author: "Ethan Walker"
-date: "Started 19 Nov 2019, Updated 12 May 2020"
+date: "Started 19 Nov 2019, Updated 16 June 2020"
 output: pdf_document
 ---
 
@@ -24,8 +24,8 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 # Load files 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > WMT > child.xlsx
-wmt_child_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_child_20191126.xlsx")) %>% 
+## FINAL DATA SETS > WMT > child
+wmt_child_initial <- read_csv(paste0(file_path, "Input/WMT/child.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   # filter(enrolled == 1) %>% # filter out kids who weren't enrolled
   select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
@@ -39,8 +39,8 @@ wmt_child_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_child_20191126.x
          race_child, age_child_nov, enrolled) 
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > WMT > home.xlsx
-wmt_home_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_home_20191126.xlsx")) %>% 
+## FINAL DATA SETS > WMT > home
+wmt_home_initial <- read_csv(paste0(file_path, "Input/WMT/home.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homeid, home, txcondition) %>% 
   mutate(home_id = as.character(homeid),
@@ -49,8 +49,8 @@ wmt_home_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_home_20191126.xls
   select(home_id, home, treatment)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > WMT > homewinter.xlsx
-wmt_homewinter_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_homewinter_20191126.xlsx")) %>% 
+## FINAL DATA SETS > WMT > homewinter
+wmt_homewinter_initial <- read_csv(paste0(file_path, "Input/WMT/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
   filter(winterid != 3) %>% # filter for winterid == 1 or 2. What about missing intervention date?
@@ -62,9 +62,9 @@ wmt_homewinter_initial <- read_xlsx(paste0(file_path, "Input/WMT/wmt_homewinter_
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > WMT > Home Data > parentdemographics.xlsx
+## FINAL DATA SETS > WMT > Home Data > parentdemographics
 wmt_parent_demographics_initial <-
-  read_xlsx(paste0(file_path, "Input/WMT/wmt_parent_demographics_20191126.xlsx")) %>% 
+  read_csv(paste0(file_path, "Input/WMT/parentdemographics.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   #filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
   select(homewinterid, gender, hispanic, race, income, education,
@@ -116,8 +116,8 @@ write_rds(wmt_child_demographics, paste0(file_path, "Output/wmt_demographic_data
 ```{r}
 # Load files
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > Navajo > child.xlsx
-nn_child_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_child_20191216.xlsx")) %>% 
+## FINAL DATA SETS > Navajo > child
+nn_child_initial <- read_xlsx(paste0(file_path, "Input/NN/child.xlsx"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   # filter(enrolled == 1) %>% # filter out kids who weren't enrolled
   select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
@@ -134,8 +134,8 @@ nn_child_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_child_20191216.xlsx
          race_child, age_child_nov, enrolled)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > Navajo > home.xlsx
-nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_home_20191216.xlsx")) %>% 
+## FINAL DATA SETS > Navajo > home
+nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/home.xlsx"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homeid, home, txcondition) %>% 
   mutate(home_id = as.character(homeid),
@@ -144,8 +144,8 @@ nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_home_20191216.xlsx")
   select(home_id, home, treatment)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > Navajo > homewinter.xlsx
-nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homewinter_20191216.xlsx")) %>% 
+## FINAL DATA SETS > Navajo > homewinter
+nn_homewinter_initial <- read_csv(paste0(file_path, "Input/NN/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -154,15 +154,14 @@ nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homewinter_201
          intervention_date = interventiondate,
          intervention_time = interventiontime) %>% 
   mutate(winter_id = as.numeric(winter_id),
-         winter_id = if_else(home_id == 62 | home_id == 45, winter_id + 1, winter_id),
          winter_id = as.character(winter_id)) %>% 
   filter(winter_id == 1 | winter_id ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > Navajo > Home Data > parentdemographics.xlsx
+## FINAL DATA SETS > Navajo > Home Data > parentdemographics
 nn_parent_demographics_initial <-
-  read_xlsx(paste0(file_path, "Input/NN/nn_parent_demographics_20191216.xlsx")) %>% 
+  read_csv(paste0(file_path, "Input/NN/parentdemographics.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   #filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
   select(homewinterid, gender, hispanic, race, income, education,
@@ -212,8 +211,8 @@ write_rds(nn_child_demographics, paste0(file_path, "Output/nn_demographic_data.r
 ```{r}
 # Load files 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > AK > child.xlsx
-ak_child_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_child_20191216.xlsx")) %>% 
+## FINAL DATA SETS > AK > child
+ak_child_initial <- read_xlsx(paste0(file_path, "Input/AK/child.xlsx"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   # filter(enrolled == 1) %>% # filter out kids who weren't enrolled
   select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
@@ -227,8 +226,8 @@ ak_child_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_child_20191216.xlsx
          race_child, age_child_nov, enrolled)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > AK > home.xlsx
-ak_home_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_home_20191216.xlsx")) %>% 
+## FINAL DATA SETS > AK > home
+ak_home_initial <- read_xlsx(paste0(file_path, "Input/AK/home.xlsx"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homeid, home, txcondition) %>% 
   mutate(home_id = as.character(homeid),
@@ -237,8 +236,8 @@ ak_home_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_home_20191216.xlsx")
   select(home_id, home, treatment)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > AK > homewinter.xlsx
-ak_homewinter_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_homewinter_20191216.xlsx")) %>% 
+## FINAL DATA SETS > AK > homewinter
+ak_homewinter_initial <- read_csv(paste0(file_path, "Input/AK/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
   filter(winterid != 3) %>% # filter for winterid == 1 or 2. What about missing intervention date?
@@ -250,9 +249,9 @@ ak_homewinter_initial <- read_xlsx(paste0(file_path, "Input/AK/ak_homewinter_201
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
-## 2019-November-Data > AK > Home Data > parentdemographics.xlsx
+## FINAL DATA SETS > AK > Home Data > parentdemographics
 ak_parent_demographics_initial <-
-  read_xlsx(paste0(file_path, "Input/AK/ak_parent_demographics_20191216.xlsx")) %>% 
+  read_csv(paste0(file_path, "Input/AK/parentdemographics.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   #filter(whatmissing != "all" | is.na(whatmissing)) %>%  # filter out if missing == "all"
   select(homewinterid, gender, hispanic, race, income, education,
@@ -310,7 +309,7 @@ kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %
   mutate(home_id = as.numeric(home_id)) %>% 
   filter(home_id < 1000) %>%
   mutate(home_id = as.character(home_id)) %>% 
-  # distinct(area, home_id)  # distinct homes in database = 360
+  # distinct(area, home_id)  # distinct homes in database = 390
   filter(!is.na(child_id_num)) %>% 
   # distinct(area, child_id_num, .keep_all = TRUE) %>%  # distinct kids in database = 512
   # distinct(area, home_id, .keep_all = TRUE) %>% # distinct homes with kids in databse = 340
@@ -330,11 +329,15 @@ nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds"))
 wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds"))
 
 kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
+  mutate(home = gsub("_", "", home)) %>% 
+  mutate(home = gsub("-", "", home)) %>% 
+  mutate(home = gsub(" ", "", home)) %>% 
   mutate(home_id = as.numeric(home_id)) %>% 
   filter(home_id < 1000) %>%  
   mutate(home_id = as.character(home_id)) %>% 
   # distinct(area, home_id)  # enrolled homes in database = 360
   filter(!is.na(treatment)) %>% 
+  filter(winter_id != 99) %>% 
   # distinct(area, home_id)  # randomized homes with treatment assignment = 342
   ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
   filter(home != "WMA222" & home != "WMA233") %>% 
@@ -349,24 +352,80 @@ write_rds(kids_ids, paste0(file_path, "Output/kids_linked_ids.rds"))
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-ak_demographics <- read_rds(paste0(file_path, "Output/ak_demographic_data.rds"))
-nn_demographics <- read_rds(paste0(file_path, "Output/nn_demographic_data.rds"))
-wmt_demographics <- read_rds(paste0(file_path, "Output/wmt_demographic_data.rds"))
+ak_demographics <- read_rds(paste0(file_path, "Output/ak_demographic_data.rds")) %>% 
+  mutate(intervention_date = mdy(intervention_date))
+nn_demographics <- read_rds(paste0(file_path, "Output/nn_demographic_data.rds")) %>% 
+  mutate(intervention_date = mdy(intervention_date))
+wmt_demographics <- read_rds(paste0(file_path, "Output/wmt_demographic_data.rds")) %>% 
+  mutate(intervention_date = ymd(intervention_date))
 
 kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %>% 
+  mutate(home = gsub("_", "", home)) %>% 
+  mutate(home = gsub("-", "", home)) %>% 
+  mutate(home = gsub(" ", "", home)) %>% 
   mutate(home_id = as.numeric(home_id)) %>% 
   filter(home_id < 1000) %>%
   mutate(home_id = as.character(home_id)) %>% 
   filter(!is.na(child_id_num)) %>% 
   filter(!is.na(treatment)) %>% 
-  separate(intervention_time, c("trash", "intervention_time"), sep = " ") %>% 
   unite(intervention_datetime, c("intervention_date", "intervention_time"),
         sep = " ", remove = FALSE) %>% 
   mutate(intervention_datetime = ymd_hms(intervention_datetime)) %>% 
-  select(-trash) %>% 
   ungroup() %>% 
   arrange(area, home, child_id_char)
 
-write_rds(kids_demographics, paste0(file_path, "Output/kids_combined_demographics.rds"))
+write_rds(kids_demographics, paste0(file_path, "Output/demographics_clean.rds"))
 ```
+
+# Check observations against documented reasons for dropping from study
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds")) 
+
+demographics_initial <- read_rds(paste0(file_path, "Output/demographics_clean.rds")) 
+
+
+# Checking observations against drop reasons from "KidsAIR reasons for dropping" excel file
+# Filter out observations below when participants had dropped and should not be in dataset
+demographics_check <- demographics_initial %>% 
+  filter(area == "AK") %>% 
+  arrange(home, child_id_char)
+
+# dropped before winter 1 - filter out
+filter_out_wmt <- c("WMA227", "WMA254", "WMA337", "WMA600", "WMA601")
+# missing winter 2 demographic data but had not dropped - don't filter out
+keep_winter_2_wmt <- c("WMA407", "WMA497", "WMA509")
+# NN homes with missing data but had not dropped - don't filter out
+keep_nn <- c("CH110", "TC359", "TC452", "TC453")
+
+demographics_new <- demographics_initial %>% 
+  filter(!home %in% filter_out_wmt) %>% 
+  mutate(keep_var_wmt = if_else(home %in% keep_winter_2_wmt & winter_id == 2, 1, 0),
+         filter_var_wmt = if_else(area == "WMT" & keep_var_wmt == 0 & winter_id == 2 & is.na(gender_parent), 1, 0)) %>% 
+  filter(filter_var_wmt == 0) %>% 
+  filter(home != "CH105") %>% 
+  mutate(keep_var_nn = if_else(home %in% keep_nn, 1, 0),
+         filter_var_nn = if_else(area == "NN" & keep_var_nn == 0 & is.na(gender_parent), 1, 0)) %>% 
+  filter(filter_var_nn == 0) %>% 
+  filter(home != "YKC19102") %>% 
+  filter(home != "YKC19104") %>% 
+  mutate(filter_var_ak = if_else(area == "AK" & is.na(gender_parent), 1, 0)) %>% 
+  filter(filter_var_ak == 0) %>%
+  mutate(treatment_assigned = as.character(treatment),
+         treatment_actual = as.character(treatment),
+         treatment_assigned = if_else(treatment == "Placebo - TX Education", "Placebo", treatment_actual)) %>% 
+  select(-treatment, -filter_var_wmt, -keep_var_wmt, -filter_var_nn, 
+         -keep_var_nn, -filter_var_ak) 
+
+write_rds(demographics_new, paste0(file_path, "Output/demographics_final.rds"))
+
+
+kids_linked_ids_new <- demographics_new %>% 
+  select(area, home, home_id, winter_id, home_winter_id, treatment_assigned, treatment_actual) %>% 
+  distinct(area, home, winter_id, .keep_all = TRUE) 
+
+write_rds(kids_linked_ids_new, paste0(file_path, "Output/kids_linked_ids_final.rds"))
+```
+
 

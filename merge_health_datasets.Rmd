@@ -56,6 +56,7 @@ health_merged1 <- kids_csq %>%
   select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
          treatment, csq_date:med_visit_mean_temp) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
+  distinct(child_id_num, visit_date, .keep_all = TRUE) %>% 
   ungroup()
 
 
@@ -84,17 +85,17 @@ health_merged4 <- health_merged3 %>%
   ungroup()
 
 
+#health_merged5 <- health_merged4 %>% 
+# left_join(kids_medical_records, by = c("area", "home", "home_winter_id", "winter_id", 
+#                                      "child_id_num", "treatment")) %>% 
+#  arrange(area, home, home_winter_id, winter_id, child_id_num, sample_date) %>% 
+#  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
+#         treatment, sample_date, sampling_day, at_home_location, 
+#         pm_at_home_sampling_day, pm_at_home_sampling_period, csq_date:med_rec_comments) %>% 
+#  ungroup()
+
+
 health_merged5 <- health_merged4 %>% 
-  left_join(kids_medical_records, by = c("area", "home", "home_winter_id", "winter_id", 
-                                      "child_id_num", "treatment")) %>% 
-  arrange(area, home, home_winter_id, winter_id, child_id_num, sample_date) %>% 
-  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
-         treatment, sample_date, sampling_day, at_home_location, 
-         pm_at_home_sampling_day, pm_at_home_sampling_period, csq_date:med_rec_comments) %>% 
-  ungroup()
-
-
-health_merged6 <- health_merged5 %>% 
   left_join(kids_lrti, by = c("area", "home", "home_winter_id", "winter_id", 
                                       "child_id_num", "treatment")) %>% 
   arrange(area, home, home_winter_id, winter_id, child_id_num, sample_date) %>% 
@@ -104,8 +105,8 @@ health_merged6 <- health_merged5 %>%
   ungroup() 
 
 
-write_rds(health_merged6, paste0(output_path, "Output/health_data_merged.rds"))
-write_csv(health_merged6, paste0(output_path, "Output/health_data_merged.csv"))
+write_rds(health_merged5, paste0(output_path, "Output/health_data_merged.rds"))
+write_csv(health_merged5, paste0(output_path, "Output/health_data_merged.csv"))
 ```
 
 
@@ -117,7 +118,7 @@ exposure_analysis_data_medium <-
   read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds")) 
 
 health_data_merged <- 
-  read_rds(paste0(output_path, "Output/health_data_merged.rds"))
+  read_rds(paste0(output_path, "Output/health_data_merged.rds")) 
 
 
 

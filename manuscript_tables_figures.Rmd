@@ -36,7 +36,8 @@ health_exposure_data_sampling_day <-
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 
 
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds")) 
+
 demographics_initial <- read_rds(paste0(file_path, "Output/demographics_clean.rds")) 
 
 exposure_analysis_data_long <- 
@@ -57,6 +58,8 @@ sums_rolling_pm_data <-
 # number of placebo households, total and by area
 placebo_homes <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1) %>% 
+  filter(area == "WMT") %>% 
+  select(area, home, home_id, winter_id, home_winter_id, treatment)
   #filter(treatment == "Placebo") %>% 
   distinct(home, .keep_all = TRUE) %>%
   count(area)
