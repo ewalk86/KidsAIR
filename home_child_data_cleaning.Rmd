@@ -53,7 +53,7 @@ wmt_home_initial <- read_csv(paste0(file_path, "Input/WMT/home.csv"), na = "NULL
 wmt_homewinter_initial <- read_csv(paste0(file_path, "Input/WMT/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
-  filter(winterid != 3) %>% # filter for winterid == 1 or 2. What about missing intervention date?
+  filter(winterid == 1 | winterid ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
   mutate(home_winter_id = as.character(homewinterid),
          home_id = as.character(homeid),
          winter_id = as.character(winterid),
@@ -155,7 +155,7 @@ nn_homewinter_initial <- read_csv(paste0(file_path, "Input/NN/homewinter.csv"), 
          intervention_time = interventiontime) %>% 
   mutate(winter_id = as.numeric(winter_id),
          winter_id = as.character(winter_id)) %>% 
-  filter(winter_id == 1 | winter_id ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
+  filter(winter_id == 0 | winter_id == 1 | winter_id ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
   select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
 
 ## Box location: All Files > NoonGroupData > KidsAIR > 
@@ -240,7 +240,7 @@ ak_home_initial <- read_xlsx(paste0(file_path, "Input/AK/home.xlsx"), na = "NULL
 ak_homewinter_initial <- read_csv(paste0(file_path, "Input/AK/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
   select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
-  filter(winterid != 3) %>% # filter for winterid == 1 or 2. What about missing intervention date?
+  filter(winterid == 1 | winterid ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
   mutate(home_winter_id = as.character(homewinterid),
          home_id = as.character(homeid),
          winter_id = as.character(winterid),
@@ -337,7 +337,6 @@ kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>%
   mutate(home_id = as.character(home_id)) %>% 
   # distinct(area, home_id)  # enrolled homes in database = 360
   filter(!is.na(treatment)) %>% 
-  filter(winter_id != 99) %>% 
   # distinct(area, home_id)  # randomized homes with treatment assignment = 342
   ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
   filter(home != "WMA222" & home != "WMA233") %>% 
@@ -389,7 +388,7 @@ demographics_initial <- read_rds(paste0(file_path, "Output/demographics_clean.rd
 # Checking observations against drop reasons from "KidsAIR reasons for dropping" excel file
 # Filter out observations below when participants had dropped and should not be in dataset
 demographics_check <- demographics_initial %>% 
-  filter(area == "AK") %>% 
+  filter(area == "NN") %>% 
   arrange(home, child_id_char)
 
 # dropped before winter 1 - filter out
@@ -397,7 +396,7 @@ filter_out_wmt <- c("WMA227", "WMA254", "WMA337", "WMA600", "WMA601")
 # missing winter 2 demographic data but had not dropped - don't filter out
 keep_winter_2_wmt <- c("WMA407", "WMA497", "WMA509")
 # NN homes with missing data but had not dropped - don't filter out
-keep_nn <- c("CH110", "TC359", "TC452", "TC453")
+keep_nn <- c("CH110", "CH209", "TC359", "TC452", "TC453")
 
 demographics_new <- demographics_initial %>% 
   filter(!home %in% filter_out_wmt) %>% 
@@ -408,13 +407,19 @@ demographics_new <- demographics_initial %>%
   mutate(keep_var_nn = if_else(home %in% keep_nn, 1, 0),
          filter_var_nn = if_else(area == "NN" & keep_var_nn == 0 & is.na(gender_parent), 1, 0)) %>% 
   filter(filter_var_nn == 0) %>% 
+  mutate(filter_var_nn = if_else(home == "CH209" & winter_id == 2, 1, 0)) %>% 
+  filter(filter_var_nn == 0) %>% 
   filter(home != "YKC19102") %>% 
   filter(home != "YKC19104") %>% 
   mutate(filter_var_ak = if_else(area == "AK" & is.na(gender_parent), 1, 0)) %>% 
   filter(filter_var_ak == 0) %>%
   mutate(treatment_assigned = as.character(treatment),
          treatment_actual = as.character(treatment),
-         treatment_assigned = if_else(treatment == "Placebo - TX Education", "Placebo", treatment_actual)) %>% 
+         treatment_assigned = if_else(treatment == "Placebo - TX Education", "Placebo", treatment_actual),
+         winter_id = as.factor(winter_id),
+         treatment_assigned = as.factor(treatment_assigned),
+         treatment_actual = as.factor(treatment_actual),
+         area = as.factor(area)) %>% 
   select(-treatment, -filter_var_wmt, -keep_var_wmt, -filter_var_nn, 
          -keep_var_nn, -filter_var_ak) 
 
@@ -428,4 +433,12 @@ kids_linked_ids_new <- demographics_new %>%
 write_rds(kids_linked_ids_new, paste0(file_path, "Output/kids_linked_ids_final.rds"))
 ```
 
+# Final check for home and child observations by winter and treatment
+```{r}
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) %>% 
+  count(area, winter_id, treatment_assigned)
+
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
+  count(area, winter_id, treatment_assigned)
+```
 

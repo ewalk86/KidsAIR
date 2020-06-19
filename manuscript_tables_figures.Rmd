@@ -36,9 +36,9 @@ health_exposure_data_sampling_day <-
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 
 
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds")) 
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
 
-demographics_initial <- read_rds(paste0(file_path, "Output/demographics_clean.rds")) 
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) 
 
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 

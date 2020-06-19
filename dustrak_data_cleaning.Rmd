@@ -751,7 +751,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 kids_pm <- 
   read_rds(paste0(file_path, "Output/kids_pm_new4.rds")) 
 kids_linked_ids <- 
-  read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+  read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"))
 
 kids_pm_new5 <- kids_pm %>% 
   mutate(home_winter_id = as.character(home_winter_id)) %>% 
@@ -762,6 +762,7 @@ kids_pm_new5 <- kids_pm %>%
          pm_spike_2000 = if_else(pm > 2000, "Yes", "No"),
          pm_spike_5000 = if_else(pm > 5000, "Yes", "No")) %>% 
   ungroup() %>% 
+  filter(home != "WMA300") %>%  # filtering out home with sampling issues after discussion with team
   arrange(area, home_winter_id, pm_datetime_new)
 ```
 
