@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 23 Dec 2019, Updated 6 Feb 2020"
+date: "Started 23 Dec 2019, Updated 22 June 2020"
 output: pdf_document
 ---
 
@@ -19,6 +19,7 @@ library(knitr)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 ```
 
 # Add linked IDs to WMT SUMs data logs
@@ -27,43 +28,44 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ### NoonanGroupData > KidsAIR > Ethan - data cleaning and analysis
 ```{r}
 # Input file from Box: ibutton.xlsx
-wmt_sums_data_log <- read_csv("Input/WMT/wmt_sums_data_log.csv") %>%
+wmt_sums_data_log <- read_csv(paste0(file_path, "Input/WMT/ibutton.csv"), 
+                              na = c("NULL", "")) %>%
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
          date_log = InstallDate,
          time_log = InstallTime) %>% 
   select(home_winter_id, ibid, date_log, time_log)
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) %>% 
   filter(area == "WMT") %>% 
   select(home_winter_id, winter_id, home, home_id) 
 
 wmt_sums_log <- wmt_sums_data_log %>% 
-  left_join(kids_linked_ids, by = "home_winter_id") %>% 
+  right_join(kids_linked_ids, by = "home_winter_id") %>% 
   select(home_winter_id, winter_id, home, home_id, date_log, time_log, ibid) %>% 
   arrange(home, date_log) %>% 
-  mutate(date_log = mdy(date_log))
+  mutate(date_log = ymd(date_log))
   
-write_rds(wmt_sums_log, "Output/wmt_sums_data_log.rds")
-write_csv(wmt_sums_log, "Output/wmt_sums_data_log.csv")
+write_rds(wmt_sums_log, paste0(file_path, "Output/wmt_sums_data_log.rds"))
+#write_csv(wmt_sums_log, paste0(file_path, "Output/wmt_sums_data_log.csv"))
 
 
 # Input file from Box: ibuttonupd.xlsx
-wmt_sums_data_log_updated <- read_csv("Input/WMT/wmt_sums_data_log_updated.csv") %>% 
+wmt_sums_data_log_updated <- read_csv(paste0(file_path, "Input/WMT/ibuttonupd.csv"), 
+                                      na = c("NULL", "")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
          time = ChangeTime,
          alarms = Alarms,
-         file_name = ibutFile,
-         notes = `REPLACE(REPLACE(Notes`) %>% 
-  select(home_winter_id, date, time, alarms, file_name, notes)
+         file_name = ibutFile) %>% 
+  select(home_winter_id, date, time, alarms, file_name)
 
 wmt_sums_log <- wmt_sums_data_log_updated %>% 
-  left_join(kids_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, home, home_id, date, time, alarms, file_name, notes) %>% 
+  right_join(kids_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, home, home_id, date, time, alarms, file_name) %>% 
   arrange(home, date)
 
-write_csv(wmt_sums_log, "Output/wmt_sums_data_log_updated.csv")
+# write_csv(wmt_sums_log, paste0(file_path, "Output/wmt_sums_data_log_updated.csv"))
 ```
 
 # Add linked IDs to NN SUMs data logs
@@ -72,44 +74,44 @@ write_csv(wmt_sums_log, "Output/wmt_sums_data_log_updated.csv")
 ### NoonanGroupData > KidsAIR > Ethan - data cleaning and analysis
 ```{r}
 # Input file from Box: ibutton.xlsx
-nn_sums_data_log <- read_xlsx("Input/NN/nn_sums_data_log.xlsx") %>% 
+nn_sums_data_log <- read_csv(paste0(file_path, "Input/NN/ibutton.csv"), 
+                              na = c("NULL", "")) %>%
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
          date_log = InstallDate,
          time_log = InstallTime) %>% 
   select(home_winter_id, ibid, date_log, time_log)
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) %>% 
   filter(area == "NN") %>% 
   select(home_winter_id, winter_id, home, home_id) 
 
 nn_sums_log <- nn_sums_data_log %>% 
-  left_join(kids_linked_ids, by = "home_winter_id") %>% 
+  right_join(kids_linked_ids, by = "home_winter_id") %>% 
   select(home_winter_id, winter_id, home, home_id, date_log, time_log, ibid) %>% 
   arrange(home, date_log) %>% 
-  separate(time_log, c("trash", "time_log"), sep = " ") %>% 
-  select(-trash)
+  mutate(date_log = ymd(date_log))
   
-write_rds(nn_sums_log, "Output/nn_sums_data_log.rds")
-write_csv(nn_sums_log, "Output/nn_sums_data_log.csv")
+write_rds(nn_sums_log, paste0(file_path, "Output/nn_sums_data_log.rds"))
+#write_csv(nn_sums_log, paste0(file_path, "Output/nn_sums_data_log.csv"))
 
 
 # Input file from Box: ibuttonupd.xlsx
-nn_sums_data_log_updated <- read_xlsx("Input/NN/nn_sums_data_log_updated.xlsx") %>% 
+nn_sums_data_log_updated <- read_csv(paste0(file_path, "Input/NN/ibuttonupd.csv"), 
+                                      na = c("NULL", "")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
          time = ChangeTime,
          alarms = Alarms,
-         file_name = ibutFile,
-         notes = IgnoreReason) %>% 
-  select(home_winter_id, date, time, alarms, file_name, notes)
+         file_name = ibutFile) %>% 
+  select(home_winter_id, date, time, alarms, file_name)
 
 nn_sums_log <- nn_sums_data_log_updated %>% 
-  left_join(kids_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, home, home_id, date, time, alarms, file_name, notes) %>% 
+  right_join(kids_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, home, home_id, date, time, alarms, file_name) %>% 
   arrange(home, date)
 
-write_csv(nn_sums_log, "Output/nn_sums_data_log_updated.csv")
+# write_csv(nn_sums_log, paste0(file_path, "Output/nn_sums_data_log_updated.csv"))
 ```
 
 # Add linked IDs to AK SUMs data logs
@@ -118,43 +120,44 @@ write_csv(nn_sums_log, "Output/nn_sums_data_log_updated.csv")
 ### NoonanGroupData > KidsAIR > Ethan - data cleaning and analysis
 ```{r}
 # Input file from Box: ibutton.xlsx
-ak_sums_data_log <- read_xlsx("Input/AK/ak_sums_data_log.xlsx") %>% 
+ak_sums_data_log <- read_csv(paste0(file_path, "Input/AK/ibutton.csv"), 
+                              na = c("NULL", "")) %>%
   mutate(home_winter_id = as.character(HomeWinterID),
          ibid = iButtonID,
          date_log = InstallDate,
          time_log = InstallTime) %>% 
-  separate(time_log, c("trash", "time_log"), sep = " ") %>% 
   select(home_winter_id, ibid, date_log, time_log)
 
-kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) %>% 
   filter(area == "AK") %>% 
   select(home_winter_id, winter_id, home, home_id) 
 
 ak_sums_log <- ak_sums_data_log %>% 
-  left_join(kids_linked_ids, by = "home_winter_id") %>% 
+  right_join(kids_linked_ids, by = "home_winter_id") %>% 
   select(home_winter_id, winter_id, home, home_id, date_log, time_log, ibid) %>% 
-  arrange(home, date_log)
+  arrange(home, date_log) %>% 
+  mutate(date_log = ymd(date_log))
   
-write_csv(ak_sums_log, "Output/ak_sums_data_log.csv")
-write_rds(ak_sums_log, "Output/ak_sums_data_log.rds")
+write_rds(ak_sums_log, paste0(file_path, "Output/ak_sums_data_log.rds"))
+#write_csv(ak_sums_log, paste0(file_path, "Output/ak_sums_data_log.csv"))
 
 
-# Input file from Box: ibutton.xlsx
-ak_sums_data_log_updated <- read_xlsx("Input/AK/ak_sums_data_log_updated.xlsx") %>% 
+# Input file from Box: ibuttonupd.xlsx
+ak_sums_data_log_updated <- read_csv(paste0(file_path, "Input/AK/ibuttonupd.csv"), 
+                                      na = c("NULL", "")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          date = ChangeDate,
          time = ChangeTime,
          alarms = Alarms,
-         file_name = ibutFile,
-         notes = IgnoreReason) %>% 
-  select(home_winter_id, date, time, alarms, file_name, notes)
+         file_name = ibutFile) %>% 
+  select(home_winter_id, date, time, alarms, file_name)
 
 ak_sums_log <- ak_sums_data_log_updated %>% 
-  left_join(kids_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, home, home_id, date, time, alarms, file_name, notes) %>% 
+  right_join(kids_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, home, home_id, date, time, alarms, file_name) %>% 
   arrange(home, date)
 
-write_csv(ak_sums_log, "Output/ak_sums_data_log_updated.csv")
+# write_csv(nn_sums_log, paste0(file_path, "Output/nn_sums_data_log_updated.csv"))
 ```
 
 # Initial load, format, and save KidsAIR WMT SUMs data
@@ -179,11 +182,11 @@ write_csv(ak_sums_log, "Output/ak_sums_data_log_updated.csv")
 ## I am confident in their formatting and content since I pulled the data
 ## from the original file type of the field instrument.
 ## The files have 5 columns: line, date, time, temp (C), notes
-list_csv_files <- list.files("Input/WMT/sums_csv_new")
+list_csv_files <- list.files(paste0(file_path, "Input/WMT/sums_csv_new"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 13 lines together
-setwd("Input/WMT/sums_csv_new") # set new working directory
+setwd(paste0(file_path, "Input/WMT/sums_csv_new")) # set new working directory
 initial_data = tibble(file_list = list_csv_files) %>% # use list of files from above
   extract(file_list, "home", remove = FALSE) %>% # extract file name, name "home"
   # apply read_csv function; name and format columns
@@ -224,11 +227,11 @@ wmt_sums_csv <- initial_data %>%
 # List files
 ## Only 1 file had this format: 
 ## a 21 row header, then columns of datetime and temp (C)
-list_csv_files_2 <- list.files("Input/WMT/sums_csv_old/format_1")
+list_csv_files_2 <- list.files(paste0(file_path, "Input/WMT/sums_csv_old/format_1"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 9 lines together
-setwd("Input/WMT/sums_csv_old/format_1")
+setwd(paste0(file_path, "Input/WMT/sums_csv_old/format_1"))
 initial_data = tibble(file_list = list_csv_files_2) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv, skip = 22,
@@ -265,11 +268,11 @@ wmt_sums_csv_2 <- initial_data %>%
 # List files
 ## Numerous files had this format: 
 ## 5 columns: line, date, time, temp (F), notes
-list_csv_files_3 <- list.files("Input/WMT/sums_csv_old/format_2")
+list_csv_files_3 <- list.files(paste0(file_path, "Input/WMT/sums_csv_old/format_2"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 12 lines together
-setwd("Input/WMT/sums_csv_old/format_2")
+setwd(paste0(file_path, "Input/WMT/sums_csv_old/format_2"))
 initial_data = tibble(file_list = list_csv_files_3) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv, skip = 2,
@@ -313,11 +316,11 @@ wmt_sums_csv_3 <- initial_data %>%
 # List files
 ## Numerous files had this format with a 16 row header
 ## 2 columns: datetime, temp (C)
-list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/header_skip16")
+list_xlsx_files <- list.files(paste0(file_path, "Input/WMT/sums_xlsx_files/header_skip16"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/WMT/sums_xlsx_files/header_skip16")
+setwd(paste0(file_path, "Input/WMT/sums_xlsx_files/header_skip16"))
 initial_data = tibble(file_list = list_xlsx_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx, skip = 16)) %>%
@@ -353,11 +356,11 @@ wmt_sums_xlsx <- initial_data %>%
 # List files
 ## 6 files had this format with a 21 row header
 ## 2 columns: datetime, temp (C)
-list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/header_skip21")
+list_xlsx_files <- list.files(paste0(file_path, "Input/WMT/sums_xlsx_files/header_skip21"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/WMT/sums_xlsx_files/header_skip21")
+setwd(paste0(file_path, "Input/WMT/sums_xlsx_files/header_skip21"))
 initial_data = tibble(file_list = list_xlsx_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx, skip = 21)) %>%
@@ -393,11 +396,11 @@ wmt_sums_xlsx2 <- initial_data %>%
 # List files
 ## Numerous files had this format with no header
 ## 2 columns: datetime, temp (C)
-list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/no_header_2col_c")
+list_xlsx_files <- list.files(paste0(file_path, "Input/WMT/sums_xlsx_files/no_header_2col_c"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/WMT/sums_xlsx_files/no_header_2col_c")
+setwd(paste0(file_path, "Input/WMT/sums_xlsx_files/no_header_2col_c"))
 initial_data = tibble(file_list = list_xlsx_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx)) %>%
@@ -433,11 +436,11 @@ wmt_sums_xlsx3 <- initial_data %>%
 # List files
 ## Numerous files had this format with no header
 ## 4 columns: date, time, am/pm, temp (C)
-list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/no_header_4col_c")
+list_xlsx_files <- list.files(paste0(file_path, "Input/WMT/sums_xlsx_files/no_header_4col_c"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/WMT/sums_xlsx_files/no_header_4col_c")
+setwd(paste0(file_path, "Input/WMT/sums_xlsx_files/no_header_4col_c"))
 initial_data = tibble(file_list = list_xlsx_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx)) %>%
@@ -478,11 +481,11 @@ wmt_sums_xlsx4 <- initial_data %>%
 # List files
 ## Numerous files had this format with no header
 ## 4 columns: date, time, am/pm, temp (F)
-list_xlsx_files <- list.files("Input/WMT/sums_xlsx_files/no_header_4col_f")
+list_xlsx_files <- list.files(paste0(file_path, "Input/WMT/sums_xlsx_files/no_header_4col_f"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/WMT/sums_xlsx_files/no_header_4col_f")
+setwd(paste0(file_path, "Input/WMT/sums_xlsx_files/no_header_4col_f"))
 initial_data = tibble(file_list = list_xlsx_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx)) %>%
@@ -531,7 +534,7 @@ wmt_sums_raw <- rbind(wmt_sums_csv, wmt_sums_csv_2, wmt_sums_csv_3,
   arrange(home, datetime_sums)
 
 
-# write_rds(wmt_sums_raw, "Output/wmt_sums_raw.rds")
+# write_rds(wmt_sums_raw, paste0(file_path, "Output/wmt_sums_raw.rds"))
 ```
 
 # Initial load, format, and save KidsAIR NN SUMs data
@@ -544,11 +547,11 @@ wmt_sums_raw <- rbind(wmt_sums_csv, wmt_sums_csv_2, wmt_sums_csv_3,
 ## I am confident in their formatting and content since I pulled the data
 ## from the original file type of the field instrument.
 ## The files have 5 columns: line, date, time, temp (C), notes
-list_csv_files <- list.files("Input/NN/sums_csv_new")
+list_csv_files <- list.files(paste0(file_path, "Input/NN/sums_csv_new"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 12 lines together
-setwd("Input/NN/sums_csv_new")
+setwd(paste0(file_path, "Input/NN/sums_csv_new"))
 initial_data = tibble(file_list = list_csv_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv,
@@ -584,11 +587,11 @@ nn_sums_csv <- initial_data %>%
 
 # List files
 # 1 file had this format: No header, columns of datetime and temp (C)
-list_csv_files_2 <- list.files("Input/NN/sums_csv_old/2col-c")
+list_csv_files_2 <- list.files(paste0(file_path, "Input/NN/sums_csv_old/2col-c"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 7 lines together
-setwd("Input/NN/sums_csv_old/2col-c")
+setwd(paste0(file_path, "Input/NN/sums_csv_old/2col-c"))
 initial_data = tibble(file_list = list_csv_files_2) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv)) %>%
@@ -622,11 +625,11 @@ nn_sums_csv_2 <- initial_data %>%
 ## No header, 3 columns: date, time, temp (F)
 ##### NO LONGER USING THESE FILES!
 ##### COMPARED TO CORRESPONDING LOGTAG FILES, THE TIMESTAMPS ARE OFF
-list_csv_files_3 <- list.files("Input/NN/sums_csv_old/3col-f")
+list_csv_files_3 <- list.files(paste0(file_path, "Input/NN/sums_csv_old/3col-f"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 12 lines together
-setwd("Input/NN/sums_csv_old/3col-f")
+setwd(paste0(file_path, "Input/NN/sums_csv_old/3col-f"))
 initial_data = tibble(file_list = list_csv_files_3) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv, skip = 1,
@@ -668,7 +671,7 @@ nn_sums_raw <- rbind(nn_sums_csv, nn_sums_csv_2) %>%
   arrange(home, datetime_sums)
   
 
-# write_rds(nn_sums_raw, "Output/nn_sums_raw.rds")
+# write_rds(nn_sums_raw, paste0(file_path, "Output/nn_sums_raw.rds"))
 ```
 
 # Initial load, format, and save KidsAIR AK SUMs data
@@ -680,11 +683,11 @@ nn_sums_raw <- rbind(nn_sums_csv, nn_sums_csv_2) %>%
 ## I am confident in their formatting and content since I pulled the data
 ## from the original file type of the field instrument.
 ## The files have 5 columns: line, date, time, temp (C), notes
-list_csv_files <- list.files("Input/AK/sums_csv_new")
+list_csv_files <- list.files(paste0(file_path, "Input/AK/sums_csv_new"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 12 lines together
-setwd("Input/AK/sums_csv_new")
+setwd(paste0(file_path, "Input/AK/sums_csv_new"))
 initial_data = tibble(file_list = list_csv_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv,
@@ -723,11 +726,11 @@ ak_sums_csv <- initial_data %>%
 ## 5 columns: line, date, time, temp (F), notes
 ##### NO LONGER USING THESE FILES!
 ##### COMPARED TO CORRESPONDING LOGTAG FILES, THE TIMESTAMPS ARE OFF
-list_csv_files_2 <- list.files("Input/AK/sums_csv_old")
+list_csv_files_2 <- list.files(paste0(file_path, "Input/AK/sums_csv_old"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 7 lines together
-setwd("Input/AK/sums_csv_old")
+setwd(paste0(file_path, "Input/AK/sums_csv_old"))
 initial_data = tibble(file_list = list_csv_files_2) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_csv, skip = 1,
@@ -765,11 +768,11 @@ ak_sums_csv_2 <- initial_data %>%
 # List files
 ## 3 files had this format with no header
 ## 5 columns: date, time, am or pm, C, temp
-list_xlsx_files <- list.files("Input/AK/sums_xlsx_temp_c")
+list_xlsx_files <- list.files(paste0(file_path, "Input/AK/sums_xlsx_temp_c"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/AK/sums_xlsx_temp_c")
+setwd(paste0(file_path, "Input/AK/sums_xlsx_temp_c"))
 initial_data = tibble(file_list = list_xlsx_files) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx,
@@ -808,11 +811,11 @@ ak_sums_xlsx <- initial_data %>%
 # List files
 ## Numerous files had this format with no header
 ## 5 columns: date, time, am or pm, F, temp
-list_xlsx_files2 <- list.files("Input/AK/sums_xlsx_temp_f")
+list_xlsx_files2 <- list.files(paste0(file_path, "Input/AK/sums_xlsx_temp_f"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 6 lines together
-setwd("Input/AK/sums_xlsx_temp_f")
+setwd(paste0(file_path, "Input/AK/sums_xlsx_temp_f"))
 initial_data = tibble(file_list = list_xlsx_files2) %>%
   extract(file_list, "home", remove = FALSE) %>%
   mutate(save_data = lapply(file_list, read_xlsx,
@@ -858,20 +861,22 @@ ak_sums_raw <- rbind(ak_sums_csv,
   arrange(home, datetime_sums)  
   
 
-# write_rds(ak_sums_raw, "Output/ak_sums_raw.rds")
+# write_rds(paste0(file_path, ak_sums_raw, "Output/ak_sums_raw.rds"))
 ```
 
 # Bind all SUMs files together after initial upload
 ```{r}
-wmt_sums_raw <- read_rds("Output/wmt_sums_raw.rds") 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-nn_sums_raw <- read_rds("Output/nn_sums_raw.rds")
+wmt_sums_raw <- read_rds(paste0(file_path, "Output/wmt_sums_raw.rds")) 
 
-ak_sums_raw <- read_rds("Output/ak_sums_raw.rds")
+nn_sums_raw <- read_rds(paste0(file_path, "Output/nn_sums_raw.rds"))
+
+ak_sums_raw <- read_rds(paste0(file_path, "Output/ak_sums_raw.rds"))
 
 all_sums_raw <- rbind(wmt_sums_raw, nn_sums_raw, ak_sums_raw)
 
-# write_rds(all_sums_raw, "Output/all_sums_raw.rds")
+# write_rds(all_sums_raw, paste0(file_path, "Output/all_sums_raw.rds"))
 ```
 
 # Check sample start times vs log start times
@@ -882,15 +887,17 @@ all_sums_raw <- rbind(wmt_sums_raw, nn_sums_raw, ak_sums_raw)
 ## This log, with additional notes, are found on Box:
 ### KidsAIR > Ethan - data cleaning and analysis > sums_time_comparison
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 # Load all SUMs data 
-all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>% 
+all_sums_raw <- read_rds(paste0(file_path, "Output/all_sums_raw.rds")) %>% 
   ungroup() %>% 
   arrange(area, home, datetime_sums)
 
 # Load SUMs data logs
-wmt_sums_log <- read_rds("Output/wmt_sums_data_log.rds")
-nn_sums_log <- read_rds("Output/nn_sums_data_log.rds")
-ak_sums_log <- read_rds("Output/ak_sums_data_log.rds")
+wmt_sums_log <- read_rds(paste0(file_path, "Output/wmt_sums_data_log.rds"))
+nn_sums_log <- read_rds(paste0(file_path, "Output/nn_sums_data_log.rds"))
+ak_sums_log <- read_rds(paste0(file_path, "Output/ak_sums_data_log.rds"))
 
 # Combine SUMs logs from all areas
 all_sums_log <- rbind(wmt_sums_log, nn_sums_log, ak_sums_log) %>% 
@@ -918,8 +925,8 @@ sums_time_comparison <- all_sums_raw %>%
   ungroup() %>% 
   arrange(home, winter_id)
 
-write_csv(sums_time_comparison, "Output/sums_time_comparison.csv")
-write_rds(sums_time_comparison, "Output/sums_time_comparison.rds")
+write_csv(sums_time_comparison, paste0(file_path, "Output/sums_time_comparison.csv"))
+write_rds(sums_time_comparison, paste0(file_path, "Output/sums_time_comparison.rds"))
 ```
 
 # Compile start and stop times for SUMs based on field logs
@@ -929,17 +936,20 @@ write_rds(sums_time_comparison, "Output/sums_time_comparison.rds")
 ## Stope times were based on the date of the final visit to a home each winter
 ## This timestamp was extracted from the "medicalvisit" files found on Box
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 # Load all SUMs data
-all_sums_raw <- read_rds("Output/all_sums_raw.rds") %>% 
+all_sums_raw <- read_rds(paste0(file_path, "Output/all_sums_raw.rds")) %>% 
   ungroup() %>% 
   arrange(area, home, datetime_sums)
 
 # Load and format SUMs data logs for WMT
 
-wmt_sums_stop <- read_csv("Input/WMT/wmt_medicalvisit_20200107.csv") %>% 
-  mutate(home_winter_id = HomeWinterID,
-         final_visit_date = if_else(VisitDate == "11/4/2025", "11/4/2015", VisitDate),
-         final_visit_date = mdy(final_visit_date)) %>% 
+wmt_sums_stop <- read_csv(paste0(file_path, "Input/WMT/medicalvisit.csv")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         final_visit_date = as.character(VisitDate),
+         final_visit_date = if_else(final_visit_date == "2025-11-04", "2015-11-04", final_visit_date),
+         final_visit_date = ymd(final_visit_date)) %>% 
   group_by(home_winter_id) %>% 
   arrange(final_visit_date) %>% 
   mutate(date_last = last(final_visit_date),
@@ -953,15 +963,20 @@ wmt_sums_stop <- read_csv("Input/WMT/wmt_medicalvisit_20200107.csv") %>%
   unite(datetime_stop, c("final_visit_date", "time"), sep = " ") %>% 
   mutate(datetime_stop = ymd_hms(datetime_stop))
 
-wmt_sums_start <- read_xlsx("Input/WMT/wmt_sums_start_times_20200107.xlsx") %>% 
+wmt_sums_start <- read_rds(paste0(file_path, "Output/wmt_sums_data_log.rds")) %>% 
+  mutate(area = "WMT",
+         time_log = as.character(time_log),
+         time_log = if_else(is.na(time_log), "00:00:00", time_log)) %>% 
+  unite("datetime_start", c("date_log", "time_log"), sep = " ") %>% 
   mutate(datetime_start = ymd_hms(datetime_start))
+  
 
 wmt_sums_start_stop <- wmt_sums_start %>% 
   left_join(wmt_sums_stop, by = "home_winter_id")
 
 wmt_sums_raw <- all_sums_raw %>% 
   filter(area == "WMT") %>% 
-  left_join(wmt_sums_start_stop, by = c("area", "home")) %>% 
+  right_join(wmt_sums_start_stop, by = c("area", "home")) %>% 
   mutate(filter_var = 
          if_else(datetime_sums > datetime_start & datetime_sums < datetime_stop,
                  1, 0))
@@ -970,12 +985,12 @@ wmt_sums_filtered <- wmt_sums_raw %>%
   filter(filter_var == 1) %>% 
   arrange(area, home, winter_id, datetime_sums) 
 
-# write_rds(wmt_sums_filtered, "Output/wmt_sums_filtered.rds")
+# write_rds(wmt_sums_filtered, paste0(file_path, "Output/wmt_sums_filtered.rds"))
 
   
 #####
 
-nn_sums_stop <- read_xlsx("Input/NN/nn_medicalvisit_20200108.xlsx") %>% 
+nn_sums_stop <- read_xlsx(paste0(file_path, "Input/NN/nn_medicalvisit_20200108.xlsx")) %>% 
   mutate(home_winter_id = HomeWinterID,
          final_visit_date = ymd(VisitDate)) %>% 
   group_by(home_winter_id) %>% 
@@ -991,7 +1006,7 @@ nn_sums_stop <- read_xlsx("Input/NN/nn_medicalvisit_20200108.xlsx") %>%
   unite(datetime_stop, c("final_visit_date", "time"), sep = " ") %>% 
   mutate(datetime_stop = ymd_hms(datetime_stop))
 
-nn_sums_start <- read_xlsx("Input/NN/nn_sums_start_times_20200108.xlsx") %>% 
+nn_sums_start <- read_xlsx(paste0(file_path, "Input/NN/nn_sums_start_times_20200108.xlsx")) %>% 
   mutate(datetime_start = ymd_hms(datetime_start))
 
 nn_sums_start_stop <- nn_sums_start %>% 
@@ -1008,12 +1023,12 @@ nn_sums_filtered <- nn_sums_raw %>%
   filter(filter_var == 1) %>% 
   arrange(area, home, winter_id, datetime_sums)
 
-# write_rds(nn_sums_filtered, "Output/nn_sums_filtered.rds")
+# write_rds(nn_sums_filtered, paste0(file_path, "Output/nn_sums_filtered.rds"))
 
 
 #####
 
-ak_sums_stop <- read_xlsx("Input/AK/ak_medicalvisit_20200108.xlsx") %>% 
+ak_sums_stop <- read_xlsx(paste0(file_path, "Input/AK/ak_medicalvisit_20200108.xlsx")) %>% 
   mutate(home_winter_id = HomeWinterID,
          final_visit_date = ymd(VisitDate)) %>% 
   group_by(home_winter_id) %>% 
@@ -1029,7 +1044,7 @@ ak_sums_stop <- read_xlsx("Input/AK/ak_medicalvisit_20200108.xlsx") %>%
   unite(datetime_stop, c("final_visit_date", "time"), sep = " ") %>% 
   mutate(datetime_stop = ymd_hms(datetime_stop))
 
-ak_sums_start <- read_xlsx("Input/AK/ak_sums_start_times_20200108.xlsx") %>% 
+ak_sums_start <- read_xlsx(paste0(file_path, "Input/AK/ak_sums_start_times_20200108.xlsx")) %>% 
   mutate(datetime_start = ymd_hms(datetime_start))
 
 ak_sums_start_stop <- ak_sums_start %>% 
@@ -1046,38 +1061,45 @@ ak_sums_filtered <- ak_sums_raw %>%
   filter(filter_var == 1) %>% 
   arrange(area, home, winter_id, datetime_sums)
 
-# write_rds(ak_sums_filtered, "Output/ak_sums_filtered.rds")
+# write_rds(ak_sums_filtered, paste0(file_path, "Output/ak_sums_filtered.rds"))
 ```
 
 # Checking to make sure multiple observations per datetime_sums were removed
 # Number of obs in each dataset below should match # obs in check_dates
 ```{r}
-wmt_sums_filtered <- read_rds("Output/wmt_sums_filtered.rds")
-nn_sums_filtered <- read_rds("Output/nn_sums_filtered.rds")
-ak_sums_filtered <- read_rds("Output/ak_sums_filtered.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-check_dates <- wmt_sums_filtered %>% 
+wmt_sums_filtered <- read_rds(paste0(file_path, "Output/wmt_sums_filtered.rds"))
+nn_sums_filtered <- read_rds(paste0(file_path, "Output/nn_sums_filtered.rds"))
+ak_sums_filtered <- read_rds(paste0(file_path, "Output/ak_sums_filtered.rds"))
+
+check_dates <- ak_sums_filtered %>% 
   group_by(home) %>% 
   distinct(datetime_sums, .keep_all = TRUE)
 ```
 
 # Combine filtered data from each area
 ```{r}
-wmt_sums_filtered <- read_rds("Output/wmt_sums_filtered.rds")
-nn_sums_filtered <- read_rds("Output/nn_sums_filtered.rds")
-ak_sums_filtered <- read_rds("Output/ak_sums_filtered.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+wmt_sums_filtered <- read_rds(paste0(file_path, "Output/wmt_sums_filtered.rds")) %>% 
+  group_by(home) %>% 
+  distinct(datetime_sums, .keep_all = TRUE) %>% 
+  ungroup()
+nn_sums_filtered <- read_rds(paste0(file_path, "Output/nn_sums_filtered.rds"))
+ak_sums_filtered <- read_rds(paste0(file_path, "Output/ak_sums_filtered.rds"))
 
 all_sums_filtered <- rbind(wmt_sums_filtered, nn_sums_filtered, ak_sums_filtered)
 
-# write_rds(all_sums_filtered, "Output/all_sums_filtered.rds")
+write_rds(all_sums_filtered, paste0(file_path, "Output/all_sums_filtered.rds"))
 ```
 
 # Continue cleaning up SUMs data
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 all_sums_filtered <- read_rds(paste0(file_path, "Output/all_sums_filtered.rds"))
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds")) %>% 
-  select(home_winter_id, area, treatment)
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) %>% 
+  select(home_winter_id, area, treatment_assigned, treatment_actual)
 
 
 sums_clean <- all_sums_filtered %>% 
@@ -1089,7 +1111,7 @@ sums_clean <- all_sums_filtered %>%
           month_sums = as.factor(month(date_sums, label = TRUE, abbr = TRUE))) %>% 
   select(-filter_var) %>% 
   arrange(area, home, winter_id, datetime_sums) %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  right_join(kids_linked_ids, by = c("area", "home_winter_id"))
   
 
 write_rds(sums_clean, paste0(file_path, "Output/sums_clean.rds"))

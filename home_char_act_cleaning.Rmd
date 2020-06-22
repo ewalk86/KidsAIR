@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR home activity and characteristics cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 19 June 2020"
+date: "Started 13 Jan 2020, Updated 22 June 2020"
 output: pdf_document
 ---
 
@@ -334,7 +334,8 @@ wmt_home_act <- read_rds(paste0(file_path, "Output/wmt_home_act.rds"))
 nn_home_act <- read_rds(paste0(file_path, "Output/nn_home_act.rds"))
 ak_home_act <- read_rds(paste0(file_path, "Output/ak_home_act.rds"))
 
-kids_home_act <- rbind(wmt_home_act, nn_home_act, ak_home_act)
+kids_home_act <- rbind(wmt_home_act, nn_home_act, ak_home_act) %>% 
+  select(-home_act_comments)
 
 # write_rds(kids_home_act, paste0(file_path, "Output/kids_home_act.rds"))
 ```
@@ -347,7 +348,8 @@ kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"
 
 home_act_clean <- kids_home_act %>% 
   mutate(area = as.factor(area)) %>% 
-  right_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  right_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  filter(!is.na(home_act_day))
 
 summary(home_act_clean)
 
