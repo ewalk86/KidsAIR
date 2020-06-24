@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR wood stove grades and usage"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 15 Jan 2020"
+date: "Started 13 Jan 2020, Updated 23 June 2020"
 output: pdf_document
 ---
 
@@ -23,54 +23,54 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 ##### WMT #####
 # Load data
-stove_grades_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/wmt_stove_grades_20200113.csv"))
+stove_grades_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/stove.csv"), 
+                                  na = c("NULL", ""))
 
 wmt_stove_grades <- stove_grades_initial_wmt %>% 
   # rename variables
   mutate(home_id = as.factor(HomeID),
          home_winter_id = as.factor(HomeWinterID),
          stove_grade = as.factor(Score1),
-         comments = as.character(`REPLACE(REPLACE(Notes`),
          area = "WMT") %>% 
-  select(home_id, home_winter_id, area, stove_grade, comments) %>% 
+  select(home_id, home_winter_id, area, stove_grade) %>% 
   ungroup() %>% 
   arrange(home_winter_id)
 
 # Save as RDS
-# write_rds(wmt_stove_grades, "Output/wmt_stove_grades.rds")
+write_rds(wmt_stove_grades, paste0(file_path, "Output/wmt_stove_grades.rds"))
 
 
 ##### NN #####
 # Load data
-stove_grades_initial_nn <- read_xlsx(paste0(file_path, "Input/NN/nn_stove_grades_20200113.xlsx"))
+stove_grades_initial_nn <- read_csv(paste0(file_path, "Input/NN/stove.csv"), 
+                                  na = c("NULL", ""))
 
 nn_stove_grades <- stove_grades_initial_nn %>% 
   # rename variables
   mutate(home_id = as.factor(HomeID),
          home_winter_id = as.factor(HomeWinterID),
          stove_grade = as.factor(Score1),
-         comments = as.character(IgnoreReason),
          area = "NN") %>% 
-  select(home_id, home_winter_id, area, stove_grade, comments) %>% 
+  select(home_id, home_winter_id, area, stove_grade) %>% 
   ungroup() %>% 
   arrange(home_winter_id)
 
 # Save as RDS
-# write_rds(nn_stove_grades, "Output/nn_stove_grades.rds")
+write_rds(nn_stove_grades, paste0(file_path, "Output/nn_stove_grades.rds"))
 
 
 ##### AK #####
 # Load data
-stove_grades_initial_ak <- read_xlsx(paste0(file_path, "Input/AK/ak_stove_grades_20200113.xlsx"))
+stove_grades_initial_ak <- read_csv(paste0(file_path, "Input/AK/stove.csv"), 
+                                  na = c("NULL", ""))
 
 ak_stove_grades <- stove_grades_initial_ak %>% 
   # rename variables
   mutate(home_id = as.factor(HomeID),
          home_winter_id = as.factor(HomeWinterID),
          stove_grade = as.factor(Score1),
-         comments = as.character(IgnoreReason),
          area = "AK") %>% 
-  select(home_id, home_winter_id, area, stove_grade, comments) %>% 
+  select(home_id, home_winter_id, area, stove_grade) %>% 
   ungroup() %>% 
   arrange(home_winter_id)
 
@@ -80,32 +80,42 @@ write_rds(ak_stove_grades, paste0(file_path, "Output/ak_stove_grades.rds"))
 
 # Join stove grade data from different areas
 ```{r}
-wmt_stove_grades <- read_rds("Output/wmt_stove_grades.rds")
-nn_stove_grades <- read_rds("Output/nn_stove_grades.rds")
-ak_stove_grades <- read_rds("Output/ak_stove_grades.rds")
+wmt_stove_grades <- read_rds(paste0(file_path, "Output/wmt_stove_grades.rds"))
+nn_stove_grades <- read_rds(paste0(file_path, "Output/nn_stove_grades.rds"))
+ak_stove_grades <- read_rds(paste0(file_path, "Output/ak_stove_grades.rds"))
 
 kids_stove_grades <- rbind(wmt_stove_grades, nn_stove_grades, ak_stove_grades)
 
-# write_rds(kids_stove_grades, "Output/kids_stove_grades.rds")
+write_rds(kids_stove_grades, paste0(file_path, "Output/kids_stove_grades.rds"))
 ```
 
 # Clean up all stove grade data
 ```{r}
-kids_stove_grades <- read_rds(paste0(file_path, "Output/kids_stove_grades.rds"))
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_stove_grades <- read_rds(paste0(file_path, "Output/kids_stove_grades.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"))
+
 
 stove_grades_clean <- kids_stove_grades %>% 
+  mutate(area = as.factor(area)) %>% 
   filter(home_id != 0) %>% 
+  # Mark gave a couple of "D" grades when there was not enough info to score the stove
+  # removing those "D" grades from final dataset
   filter(stove_grade != "D") %>% 
-  rename(stove_grade_comments = comments) %>% 
   select(-home_id) %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  right_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
   arrange(area, home, winter_id)
+
+summary(stove_grades_clean)
+
+# Some homes/stoves were graded during both winters, typically when new photos were added
+# Since photos were added in these cases, grades may have changed from Winter 1 to Winter 2
+# We can't make the assumption that the stove was exactly the same for both winters,
+# so it will be best to use the grade corresponding to each winter for analysis.
 
 write_rds(stove_grades_clean, paste0(file_path, "Output/stove_grades_clean.rds"))
 
-# Dataset showing home with no stove grade
+# Dataset showing homes with no stove grade
 stove_grades_na <- stove_grades_clean %>% 
   filter(is.na(stove_grade)) %>% 
   distinct(home_id) 
@@ -115,9 +125,12 @@ stove_grades_na <- stove_grades_clean %>%
 
 # Load, format, and save wood stove use data
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 ##### WMT #####
 # Load data
-stove_use_initial_wmt <- read_csv("Input/WMT/wmt_stove_use_20200113.csv")
+stove_use_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/woodstoveusage.csv"), 
+                                  na = c("NULL", ""))
 
 wmt_stove_use <- stove_use_initial_wmt %>% 
   # rename variables
@@ -135,12 +148,13 @@ wmt_stove_use <- stove_use_initial_wmt %>%
   arrange(home_winter_id)
 
 # Save as RDS
-# write_rds(wmt_stove_use, "Output/wmt_stove_use.rds")
+write_rds(wmt_stove_use, paste0(file_path, "Output/wmt_stove_use.rds"))
 
 
 ##### NN #####
 # Load data
-stove_use_initial_nn <- read_xlsx("Input/NN/nn_stove_use_20200113.xlsx")
+stove_use_initial_nn <- read_csv(paste0(file_path, "Input/NN/woodstoveusage.csv"), 
+                                  na = c("NULL", ""))
 
 nn_stove_use <- stove_use_initial_nn %>% 
   # rename variables
@@ -158,12 +172,13 @@ nn_stove_use <- stove_use_initial_nn %>%
   arrange(home_winter_id)
 
 # Save as RDS
-# write_rds(nn_stove_use, "Output/nn_stove_use.rds")
+write_rds(nn_stove_use, paste0(file_path, "Output/nn_stove_use.rds"))
 
 
 ##### AK #####
 # Load data
-stove_use_initial_ak <- read_xlsx("Input/AK/ak_stove_use_20200113.xlsx")
+stove_use_initial_ak <- read_csv(paste0(file_path, "Input/AK/woodstoveusage.csv"), 
+                                  na = c("NULL", ""))
 
 ak_stove_use <- stove_use_initial_ak %>% 
   # rename variables
@@ -181,27 +196,29 @@ ak_stove_use <- stove_use_initial_ak %>%
   arrange(home_winter_id)
 
 # Save as RDS
-# write_rds(ak_stove_use, "Output/ak_stove_use.rds")
+write_rds(ak_stove_use, paste0(file_path, "Output/ak_stove_use.rds"))
 ```
 
 # Join stove use data from different areas
 ```{r}
-wmt_stove_use <- read_rds("Output/wmt_stove_use.rds")
-nn_stove_use <- read_rds("Output/nn_stove_use.rds")
-ak_stove_use <- read_rds("Output/ak_stove_use.rds")
+wmt_stove_use <- read_rds(paste0(file_path, "Output/wmt_stove_use.rds"))
+nn_stove_use <- read_rds(paste0(file_path, "Output/nn_stove_use.rds"))
+ak_stove_use <- read_rds(paste0(file_path, "Output/ak_stove_use.rds"))
 
 kids_stove_use <- rbind(wmt_stove_use, nn_stove_use, ak_stove_use)
 
-# write_rds(kids_stove_use, "Output/kids_stove_use.rds")
+write_rds(kids_stove_use, paste0(file_path, "Output/kids_stove_use.rds"))
 ```
 
 # Clean up all stove use data
 ```{r}
-kids_stove_use <- read_rds(paste0(file_path, "Output/kids_stove_use.rds"))
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_stove_use <- read_rds(paste0(file_path, "Output/kids_stove_use.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"))
+
 
 stove_use_clean <- kids_stove_use %>% 
+  mutate(area = as.factor(area)) %>% 
   replace_with_na(replace = list(wood_cords = -999)) %>%
   replace_with_na(replace = list(wood_cords = 0)) %>%
   mutate(wood_collect = factor(wood_collect,
@@ -217,7 +234,9 @@ stove_use_clean <- kids_stove_use %>%
                                           "3 mo to 6 mo",
                                           "6 mo to 1 year",
                                           "> 1 yr"))) %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  right_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+summary(stove_use_clean)
 
 write_rds(stove_use_clean, paste0(file_path, "Output/stove_use_clean.rds"))
 ```

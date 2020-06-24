@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR indoor temp and humidity cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 15 Jan 2020"
+date: "Started 13 Jan 2020, Updated 23 June 2020"
 output: pdf_document
 ---
 
@@ -15,13 +15,17 @@ library(readxl)
 library(naniar)
 library(lubridate)
 library(zoo)
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
 ```
 
 # Load, format, and save indoor temp/rh data
 ```{r}
 ##### WMT #####
 # Load data
-temp_rh_initial_wmt <- read_csv("Input/WMT/wmt_indoor_temp_rh_20200113.csv")
+temp_rh_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/qtrack.csv"), 
+                                  na = c("NULL", ""))
 
 wmt_temp_rh <- temp_rh_initial_wmt %>% 
   # rename variables
@@ -32,7 +36,6 @@ wmt_temp_rh <- temp_rh_initial_wmt %>%
          temp_indoor_current = as.numeric(TempCCur),
          temp_indoor_max = as.numeric(TempCMax),
          temp_indoor_min = as.numeric(TempCMin),
-         rh_temp_comments = as.character(`REPLACE(REPLACE(Comments`),
          area = "WMT") %>% 
   # replace -999 values with NA
   replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
@@ -43,16 +46,17 @@ wmt_temp_rh <- temp_rh_initial_wmt %>%
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
   select(home_winter_id, area, rh_indoor_current, 
          rh_indoor_max, rh_indoor_min, temp_indoor_current, 
-         temp_indoor_max, temp_indoor_min, rh_temp_comments) %>% 
+         temp_indoor_max, temp_indoor_min) %>% 
   arrange(home_winter_id)
   
 # Save as RDS 
-# write_rds(wmt_temp_rh, "Output/wmt_temp_rh.rds")
+write_rds(wmt_temp_rh, paste0(file_path, "Output/wmt_temp_rh.rds"))
 
 
 ##### NN #####
 # Load data
-temp_rh_initial_nn <- read_xlsx("Input/NN/nn_indoor_temp_rh_20200113.xlsx")
+temp_rh_initial_nn <- read_csv(paste0(file_path, "Input/NN/qtrack.csv"), 
+                                  na = c("NULL", ""))
 
 nn_temp_rh <- temp_rh_initial_nn %>% 
   # rename variables
@@ -63,7 +67,6 @@ nn_temp_rh <- temp_rh_initial_nn %>%
          temp_indoor_current = as.numeric(TempCCur),
          temp_indoor_max = as.numeric(TempCMax),
          temp_indoor_min = as.numeric(TempCMin),
-         rh_temp_comments = as.character(IgnoreReason),
          area = "NN") %>% 
   # replace 0 and -999 values with NA
   replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
@@ -74,16 +77,17 @@ nn_temp_rh <- temp_rh_initial_nn %>%
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
   select(home_winter_id, area, rh_indoor_current, 
          rh_indoor_max, rh_indoor_min, temp_indoor_current, 
-         temp_indoor_max, temp_indoor_min, rh_temp_comments) %>% 
+         temp_indoor_max, temp_indoor_min) %>% 
   arrange(home_winter_id)
   
 # Save as RDS 
-# write_rds(nn_temp_rh, "Output/nn_temp_rh.rds")
+write_rds(nn_temp_rh, paste0(file_path, "Output/nn_temp_rh.rds"))
 
 
 ##### AK #####
 # Load data
-temp_rh_initial_ak <- read_xlsx("Input/AK/ak_indoor_temp_rh_20200113.xlsx")
+temp_rh_initial_ak <- read_csv(paste0(file_path, "Input/AK/qtrack.csv"), 
+                                  na = c("NULL", ""))
 
 ak_temp_rh <- temp_rh_initial_ak %>% 
   # rename variables
@@ -94,7 +98,6 @@ ak_temp_rh <- temp_rh_initial_ak %>%
          temp_indoor_current = as.numeric(TempCCur),
          temp_indoor_max = as.numeric(TempCMax),
          temp_indoor_min = as.numeric(TempCMin),
-         rh_temp_comments = as.character(IgnoreReason),
          area = "AK") %>% 
   # replace -999 values with NA
   replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
@@ -105,32 +108,35 @@ ak_temp_rh <- temp_rh_initial_ak %>%
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
   select(home_winter_id, area, rh_indoor_current, 
          rh_indoor_max, rh_indoor_min, temp_indoor_current, 
-         temp_indoor_max, temp_indoor_min, rh_temp_comments) %>% 
+         temp_indoor_max, temp_indoor_min) %>% 
   arrange(home_winter_id)
   
 # Save as RDS 
-# write_rds(ak_temp_rh, "Output/ak_temp_rh.rds")
+write_rds(ak_temp_rh, paste0(file_path, "Output/ak_temp_rh.rds"))
 ```
 
 # Join temp/rh data from different areas
 ```{r}
-wmt_temp_rh <- read_rds("Output/wmt_temp_rh.rds")
-nn_temp_rh <- read_rds("Output/nn_temp_rh.rds")
-ak_temp_rh <- read_rds("Output/ak_temp_rh.rds")
+wmt_temp_rh <- read_rds(paste0(file_path, "Output/wmt_temp_rh.rds"))
+nn_temp_rh <- read_rds(paste0(file_path, "Output/nn_temp_rh.rds"))
+ak_temp_rh <- read_rds(paste0(file_path, "Output/ak_temp_rh.rds"))
 
 kids_indoor_temp_rh <- rbind(wmt_temp_rh, nn_temp_rh, ak_temp_rh)
 
-# write_rds(kids_indoor_temp_rh, "Output/kids_indoor_temp_rh.rds")
+write_rds(kids_indoor_temp_rh, paste0(file_path, "Output/kids_indoor_temp_rh.rds"))
 ```
 
 # Clean up all temp/rh data
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 kids_indoor_temp_rh <- read_rds(paste0(file_path, "Output/kids_indoor_temp_rh.rds"))
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"))
 
 indoor_temp_rh_clean <- kids_indoor_temp_rh %>% 
-  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  mutate(area = as.factor(area)) %>% 
+  right_join(kids_linked_ids, by = c("area", "home_winter_id"))
+
+summary(indoor_temp_rh_clean)
 
 write_rds(indoor_temp_rh_clean, paste0(file_path, "Output/indoor_temp_rh_clean.rds"))
 ```

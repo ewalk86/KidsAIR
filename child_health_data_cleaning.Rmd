@@ -520,6 +520,9 @@ nn_birthinfancy_initial <- read_csv(paste0(file_path, "Input/NN/birthinfancy.csv
          school_hours_week = as.numeric(school_hours*school_days),
          sibling_school = as.factor(SibSchool)) %>% 
   replace_with_na(replace = list(bw_lbs = 0, birth_weight_oz = 0, mom_age = 0)) %>%
+  # checked young ages with field data - correcting here
+  mutate(mom_age = if_else(mom_age == 14, 20, mom_age),
+         mom_age = if_else(mom_age == 10 | mom_age == 12, 21, mom_age)) %>% 
   select(home_winter_id:sibling_school)
 
 

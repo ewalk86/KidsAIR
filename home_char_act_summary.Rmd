@@ -1,7 +1,7 @@
 ---
 title: "Kids home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 15 Jan 2020, Updated 25 March 2020"
+date: "Started 15 Jan 2020, Updated 23 June 2020"
 output:
   pdf_document: default
   powerpoint_presentation: default
@@ -20,6 +20,7 @@ library(naniar)
 library(lubridate)
 library(zoo)
 library(knitr)
+library(forcats)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -33,6 +34,86 @@ home_char_clean <- read_rds(paste0(file_path, "Output/home_char_clean.rds"))
 home_act_clean <- read_rds(paste0(file_path, "Output/home_act_clean.rds"))
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids.rds"))
 #pm_clean <- read_rds("Output/pm_clean.rds")
+```
+
+# Check Winter 1 vs Winter 2 data for home characteristics
+```{r}
+home_char_check_num <- home_char_clean %>% 
+  group_by(home) %>% 
+  arrange(home, winter_id) %>% 
+  pivot_longer(cols = c(residents_total:residents_under18, home_year_built:home_furry), 
+               names_to = "var", values_to = "value") %>% 
+  group_by(home, var) %>% 
+  arrange(home, var, winter_id) %>% 
+  mutate(data_check = if_else(value == lead(value), 1, 0),
+         data_check = if_else(is.na(data_check), lag(data_check), data_check)) %>% 
+  filter(data_check == 0) %>% 
+  select(area, home, winter_id, var, value) %>% 
+  mutate(value = as.numeric(value),
+         data_check = if_else(var == "residents_total" & abs(value - lead(value)) > 1, 1, 0),
+         data_check = if_else(var == "residents_under5" & abs(value - lead(value)) > 1, 1, data_check),
+         data_check = if_else(var == "residents_under18" & abs(value - lead(value)) > 1, 1, data_check),
+         data_check = if_else(var == "home_year_built" & abs(value - lead(value)) > 10, 1, data_check),
+         data_check = if_else(var == "home_sqft" & abs(value - lead(value)) > 200, 1, data_check),
+         data_check = if_else(var == "home_floors" & abs(value - lead(value)) > 1, 1, data_check),
+         data_check = if_else(var == "home_bedrooms" & abs(value - lead(value)) > 1, 1, data_check),
+         data_check = if_else(var == "home_windows" & abs(value - lead(value)) > 5, 1, data_check),
+         data_check = if_else(var == "home_pets" & abs(value - lead(value)) > 2, 1, data_check),
+         data_check = if_else(var == "home_furry" & abs(value - lead(value)) > 2, 1, data_check),
+         data_check = if_else(is.na(data_check), lag(data_check), data_check),
+         value = as.character(value)) %>% 
+  filter(data_check == 1) %>% 
+  select(area, home, winter_id, var, value)
+
+write_csv(home_char_check_num, paste0(file_path, "Output/home_char_check_num.csv"))
+  
+  
+  
+home_char_check_fact <- home_char_clean %>% 
+  group_by(home) %>% 
+  arrange(home, winter_id) %>% 
+  pivot_longer(cols = c(home_type, stove_age, stove_cert, home_fireplace:home_insert), 
+               names_to = "var", values_to = "value") %>% 
+  group_by(home, var) %>% 
+  arrange(home, var, winter_id) %>% 
+  mutate(data_check = if_else(value == lead(value), 1, 0),
+         data_check = if_else(is.na(data_check), lag(data_check), data_check)) %>% 
+  filter(data_check == 0) %>% 
+  select(area, home, winter_id, var, value) %>% 
+  mutate(var2 = var,
+         value2 = value) %>% 
+  pivot_wider(names_from = "var2", values_from = "value2") %>% 
+  ungroup() %>% 
+  mutate_at(c("home_insert", "stove_age", "home_furnace", "home_woodstove", 
+              "stove_cert", "home_type", "home_fireplace"), as.character) %>% 
+  mutate_at(c("home_insert", "stove_age", "home_furnace", "home_woodstove", 
+              "stove_cert", "home_type", "home_fireplace"), as.factor) %>% 
+  mutate_at(c("home_insert", "stove_age", "home_furnace", "home_woodstove", 
+              "stove_cert", "home_type", "home_fireplace"), as.numeric)
+  
+home_char_check_fact$value_num <- 
+  coalesce(home_char_check_fact$home_insert, 
+           home_char_check_fact$stove_age, 
+           home_char_check_fact$home_furnace, 
+           home_char_check_fact$home_woodstove, 
+           home_char_check_fact$stove_cert, 
+           home_char_check_fact$home_type, 
+           home_char_check_fact$home_fireplace)
+
+home_char_check_fact2 <- home_char_check_fact %>% 
+  select(area, home, winter_id, var, value, value_num) %>% 
+  group_by(home, var) %>% 
+  mutate(data_check = if_else(abs(value_num - lead(value_num)) > 1, 1, 0),
+         data_check = if_else(is.na(data_check), lag(data_check), data_check),
+         value = as.character(value)) 
+
+write_csv(home_char_check_fact2, paste0(file_path, "Output/home_char_check_fact.csv"))
+
+home_char_check <- rbind(home_char_check_num, home_char_check_fact2) %>% 
+  arrange(home, var, winter_id) %>% 
+  mutate(data_check = if_else(is.na(value_num), 1, data_check))
+
+write_csv(home_char_check, paste0(file_path, "Output/home_char_check.csv"))
 ```
 
 
