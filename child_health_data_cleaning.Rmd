@@ -1,7 +1,7 @@
 ---
 title: "Kids health and child data cleaning"
 author: "Ethan Walker"
-date: "Started 27 Feb 2020, Updated 22 June 2020"
+date: "Started 27 Feb 2020, Updated 26 June 2020"
 output: pdf_document 
 ---
 
@@ -161,7 +161,7 @@ ak_athomelog_initial <- read_csv(paste0(file_path, "Input/AK/athomelog.csv"),
 kids_at_home_log <- rbind(wmt_athomelog_initial, nn_athomelog_initial,
                           ak_athomelog_initial) %>% 
   mutate(area = as.factor(area)) %>% 
-  right_join(kids_linked_ids, c("area", "home_winter_id")) %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id")) %>% 
   filter(!is.na(child_id_num))
 
 
@@ -445,7 +445,7 @@ ak_medicalvisit_initial <- read_csv(paste0(file_path, "Input/AK/medicalvisit.csv
 kids_med_visit <- rbind(wmt_medicalvisit_initial, nn_medicalvisit_initial,
                           ak_medicalvisit_initial) %>% 
   mutate(area = as.factor(area)) %>% 
-  right_join(kids_linked_ids, c("area", "home_winter_id"))
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 summary(kids_med_visit)
 
@@ -558,7 +558,7 @@ ak_birthinfancy_initial <- read_csv(paste0(file_path, "Input/AK/birthinfancy.csv
 kids_birth_infancy <- rbind(wmt_birthinfancy_initial, nn_birthinfancy_initial,
                             ak_birthinfancy_initial) %>% 
   mutate(area = as.factor(area)) %>% 
-  right_join(kids_linked_ids, c("area", "home_winter_id"))
+  left_join(kids_linked_ids, c("area", "home_winter_id"))
 
 summary(kids_birth_infancy)
 
@@ -737,7 +737,7 @@ ak_csq_initial <-
 # Combine logs from all areas
 kids_csq <- rbind(wmt_csq_initial, nn_csq_initial, ak_csq_initial) %>% 
   mutate(area = as.factor(area)) %>% 
-  right_join(kids_linked_ids, c("area", "home_winter_id")) %>% 
+  left_join(kids_linked_ids, c("area", "home_winter_id")) %>% 
   mutate_if(is.character, as.factor)
 
 summary(kids_csq)

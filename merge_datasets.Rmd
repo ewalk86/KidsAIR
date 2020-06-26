@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge exposure datasets"
 author: "Ethan Walker"
-date: "Started 24 March 2020, Updated 14 April 2020"
+date: "Started 24 March 2020, Updated 26 June 2020"
 output: pdf_document
 ---
 
@@ -19,29 +19,28 @@ library(zoo)
 
 # Load individual datasets
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) 
 
 pm_clean <- 
-  read_rds(paste0(output_path, "Output/pm_clean.rds")) 
+  read_rds(paste0(file_path, "Output/pm_clean.rds")) 
 sums_clean <- 
-  read_rds(paste0(output_path, "Output/sums_clean.rds"))
+  read_rds(paste0(file_path, "Output/sums_clean.rds"))
 
-kids_linked_ids <- 
-  read_rds(paste0(output_path, "Output/kids_linked_ids.rds"))
-demographics_clean <- 
-  read_rds(paste0(output_path, "Output/demographics_clean.rds")) 
 moisture_clean <- 
-  read_rds(paste0(output_path, "Output/moisture_clean.rds"))
+  read_rds(paste0(file_path, "Output/moisture_clean.rds"))
 indoor_temp_rh_clean <- 
-  read_rds(paste0(output_path, "Output/indoor_temp_rh_clean.rds"))
+  read_rds(paste0(file_path, "Output/indoor_temp_rh_clean.rds"))
 stove_use_clean <- 
-  read_rds(paste0(output_path, "Output/stove_use_clean.rds"))
+  read_rds(paste0(file_path, "Output/stove_use_clean.rds"))
 stove_grades_clean <- 
-  read_rds(paste0(output_path, "Output/stove_grades_clean.rds")) 
+  read_rds(paste0(file_path, "Output/stove_grades_clean.rds")) 
 home_char_clean <- 
-  read_rds(paste0(output_path, "Output/home_char_clean.rds"))
+  read_rds(paste0(file_path, "Output/home_char_clean.rds"))
 home_act_clean <- 
-  read_rds(paste0(output_path, "Output/home_act_clean.rds"))
+  read_rds(paste0(file_path, "Output/home_act_clean.rds"))
 ```
 
 
@@ -68,9 +67,9 @@ pm_join <- pm_clean %>%
   ungroup() %>% 
   arrange(area, home, sample_date, desc(pm_spike_1000),
           desc(pm_spike_2000), desc(pm_spike_5000)) %>% 
-  select(area, home, home_winter_id, winter_id, treatment, dtid, day_of_week, 
-         pm_total_observations, pm_mean_sampling_period, sampling_day, 
-         pm_mean_sampling_day, pm_first_datetime, pm_last_datetime,
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
+         dtid, day_of_week, pm_total_observations, pm_mean_sampling_period, 
+         sampling_day, pm_mean_sampling_day, pm_first_datetime, pm_last_datetime,
          sample_date, pm_mean_daily, pm_daily_obs, pm_spike_1000,
          pm_spike_2000, pm_spike_5000, pm_sample_interval) %>% 
   group_by(area, home) %>% 
@@ -78,15 +77,15 @@ pm_join <- pm_clean %>%
   ungroup() %>% 
   arrange(area, home, sample_date)
 
-#write_rds(pm_join, paste0(output_path, "Output/pm_join.rds"))
-pm_join <- read_rds(paste0(output_path, "Output/pm_join.rds"))
+#write_rds(pm_join, paste0(file_path, "Output/pm_join.rds"))
+pm_join <- read_rds(paste0(file_path, "Output/pm_join.rds"))
 
 
 # Prep SUMs data to join with PM data
 sums_join <- sums_clean %>% 
   mutate(sample_date = as.character(date_sums)) %>% 
-  select(area, home, home_winter_id, winter_id, ibid, treatment, 
-         datetime_sums, sample_date, temp_c_sums) %>% 
+  select(area, home, home_winter_id, winter_id, ibid, treatment_assigned, 
+         treatment_actual, datetime_sums, sample_date, temp_c_sums) %>% 
   group_by(area, home, winter_id) %>% 
   mutate(sums_mean_winter = mean(temp_c_sums, na.rm = TRUE),
          sums_mean_5 = sums_mean_winter/5) %>% 
@@ -103,13 +102,14 @@ sums_join <- sums_clean %>%
   ungroup() %>% 
   arrange(area, home, datetime_sums)
 
-#write_rds(sums_join, paste0(output_path, "Output/sums_join.rds"))
-sums_join <- read_rds(paste0(output_path, "Output/sums_join.rds"))
+#write_rds(sums_join, paste0(file_path, "Output/sums_join.rds"))
+sums_join <- read_rds(paste0(file_path, "Output/sums_join.rds"))
 
 
 # Join PM/SUMs data and filter/arrange by sampling day
 pm_sums_joined1 <- sums_join %>% 
-  left_join(pm_join, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  left_join(pm_join, by = c("area", "home", "home_winter_id", "winter_id", 
+                            "treatment_assigned", "treatment_actual")) %>% 
   arrange(area, home, datetime_sums) %>% 
   mutate(filter_var = if_else(datetime_sums >= pm_first_datetime &
                               datetime_sums <= pm_last_datetime, 1, 0)) %>% 
@@ -121,16 +121,18 @@ pm_sums_joined1 <- sums_join %>%
   distinct(sampling_day, .keep_all = TRUE) %>% 
   ungroup() %>% 
   arrange(area, home, sampling_day) %>% 
-  select(area, home, home_winter_id, winter_id, treatment, sampling_day, 
-         sums_mean_sampling_day, sums_mean_sampling_period)
+  select(area, home, home_winter_id, winter_id, sampling_day, 
+         sums_mean_sampling_day, sums_mean_sampling_period,
+         treatment_assigned, treatment_actual)
 
-#write_rds(pm_sums_joined1, paste0(output_path, "Output/pm_sums_joined1.rds"))
-pm_sums_joined1 <- read_rds(paste0(output_path, "Output/pm_sums_joined1.rds"))
+#write_rds(pm_sums_joined1, paste0(file_path, "Output/pm_sums_joined1.rds"))
+pm_sums_joined1 <- read_rds(paste0(file_path, "Output/pm_sums_joined1.rds"))
 
 
 pm_sums_joined2 <- pm_join %>% 
   left_join(pm_sums_joined1, 
-            by = c("area", "home", "home_winter_id", "winter_id", "treatment", "sampling_day"))
+            by = c("area", "home", "home_winter_id", "winter_id", 
+                   "treatment_assigned", "treatment_actual", "sampling_day"))
 
 
 # Join SUMs data with original PM data, by sampling day
@@ -140,7 +142,8 @@ pm_sums_joined3 <- sums_join %>%
   distinct(sample_date, .keep_all = TRUE) %>% 
   arrange(area, home, winter_id, sample_date) %>% 
   full_join(pm_sums_joined2, by = c("area", "home", "home_winter_id", "winter_id", 
-                                    "treatment", "sample_date")) %>% 
+                                    "treatment_assigned", "treatment_actual", 
+                                    "sample_date")) %>% 
   mutate(sampling_day = as.character(sampling_day)) %>% 
   ungroup() %>% 
   arrange(area, home, sample_date)
@@ -149,22 +152,23 @@ pm_sums_joined3 <- sums_join %>%
 # Join PM/SUMs data with other covariate datasets
 analysis_data1 <- home_act_clean %>% 
   mutate(sampling_day = home_act_day) %>% 
-  mutate(winter_id = as.character(winter_id)) %>% 
-  select(-home_act_day, -home_act_comments, -home_id) %>% 
+  select(-home_act_day, -home_id) %>% 
   full_join(pm_sums_joined3, by = c("area", "home", "home_winter_id", 
-                                    "winter_id", "treatment", "sampling_day")) %>% 
+                                    "winter_id", "treatment_assigned", 
+                                    "treatment_actual", "sampling_day")) %>% 
   ungroup() %>% 
   arrange(area, home, winter_id, sample_date)
 
 
-analysis_data2 <- demographics_clean %>% 
+analysis_data2 <- demographics %>% 
   mutate(residents_under_five = if_else(residents_under_five == 0 & age_child_nov != 4, "NA", residents_under_five),
          residents_under_five = if_else(residents_under_five == 0 & child_id_char == "WMA673B", "NA", residents_under_five)) %>% 
   replace_with_na(replace = list(total_residents = "0")) %>% 
   replace_with_na(replace = list(total_residents = "1")) %>% 
   replace_with_na(replace = list(residents_under_five = "NA")) %>% 
   full_join(analysis_data1, by = c("area", "home", "home_winter_id", 
-                                    "winter_id", "treatment")) %>% 
+                                    "winter_id", "treatment_assigned", 
+                                    "treatment_actual")) %>% 
   filter(!is.na(home_winter_id)) %>% 
   mutate(income_3level = fct_collapse(income,
                                "Less than $20,000" = "Less than $20,000",
@@ -208,8 +212,10 @@ analysis_data2 <- demographics_clean %>%
 analysis_data3 <- home_char_clean %>% 
   mutate(winter_id = as.character(winter_id)) %>%
   filter(winter_id == 1 | winter_id == 2) %>% 
-  select(area, home, home_winter_id, winter_id, treatment, residents_smoke:home_insert) %>% 
-  right_join(analysis_data2, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  select(area, home, home_winter_id, winter_id, treatment_assigned, 
+         treatment_actual, residents_smoke:home_insert) %>% 
+  right_join(analysis_data2, by = c("area", "home", "home_winter_id", "winter_id", 
+                                    "treatment_assigned", "treatment_actual")) %>% 
   mutate(home_type_2level = fct_collapse(home_type,
                                   "House" = "House",
                                   "Other" = c("Duplex/Apt", "Mobile Home", "Other")),
@@ -273,9 +279,11 @@ analysis_data3 <- home_char_clean %>%
 analysis_data4 <- indoor_temp_rh_clean %>% 
   filter(winter_id == 1) %>% 
   mutate(winter_id = as.character(winter_id)) %>%
-  select(area, home, home_winter_id, winter_id, treatment, rh_indoor_current:temp_indoor_min) %>% 
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
+         rh_indoor_current:temp_indoor_min) %>% 
   ungroup() %>% 
-  right_join(analysis_data3, by = c("area", "home", "home_winter_id", "winter_id", "treatment")) %>% 
+  right_join(analysis_data3, by = c("area", "home", "home_winter_id", "winter_id", 
+                                    "treatment_assigned", "treatment_actual")) %>% 
   mutate(temp_max_5 = temp_indoor_max/5,
          temp_min_5 = temp_indoor_min/5,
          rh_max_5 = rh_indoor_max/5,
@@ -295,7 +303,8 @@ pm_moisture <- moisture_clean %>%
   mutate(moisture_date = as.character(moisture_date),
          winter_id = as.character(winter_id)) %>% 
   filter(!is.na(moisture_ave)) %>% 
-  select(area, home, home_winter_id, winter_id, treatment, moisture_ave, 
+  select(area, home, home_winter_id, winter_id, treatment_actual, 
+         treatment_assigned, moisture_ave, 
          moisture_split, moisture_date) %>% 
   left_join(pm_join2, by = c("area", "home", "winter_id")) %>% 
   arrange(area, home, winter_id) %>% 
@@ -328,7 +337,8 @@ pm_moisture <- moisture_clean %>%
 
 analysis_data5 <- pm_moisture %>% 
   right_join(analysis_data4, by = c("area", "home", "home_winter_id", 
-                                    "winter_id", "treatment")) %>% 
+                                    "winter_id", "treatment_assigned", 
+                                    "treatment_actual")) %>% 
   ungroup() %>% 
   arrange(area, home, home_winter_id, sample_date) 
 
@@ -338,10 +348,12 @@ analysis_data6 <- stove_grades_clean %>%
   group_by(home) %>% 
   mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
   mutate(winter_id = as.character(winter_id)) %>%
-  select(area, home, home_winter_id, winter_id, treatment, stove_grade) %>% 
+  select(area, home, home_winter_id, winter_id, treatment_actual, 
+         treatment_assigned, stove_grade) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   right_join(analysis_data5, by = c("area", "home", "home_winter_id", 
-                                    "winter_id", "treatment")) %>% 
+                                    "winter_id", "treatment_assigned", 
+                                    "treatment_actual")) %>% 
   mutate(stove_grade_3level = fct_collapse(stove_grade,
                                     "A" = "A",
                                     "C" = "C",
@@ -356,7 +368,8 @@ analysis_data7 <- stove_use_clean %>%
   distinct(home, .keep_all = TRUE) %>% 
   mutate(winter_id = as.character(winter_id)) %>%
   right_join(analysis_data6, by = c("area", "home", "home_winter_id", 
-                                    "winter_id", "treatment")) %>% 
+                                    "winter_id", "treatment_assigned", 
+                                    "treatment_actual")) %>% 
   mutate(burn_level_3level = fct_collapse(burn_level,
                                    "No/Light burning" = c("No burning", 
                                                           "Light burning"),
@@ -381,35 +394,36 @@ analysis_data7 <- stove_use_clean %>%
 
 
 
-write_rds(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.rds"))
-write_csv(analysis_data7, paste0(output_path, "Output/exposure_analysis_data_long.csv"))
+write_rds(analysis_data7, paste0(file_path, "Output/exposure_analysis_data_long.rds"))
+write_csv(analysis_data7, 
+          paste0(file_path, "Output/exposure_analysis_data_long.csv"), na = "")
 
 
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long.rds"))
 
 
 save_var_names <- data.frame(t(exposure_analysis_data_long)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 
-#write_csv(save_var_names, paste0(output_path, "Output/kids_data_var_names.csv"))
+#write_csv(save_var_names, paste0(file_path, "Output/kids_data_var_names.csv"))
 ```
 
 
 # Update long dataset -- REMEMBER TO UPDATE SHORT DATA BELOW
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long.rds"))
 
 kids_amb_pm_data <- 
-  read_rds(paste0(output_path, "Output/kids_amb_pm_data_new.rds")) %>% 
+  read_rds(paste0(file_path, "Output/kids_amb_pm_data_new.rds")) %>% 
   mutate(sample_date = amb_pm_date)
 
 kids_amb_temp_data <- 
-  read_rds(paste0(output_path, "Output/kids_amb_temp_data_new.rds")) %>% 
+  read_rds(paste0(file_path, "Output/kids_amb_temp_data_new.rds")) %>% 
   mutate(sample_date = temp_date) %>% 
   mutate(sample_date = as.character(sample_date)) 
 
@@ -447,27 +461,28 @@ exposure_analysis_data_long_new <- exposure_analysis_data_long %>%
 
 
 
-write_rds(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
-write_csv(exposure_analysis_data_long_new, paste0(output_path, "Output/exposure_analysis_data_long_new.csv"))
+write_rds(exposure_analysis_data_long_new, paste0(file_path, "Output/exposure_analysis_data_long_new.rds"))
+write_csv(exposure_analysis_data_long_new, 
+          paste0(file_path, "Output/exposure_analysis_data_long_new.csv"), na = "")
 ```
 
 
 # Convert long data to medium: only keeping days with PM sampling, repeated by child_id
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_long_new <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds"))
 
 
 
 exposure_analysis_data_medium <- exposure_analysis_data_long_new %>% 
-  select(area, home, home_winter_id, winter_id, treatment, 
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
          sampling_day, sample_date, burn_level:mean_temp_roll_4day) %>% 
   group_by(area, home, winter_id, child_id_char) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
-  select(area, home, home_winter_id, winter_id, treatment, sampling_day,
-         child_id_char, burn_level:mean_temp_roll_4day) %>% 
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
+         sampling_day, child_id_char, burn_level:mean_temp_roll_4day) %>% 
   mutate(filter_var = if_else(winter_id == 1 & is.na(sampling_day) & lead(sampling_day) == 1, 1, 0),
          filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
   select(filter_var, area:mean_temp_roll_4day) %>% 
@@ -477,26 +492,27 @@ exposure_analysis_data_medium <- exposure_analysis_data_long_new %>%
 
 
 
-write_rds(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
-write_csv(exposure_analysis_data_medium, paste0(output_path, "Output/exposure_analysis_data_medium.csv"))
+write_rds(exposure_analysis_data_medium, paste0(file_path, "Output/exposure_analysis_data_medium.rds"))
+write_csv(exposure_analysis_data_medium, 
+          paste0(file_path, "Output/exposure_analysis_data_medium.csv"), na = "")
 ```
 
 
 # Convert medium data to short: only keeping 1 observation per sampling period, repeated by child_id
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_medium <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_medium.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds"))
 exposure_analysis_data_long <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds")) 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 sums_rolling_pm_data <- 
-  read_rds(paste0(output_path, "Output/sums_rolling_pm_data.rds"))
+  read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
 
 
 ####### Format SUMs data to merge with analysis data below
 sums_temp_change <- sums_rolling_pm_data %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(winter_id == 1) %>% 
   group_by(area, home, sampling_day) %>% 
   distinct(datetime_sums, .keep_all = TRUE) %>% 
   group_by(area, home, sampling_day) %>% 
@@ -531,7 +547,7 @@ sums_temp_change <- sums_rolling_pm_data %>%
 ####### Format ambient data to merge with analysis data below
 ambient_data <- exposure_analysis_data_long %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
+  #filter(treatment == "Placebo") %>% 
   #filter(area == "WMT") %>%
   filter(!is.na(sampling_day)) %>% 
   filter(!is.na(sample_date)) %>%
@@ -609,19 +625,20 @@ exposure_analysis_data_short <- exposure_analysis_data_medium %>%
 
 
 
-write_rds(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.rds"))
-write_csv(exposure_analysis_data_short, paste0(output_path, "Output/exposure_analysis_data_short.csv"))
+write_rds(exposure_analysis_data_short, paste0(file_path, "Output/exposure_analysis_data_short.rds"))
+write_csv(exposure_analysis_data_short, 
+          paste0(file_path, "Output/exposure_analysis_data_short.csv"), na = "")
 ```
 
 
 # Dataset with PM and SUMs matched/average over short interval
 ```{r}
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 pm_clean <- 
-  read_rds(paste0(output_path, "Output/pm_clean.rds"))
+  read_rds(paste0(file_path, "Output/pm_clean.rds"))
 sums_clean <- 
-  read_rds(paste0(output_path, "Output/sums_clean.rds"))
+  read_rds(paste0(file_path, "Output/sums_clean.rds"))
 
 
 pm_join <- pm_clean %>% 
@@ -635,7 +652,7 @@ pm_join <- pm_clean %>%
          sample_datetime = round_date(sample_datetime, unit = "minute"),
          pm_rolling_20 = rollmean(pm, 20, fill = "extend")) %>% 
   ungroup() %>% 
-  select(-home_id, -treatment) %>% 
+  select(-home_id, -treatment_assigned, - treatment_actual) %>% 
   arrange(area, home, sample_datetime) 
 
 sums_join <- sums_clean %>% 
@@ -658,20 +675,21 @@ pm_sums_joined2 <- pm_sums_joined %>%
          sample_date, temp_c_sums, pm_rolling_20)
 
 exposure_analysis_data_long_new <- 
-  read_rds(paste0(output_path, "Output/exposure_analysis_data_long_new.rds"))
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds"))
 
 pm_sums_joined3 <- pm_sums_joined2 %>% 
   left_join(exposure_analysis_data_long_new, 
             by = c("area", "home", "home_winter_id", "winter_id", "sample_date")) %>% 
-  select(area, home, home_winter_id, winter_id, treatment, sampling_day,
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, sampling_day,
          child_id_char, sample_date, datetime_sums, temp_c_sums:wood_collect_method_2level) %>% 
   ungroup() %>% 
   arrange(area, home, datetime_sums)
 
 
 
-write_rds(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.rds"))
-write_csv(pm_sums_joined3, paste0(output_path, "Output/sums_rolling_pm_data.csv"))
+write_rds(pm_sums_joined3, paste0(file_path, "Output/sums_rolling_pm_data.rds"))
+write_csv(pm_sums_joined3, 
+          paste0(file_path, "Output/sums_rolling_pm_data.csv"), na = "")
 ```
 
 

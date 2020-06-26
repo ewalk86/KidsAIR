@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR home activity and characteristics cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 22 June 2020"
+date: "Started 13 Jan 2020, Updated 26 June 2020"
 output: pdf_document
 ---
 
@@ -25,7 +25,7 @@ demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds"))
 ```{r}
 ##### WMT #####
 # Load data
-home_char_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/homechar.csv"), 
+home_char_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/homechar_updated_data_SAVE.csv"), 
                                   na = c("NULL", ""))
 
 wmt_home_char <- home_char_initial_wmt %>% 
@@ -73,7 +73,7 @@ write_rds(wmt_home_char, paste0(file_path, "Output/wmt_home_char.rds"))
 
 ##### NN #####
 # Load data
-home_char_initial_nn <- read_csv(paste0(file_path, "Input/NN/homechar.csv"), na = c("NULL", ""))
+home_char_initial_nn <- read_csv(paste0(file_path, "Input/NN/homechar_updated_data_SAVE.csv"), na = c("NULL", ""))
 
 nn_home_char <- home_char_initial_nn %>% 
   # rename variables
@@ -120,7 +120,7 @@ write_rds(nn_home_char, paste0(file_path, "Output/nn_home_char.rds"))
 
 ##### AK #####
 # Load data
-home_char_initial_ak <- read_csv(paste0(file_path, "Input/AK/homechar.csv"), na = c("NULL", ""))
+home_char_initial_ak <- read_csv(paste0(file_path, "Input/AK/homechar_updated_data_SAVE.csv"), na = c("NULL", ""))
 
 ak_home_char <- home_char_initial_ak %>% 
   # rename variables
@@ -175,7 +175,7 @@ ak_home_char <- read_rds(paste0(file_path, "Output/ak_home_char.rds"))
 
 kids_home_char <- rbind(wmt_home_char, nn_home_char, ak_home_char)
 
-# write_rds(kids_home_char, paste0(file_path, "Output/kids_home_char.rds"))
+write_rds(kids_home_char, paste0(file_path, "Output/kids_home_char.rds"))
 ```
 
 # Clean up all home characteristics data

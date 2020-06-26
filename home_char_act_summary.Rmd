@@ -48,7 +48,7 @@ home_char_check_num <- home_char_clean %>%
   mutate(data_check = if_else(value == lead(value), 1, 0),
          data_check = if_else(is.na(data_check), lag(data_check), data_check)) %>% 
   filter(data_check == 0) %>% 
-  select(area, home, winter_id, var, value) %>% 
+  select(area, home, home_winter_id, winter_id, var, value) %>% 
   mutate(value = as.numeric(value),
          data_check = if_else(var == "residents_total" & abs(value - lead(value)) > 1, 1, 0),
          data_check = if_else(var == "residents_under5" & abs(value - lead(value)) > 1, 1, data_check),
@@ -63,7 +63,7 @@ home_char_check_num <- home_char_clean %>%
          data_check = if_else(is.na(data_check), lag(data_check), data_check),
          value = as.character(value)) %>% 
   filter(data_check == 1) %>% 
-  select(area, home, winter_id, var, value)
+  select(area, home, home_winter_id, winter_id, var, value)
 
 write_csv(home_char_check_num, paste0(file_path, "Output/home_char_check_num.csv"))
   
@@ -79,7 +79,7 @@ home_char_check_fact <- home_char_clean %>%
   mutate(data_check = if_else(value == lead(value), 1, 0),
          data_check = if_else(is.na(data_check), lag(data_check), data_check)) %>% 
   filter(data_check == 0) %>% 
-  select(area, home, winter_id, var, value) %>% 
+  select(area, home, home_winter_id, winter_id, var, value) %>% 
   mutate(var2 = var,
          value2 = value) %>% 
   pivot_wider(names_from = "var2", values_from = "value2") %>% 
@@ -101,7 +101,7 @@ home_char_check_fact$value_num <-
            home_char_check_fact$home_fireplace)
 
 home_char_check_fact2 <- home_char_check_fact %>% 
-  select(area, home, winter_id, var, value, value_num) %>% 
+  select(area, home,home_winter_id, winter_id, var, value, value_num) %>% 
   group_by(home, var) %>% 
   mutate(data_check = if_else(abs(value_num - lead(value_num)) > 1, 1, 0),
          data_check = if_else(is.na(data_check), lag(data_check), data_check),

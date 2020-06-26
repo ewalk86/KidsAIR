@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 13 May 2020, Updated 22 May 2020"
+date: "Started 13 May 2020, Updated 26 June 2020"
 output:
   powerpoint_presentation: default
 ---
@@ -35,6 +35,9 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 health_exposure_data_sampling_day <- 
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 
+health_data_merged <- 
+  read_rds(paste0(file_path, "Output/health_data_merged.rds"))
+
 
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
 
@@ -55,32 +58,20 @@ sums_rolling_pm_data <-
 
 
 ```{r}
-# number of placebo households, total and by area
-placebo_homes <- health_exposure_data_sampling_day %>% 
-  filter(winter_id == 1) %>% 
-  filter(area == "WMT") %>% 
-  select(area, home, home_id, winter_id, home_winter_id, treatment)
-  #filter(treatment == "Placebo") %>% 
-  distinct(home, .keep_all = TRUE) %>%
-  count(area)
-placebo_homes
+# number of households, total and by area
+study_homes <- health_exposure_data_sampling_day %>% 
+  distinct(home, winter_id, .keep_all = TRUE) %>%
+  count(area, winter_id, treatment_assigned)
+study_homes
 
-# number of placebo households, total and by area
-treatment_homes <- health_exposure_data_sampling_day %>% 
-  filter(winter_id == 2) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  group_by(area) %>% 
-  count(treatment)
-treatment_homes
-
-# number of placebo households, total and by area
-treatment_kids <- health_exposure_data_sampling_day %>% 
-  filter(winter_id == 2) %>% 
-  distinct(area, child_id_num, .keep_all = TRUE) %>% 
+study_kids <- health_exposure_data_sampling_day %>% 
   filter(!is.na(child_id_num)) %>% 
-  group_by(area) %>% 
-  count(treatment)
-treatment_kids
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>%
+  count(area, winter_id, treatment_assigned)
+study_kids
+
+nn_homes <- health_exposure_data_sampling_day %>% 
+  filter(home == "CH209" | home == "CH218")
 ```
 
 ```{r}
