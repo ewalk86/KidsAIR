@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 13 May 2020, Updated 26 June 2020"
+date: "Started 13 May 2020, Updated 29 June 2020"
 output:
   powerpoint_presentation: default
 ---
@@ -33,10 +33,10 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) 
 
 health_data_merged <- 
-  read_rds(paste0(file_path, "Output/health_data_merged.rds"))
+  read_rds(paste0(file_path, "Output/health_data_merged.rds")) 
 
 
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
@@ -56,23 +56,52 @@ sums_rolling_pm_data <-
   read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
 ```
 
+# Count number of kids initially randomized
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+ak_demographics <- read_rds(paste0(file_path, "Output/ak_demographic_data.rds"))
+nn_demographics <- read_rds(paste0(file_path, "Output/nn_demographic_data.rds"))
+wmt_demographics <- read_rds(paste0(file_path, "Output/wmt_demographic_data.rds"))
+
+kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %>% 
+  filter(!is.na(treatment)) %>% 
+  filter(!is.na(child_id_num)) %>% 
+  count(area, winter_id, treatment) %>% 
+  filter(winter_id != 2)
+```
+
+# Count number of households initially randomized
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+ak_ids <- read_rds(paste0(file_path, "Output/ak_ids_linked.rds"))
+nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds"))
+wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds"))
+
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
+  filter(!is.na(treatment)) %>% 
+  ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
+  filter(home != "WMA222" & home != "WMA233") %>%
+  count(area, winter_id, treatment) %>% 
+  filter(winter_id != 2)
+```
+
+# Count number of households and kids that participated by area and winter
 ```{r}
 # number of households, total and by area
 study_homes <- health_exposure_data_sampling_day %>% 
   distinct(home, winter_id, .keep_all = TRUE) %>%
   count(area, winter_id, treatment_assigned)
-study_homes
+
 
 study_kids <- health_exposure_data_sampling_day %>% 
-  filter(!is.na(child_id_num)) %>% 
-  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>%
+  select(area, home, child_id_char, child_id_num, winter_id, treatment_assigned) %>% 
+  filter(!is.na(child_id_char)) %>% 
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   count(area, winter_id, treatment_assigned)
-study_kids
-
-nn_homes <- health_exposure_data_sampling_day %>% 
-  filter(home == "CH209" | home == "CH218")
 ```
+
 
 ```{r}
 # add new vars to dataset

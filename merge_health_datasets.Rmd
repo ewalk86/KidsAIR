@@ -119,9 +119,12 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 exposure_analysis_data_medium <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds")) 
-
+  
 health_data_merged <- 
   read_rds(paste0(file_path, "Output/health_data_merged.rds")) 
+
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
+  select(child_id_num, child_id_char, area, winter_id)
 
 
 
@@ -132,7 +135,11 @@ health_exposure_data_sampling_day <- health_data_merged %>%
             by = c("area", "child_id_num", "home", "home_winter_id", "winter_id", 
                    "treatment_assigned", "treatment_actual",
                    "sampling_day")) %>% 
-  filter(!is.na(home))
+  filter(!is.na(home)) %>% 
+  filter(!is.na(child_id_num)) %>% 
+  select(-child_id_char) %>% 
+  left_join(demographics, by = c("area", "winter_id", "child_id_num")) %>% 
+  select(area:child_id_num, child_id_char, visit_date:rh_max_5)
 
 
 write_rds(health_exposure_data_sampling_day, 
