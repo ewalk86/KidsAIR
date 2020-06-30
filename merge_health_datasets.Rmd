@@ -139,7 +139,7 @@ health_exposure_data_sampling_day <- health_data_merged %>%
   filter(!is.na(child_id_num)) %>% 
   select(-child_id_char) %>% 
   left_join(demographics, by = c("area", "winter_id", "child_id_num")) %>% 
-  select(area:child_id_num, child_id_char, visit_date:rh_max_5)
+  select(area:child_id_num, child_id_char, visit_date:amb_pm_sampling_period_5)
 
 
 write_rds(health_exposure_data_sampling_day, 

@@ -471,39 +471,6 @@ write_csv(exposure_analysis_data_long_new,
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-exposure_analysis_data_long_new <- 
-  read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds"))
-
-
-
-exposure_analysis_data_medium <- exposure_analysis_data_long_new %>% 
-  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
-         sampling_day, sample_date, burn_level:mean_temp_roll_4day) %>% 
-  group_by(area, home, winter_id, child_id_char) %>% 
-  distinct(sampling_day, .keep_all = TRUE) %>% 
-  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
-         sampling_day, child_id_char, burn_level:mean_temp_roll_4day) %>% 
-  mutate(filter_var = if_else(winter_id == 1 & is.na(sampling_day) & lead(sampling_day) == 1, 1, 0),
-         filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
-  select(filter_var, area:mean_temp_roll_4day) %>% 
-  filter(filter_var == 0) %>% 
-  select(-filter_var) %>% 
-  ungroup()
-
-
-
-write_rds(exposure_analysis_data_medium, paste0(file_path, "Output/exposure_analysis_data_medium.rds"))
-write_csv(exposure_analysis_data_medium, 
-          paste0(file_path, "Output/exposure_analysis_data_medium.csv"), na = "")
-```
-
-
-# Convert medium data to short: only keeping 1 observation per sampling period, repeated by child_id
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-
-exposure_analysis_data_medium <- 
-  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds"))
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 sums_rolling_pm_data <- 
@@ -564,7 +531,18 @@ ambient_data <- exposure_analysis_data_long %>%
 
 
 
-exposure_analysis_data_short <- exposure_analysis_data_medium %>% 
+exposure_analysis_data_medium <- exposure_analysis_data_long %>% 
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
+         sampling_day, sample_date, burn_level:mean_temp_roll_4day) %>% 
+  group_by(area, home, winter_id, child_id_char) %>% 
+  distinct(sampling_day, .keep_all = TRUE) %>% 
+  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
+         sampling_day, child_id_char, burn_level:mean_temp_roll_4day) %>% 
+  mutate(filter_var = if_else(winter_id == 1 & is.na(sampling_day) & lead(sampling_day) == 1, 1, 0),
+         filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
+  select(filter_var, area:mean_temp_roll_4day) %>% 
+  filter(filter_var == 0) %>% 
+  select(-filter_var) %>% 
   arrange(area, home, winter_id) %>% 
   group_by(area, home, winter_id, child_id_char) %>% 
   # Sum home activity vars over entire sampling period to make 1 obs per sampling period
@@ -616,11 +594,32 @@ exposure_analysis_data_short <- exposure_analysis_data_medium %>%
          home_act_sweep = as.character(home_act_sweep),
          home_act_sweep = as.numeric(home_act_sweep),
          home_act_sweep_sum = sum(home_act_sweep)) %>% 
+  ungroup() %>% 
+  left_join(sums_temp_change, by = c("area", "home", "home_winter_id")) %>% 
+  left_join(ambient_data, by = c("area", "home")) 
+  
+
+
+
+write_rds(exposure_analysis_data_medium, paste0(file_path, "Output/exposure_analysis_data_medium.rds"))
+write_csv(exposure_analysis_data_medium, 
+          paste0(file_path, "Output/exposure_analysis_data_medium.csv"), na = "")
+```
+
+
+# Convert medium data to short: only keeping 1 observation per sampling period, repeated by child_id
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+exposure_analysis_data_medium <- 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_medium.rds"))
+
+
+
+exposure_analysis_data_short <- exposure_analysis_data_medium %>% 
   group_by(area, home, winter_id) %>% 
   distinct(child_id_char, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  left_join(sums_temp_change, by = c("area", "home", "home_winter_id")) %>% 
-  left_join(ambient_data, by = c("area", "home")) %>% 
   arrange(area, home, winter_id)
 
 

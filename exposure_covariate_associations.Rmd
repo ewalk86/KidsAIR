@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: covariate associations exposure analysis"
 author: "Ethan Walker"
-date: "Started 2 Feb 2020, Updated 16 April 2020"
+date: "Started 2 Feb 2020, Updated 30 June 2020"
 output: pdf_document
 header-includes:
     - \usepackage[labelformat=empty]{caption}
@@ -33,6 +33,9 @@ library(kableExtra)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
@@ -44,17 +47,13 @@ exposure_analysis_data_short <-
 
 sums_rolling_pm_data <- 
   read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
-
-health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 ```{r, eval=TRUE, include=TRUE}
 ####### Format full data to use for analysis
-analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
-  group_by(area, home) %>% 
+analysis_data <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  arrange(area, home, sampling_day) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
   # dichotomize variables by median value
@@ -97,7 +96,7 @@ analysis_data <- exposure_analysis_data_short %>%
                                  right = FALSE),
          home_act_sweep_2level = cut(home_act_sweep_sum, breaks = c(0, 3, 7),
                                  labels = c("<3", "3+"),
-                                 right = FALSE))
+                                 right = FALSE)) 
   
 
 ####### Function to run analysis
@@ -105,7 +104,7 @@ analysis_function <- function(covar, label,
                               dataset = analysis_data){
   
   analysis_data <- dataset %>% 
-    filter(winter_id == 1 & treatment == "Placebo" & area == "WMT") %>% 
+    filter(winter_id == 1 & treatment_assigned == "Placebo" & area == "WMT") %>% 
     group_by(area, home) %>% 
     distinct(home, .keep_all = TRUE) %>% 
     rename(analysis_covar = covar) %>% 
@@ -325,7 +324,7 @@ pm_stove_use_plot
 # Stove grades
 
 analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
   group_by(area, home) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup()

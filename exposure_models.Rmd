@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: exposure model"
 author: "Ethan Walker"
-date: "Started 19 March 2020, Updated 30 April 2020"
+date: "Started 19 March 2020, Updated 30 June 2020"
 output: pdf_document
 ---
 
@@ -53,10 +53,9 @@ health_exposure_data_sampling_day <-
 
 ```{r}
 ####### Format full data to use for analysis
-analysis_data <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
-  group_by(area, home) %>% 
+analysis_data <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  arrange(area, home, sampling_day) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
   # dichotomize variables by median value
@@ -171,34 +170,33 @@ library(mice)
 
 # Select analysis vars
 selected_vars <- analysis_data %>% 
-  #filter(area == "NN") %>% 
-  select(pm_mean_sampling_period,
-         income_3level,
+  #filter(area == "WMT") %>% 
+  select(pm_mean_sampling_period, income_3level, area, home,
          residents_smoke,
-         home_floors_2level, 
-         home_sqft_2level,
+         home_floors_2level, home_sqft_2level,
          home_pets_2level,
-         stove_age_3level, 
-         chimney_clean_3level, 
+         stove_age_3level, chimney_clean_3level, 
          wood_collect_2level,
-         moisture_closest_2level,
          sums_events_sampling_period,
          mean_temp_sampling_period_5,
+         amb_pm_sampling_period_5,
          stove_grade_3level,
          home_fireplace) %>% 
-  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>%  
-  select(-pm_mean_sampling_period) 
+  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period))   
+  select(-pm_mean_sampling_period) %>% 
+
+  na.exclude()
 ```
 
 **Note**
 
 When selecting data above, WMT has 63 observations
 When use `na.exclude()` to only use complete data (what is needed for AIC selection),
-the observations drops to 30. While there is only 10% missing data, it is spread
+the observations drops to 34. While there is only 7.5% missing data, it is spread
 out enough that excluding it to have complete observations means we can only use
 less than half for model selection. This would be a very biased version of model
 selection to exclude that much data, which justifies multiple imputation to 
-impute the 10% missing data and use that for model selection.
+impute the 7.5% missing data and use that for model selection.
 The missing observations are even more extreme for NN and AK.
 
 Next, assess data structure and patterns of missing data
@@ -208,7 +206,7 @@ Document missing data thoroughly for manuscript
 str(selected_vars)
 
 # Check % missing data
-mean(is.na(selected_vars)) # 10.7% for WMT
+mean(is.na(selected_vars)) # 7.5% for WMT
 
 # Using mice package
 
@@ -253,7 +251,7 @@ missing_summary
 ```{r}
 # T-tests
 missing_test <- selected_vars %>% 
-  mutate(missing_var = if_else(is.na(residents_smoke), "missing yes", "missing no")) %>% 
+  mutate(missing_var = if_else(is.na(stove_grade_3level), "missing yes", "missing no")) %>% 
   filter(!is.na(log_pm_mean_sampling_period) & !is.na(missing_var))
 
 
@@ -278,9 +276,9 @@ complete_case <- selected_vars %>%
 missing_summary <- complete_case %>% 
   group_by(area) %>% 
   summarize(n = n(),
-            mean_var = mean(pm_mean_sampling_period, na.rm = TRUE), 
-            sd_var = sd(pm_mean_sampling_period, na.rm = TRUE),
-            median_var = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+            mean_var = mean(mean_temp_sampling_period_5, na.rm = TRUE), 
+            sd_var = sd(mean_temp_sampling_period_5, na.rm = TRUE),
+            median_var = median(mean_temp_sampling_period_5, na.rm = TRUE)) %>% 
   group_by(area) %>% 
   select(area, n, mean_var, sd_var, median_var)
 missing_summary
@@ -302,9 +300,9 @@ missing_data <- selected_vars %>%
 missing_summary <- missing_data %>% 
   group_by(area) %>% 
   summarize(n = n(),
-            mean_var = mean(pm_mean_sampling_period, na.rm = TRUE), 
-            sd_var = sd(pm_mean_sampling_period, na.rm = TRUE),
-            median_var = median(pm_mean_sampling_period, na.rm = TRUE)) %>% 
+            mean_var = mean(mean_temp_sampling_period_5, na.rm = TRUE), 
+            sd_var = sd(mean_temp_sampling_period_5, na.rm = TRUE),
+            median_var = median(mean_temp_sampling_period_5, na.rm = TRUE)) %>% 
   group_by(area) %>% 
   select(area, n, mean_var, sd_var, median_var)
 missing_summary
