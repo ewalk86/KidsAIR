@@ -59,13 +59,8 @@ stove_grade_summary <- stove_grades_clean %>%
   filter(!is.na(stove_grade))
 #kable(stove_grade_summary, align = "c")
 
-stove_grades_total <- stove_grades_clean %>% 
-  filter(!is.na(stove_grade)) %>% 
-  filter(!is.na(home)) %>% 
-  group_by(area, home) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  select(area, home, stove_grade) %>% 
-  arrange(area, home) 
+stove_grades_summary <- stove_grades_clean %>% 
+  count(area, winter_id, treatment_assigned, stove_grade) 
 ```
 
 

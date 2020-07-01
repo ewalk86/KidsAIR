@@ -171,7 +171,7 @@ library(mice)
 # Select analysis vars
 selected_vars <- analysis_data %>% 
   #filter(area == "WMT") %>% 
-  select(pm_mean_sampling_period, income_3level, area, home,
+  select(pm_mean_sampling_period, income_3level, 
          residents_smoke,
          home_floors_2level, home_sqft_2level,
          home_pets_2level,
@@ -182,10 +182,10 @@ selected_vars <- analysis_data %>%
          amb_pm_sampling_period_5,
          stove_grade_3level,
          home_fireplace) %>% 
-  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period))   
-  select(-pm_mean_sampling_period) %>% 
+  mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>%  
+  select(-pm_mean_sampling_period)
 
-  na.exclude()
+  #na.exclude()
 ```
 
 **Note**

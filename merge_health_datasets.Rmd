@@ -126,10 +126,43 @@ health_data_merged <-
 demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
   select(child_id_num, child_id_char, area, winter_id)
 
+ruca_mt <- 
+  read_xls(paste0(file_path, "Input/ruca2/ruca2_MT.xls")) %>% 
+  rename(zip = ZIPN,
+         ruca_code = RUCA2) %>% 
+  select(zip, ruca_code)
+
+ruca_ak <- 
+  read_xls(paste0(file_path, "Input/ruca2/ruca2_AK.xls")) %>% 
+  rename(zip = ZIPN,
+         ruca_code = RUCA2) %>% 
+  select(zip, ruca_code)
+
+ruca_az <- 
+  read_xls(paste0(file_path, "Input/ruca2/ruca2_AZ.xls")) %>% 
+  rename(zip = ZIPN,
+         ruca_code = RUCA2) %>% 
+  select(zip, ruca_code)
+
+ruca_nm <- 
+  read_xls(paste0(file_path, "Input/ruca2/ruca2_NM.xls")) %>% 
+  rename(zip = ZIPN,
+         ruca_code = RUCA2) %>% 
+  select(zip, ruca_code)
+
+ruca_ut <- 
+  read_xls(paste0(file_path, "Input/ruca2/ruca2_UT.xls")) %>% 
+  rename(zip = ZIPN,
+         ruca_code = RUCA2) %>% 
+  select(zip, ruca_code)
+
+ruca_codes <- rbind(ruca_mt, ruca_ak, ruca_az, ruca_nm, ruca_ut)
+
 
 
 health_exposure_data_sampling_day <- health_data_merged %>% 
-  select(-pm_mean_sampling_day, -pm_mean_sampling_period) %>% 
+  select(-pm_mean_sampling_day, -pm_mean_sampling_period, -day_of_week,
+         -pm_spike_1000, -pm_spike_2000, -pm_spike_5000) %>% 
   mutate(winter_id = as.character(winter_id)) %>% 
   full_join(exposure_analysis_data_medium,
             by = c("area", "child_id_num", "home", "home_winter_id", "winter_id", 
@@ -139,7 +172,17 @@ health_exposure_data_sampling_day <- health_data_merged %>%
   filter(!is.na(child_id_num)) %>% 
   select(-child_id_char) %>% 
   left_join(demographics, by = c("area", "winter_id", "child_id_num")) %>% 
-  select(area:child_id_num, child_id_char, visit_date:amb_pm_sampling_period_5)
+  select(area, home, home_id, home_winter_id, winter_id, child_id_num, child_id_char, 
+         treatment_assigned, treatment_actual, sampling_day, visit_date:amb_pm_sampling_period_5) %>% 
+  left_join(ruca_codes, by = "zip") %>% 
+  mutate(ruca_code_2 = if_else(ruca_code >= 10, 10, ruca_code),
+         ruca_code_2 = if_else(ruca_code_2 == 7.4, 7, ruca_code_2),
+         ruca_code = as.factor(ruca_code),
+         ruca_code_2 = as.factor(ruca_code_2),
+         ruca_code_3 = fct_collapse(ruca_code_2,
+                                    "metro" = c("1", "2"),
+                                    "small_town" = c("7", "8", "9"),
+                                    "rural" = c("10")))
 
 
 write_rds(health_exposure_data_sampling_day, 
@@ -150,7 +193,8 @@ write_csv(health_exposure_data_sampling_day,
 
 ```{r}
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
+  select(area, home, zip)
 
 
 save_var_names <- data.frame(t(health_exposure_data_sampling_day)) %>% 

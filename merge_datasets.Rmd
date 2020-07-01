@@ -345,8 +345,8 @@ analysis_data5 <- pm_moisture %>%
 
 analysis_data6 <- stove_grades_clean %>% 
   arrange(area, home, winter_id) %>% 
-  group_by(home) %>% 
-  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  #group_by(home) %>% 
+  #mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
   mutate(winter_id = as.character(winter_id)) %>%
   select(area, home, home_winter_id, winter_id, treatment_actual, 
          treatment_assigned, stove_grade) %>% 
@@ -536,8 +536,8 @@ exposure_analysis_data_medium <- exposure_analysis_data_long %>%
          sampling_day, sample_date, burn_level:mean_temp_roll_4day) %>% 
   group_by(area, home, winter_id, child_id_char) %>% 
   distinct(sampling_day, .keep_all = TRUE) %>% 
-  select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
-         sampling_day, child_id_char, burn_level:mean_temp_roll_4day) %>% 
+  select(area, home, home_id, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
+         sampling_day, child_id_char, child_id_num, burn_level:mean_temp_roll_4day) %>% 
   mutate(filter_var = if_else(winter_id == 1 & is.na(sampling_day) & lead(sampling_day) == 1, 1, 0),
          filter_var = if_else(is.na(filter_var), 0, filter_var)) %>% 
   select(filter_var, area:mean_temp_roll_4day) %>% 
@@ -618,6 +618,7 @@ exposure_analysis_data_medium <-
 
 exposure_analysis_data_short <- exposure_analysis_data_medium %>% 
   group_by(area, home, winter_id) %>% 
+  arrange(area, home, child_id_char, winter_id, sampling_day) %>% 
   distinct(child_id_char, .keep_all = TRUE) %>% 
   ungroup() %>% 
   arrange(area, home, winter_id)
