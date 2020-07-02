@@ -104,7 +104,7 @@ analysis_function <- function(covar, label,
                               dataset = analysis_data){
   
   analysis_data <- dataset %>% 
-    filter(winter_id == 1 & treatment_assigned == "Placebo" & area == "WMT") %>% 
+    filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
     group_by(area, home) %>% 
     distinct(home, .keep_all = TRUE) %>% 
     rename(analysis_covar = covar) %>% 
@@ -113,8 +113,8 @@ analysis_function <- function(covar, label,
   
   analysis_results <<- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
   
-  print(table(model.frame(analysis_results)$analysis_covar))
-  #print(nobs(analysis_results))
+  #print(table(model.frame(analysis_results)$analysis_covar))
+  print(nobs(analysis_results))
   
   tidy_results <<- tidy(analysis_results, conf.int = TRUE) %>% 
     filter(term != '(Intercept)') %>% 
@@ -176,8 +176,8 @@ d39 <- analysis_function("sums_mean_sampling_period_5", "SUMs mean temperature")
 d40 <- analysis_function("temp_perc_25_2level", "SUMs - % obs > 25 degrees C")
 d41 <- analysis_function("temp_perc_27_2level", "SUMs - % obs > 27 degrees C")
 d42 <- analysis_function("temp_perc_30_2level", "SUMs - % obs > 30 degrees C")
-d43 <- analysis_function("sums_events_sampling_period", 
-                         "Daily SUMs events - 5C temp increase in 20 min")
+d43 <- analysis_function("sums_events_sampling_period_5", 
+                         "SUMs events - 5C temp increase in 20 min")
 
 d44 <- analysis_function("amb_pm_sampling_period_5", "Mean ambient PM2.5 - per 5ug/m3 increase")
 d45 <- analysis_function("mean_temp_sampling_period_5", 
@@ -201,6 +201,13 @@ d60 <- analysis_function("home_act_sweep_2level", "Home activity - cleaning 2 le
 
 d61 <- analysis_function("stove_grade_3level", "Stove grade")
 
+d62 <- analysis_function("ruca_code_3", "RUCA Code")
+
+d63 <- analysis_function("sums_events_sampling_period_2.5", 
+                         "SUMs events - 2.5C temp increase in 20 min")
+d64 <- analysis_function("sums_events_sampling_period_7.5", 
+                         "SUMs events - 7.5C temp increase in 20 min")
+
 ####### Combine results to use in a table
 table_data <- rbind(d1, d2, d3, d4, d5, d6,
                     d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, d17, d18,
@@ -212,7 +219,7 @@ table_data <- rbind(d1, d2, d3, d4, d5, d6,
                     d44, d45,
                     d46, d47, d48, d49, d50, d51, d52, d53, d54, d55, d56,
                     d57, d58, d59, d60,
-                    d61)
+                    d61, d62, d63, d64)
 
 ####### Print full table of results
 kable(table_data, longtable = TRUE,
@@ -228,6 +235,8 @@ kable(table_data, longtable = TRUE,
    pack_rows("Ambient data", 54, 55) %>%
    pack_rows("Home activities - Sum of all sampling days", 56, 70) %>%
    pack_rows("Stove grade", 71, 72) %>%
+   pack_rows("RUCE Code", 73, 74) %>% 
+   pack_rows("SUMs other", 75, 76) %>% 
    footnote(c("PM2.5 = fine particulate matter", 
               "PM2.5 and all covariates have been averaged or summed to produce 1 observation per sampling period"))
 ```

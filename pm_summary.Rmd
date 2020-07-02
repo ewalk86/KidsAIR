@@ -48,20 +48,29 @@ sums_rolling_pm_data <-
 
 ```{r}
 # homes that exceed PM guidelines
-pm_guidelines <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
-  filter(pm_mean_sampling_period > 35) %>% 
+pm_guidelines <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  filter(pm_mean_sampling_period > 12) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   group_by(area) %>% 
   count()
 pm_guidelines
 
 
+pm_guidelines <- pm_clean %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  #group_by(area) %>% 
+  mutate(total_obs = n()) %>% 
+  filter(pm > 12) %>% 
+  mutate(cutoff_obs = n(),
+         cutoff_perc = cutoff_obs/total_obs*100) %>% 
+  distinct(area, .keep_all = TRUE)
+pm_guidelines
+
+
 #Pm by different levels of covariates
-pm_check <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
+pm_check <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
   distinct(home, .keep_all = TRUE) %>% 
   group_by(chimney_clean_3level) %>% 
   summarize("n" = n(),
@@ -78,7 +87,7 @@ pm_check
 # closer look at stove grade and PM
 pm_stove_grade <- exposure_analysis_data_short %>%
   select(area, home, pm_mean_sampling_period, stove_grade_3level, 
-         treatment, winter_id, home_winter_id) %>% 
+         treatment_assigned, winter_id, home_winter_id) %>% 
   filter(winter_id == 1 & treatment == "Placebo") %>% 
   filter(home != "WMA300") %>% 
   distinct(home, .keep_all = TRUE) %>% 
@@ -188,8 +197,7 @@ kable(pm_by_day,
 # Boxplots for PM by study area
 ```{r, fig.height=6, fig.width=8}
 boxplots_kids_pm <- pm_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
   ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
@@ -218,9 +226,11 @@ boxplots_kids_pm
 \pagebreak  
 
 ```{r, fig.height=, fig.width=8}
-boxplots_kids_pm <- exposure_analysis_data_short %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
+boxplots_kids_pm <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  arrange(area, home, sampling_day) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  ungroup() %>% 
   ggplot(aes(area, pm_mean_sampling_period)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
@@ -275,9 +285,8 @@ boxplots_kids_pm
 
 ```{r}
 # check PM spikes
-spikes_data <- exposure_analysis_data_medium %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
+spikes_data <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
   select(area, home, sampling_day, pm_mean_sampling_day, pm_mean_sampling_period,
          pm_spike_1000, pm_spike_2000, pm_spike_5000,
          income_3level, stove_grade_3level, chimney_clean_3level, home_floors_2level) %>% 

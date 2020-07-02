@@ -34,6 +34,9 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
@@ -45,9 +48,6 @@ exposure_analysis_data_short <-
 
 sums_rolling_pm_data <- 
   read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
-
-health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 
@@ -170,33 +170,33 @@ library(mice)
 
 # Select analysis vars
 selected_vars <- analysis_data %>% 
-  #filter(area == "WMT") %>% 
+  filter(area == "WMT") %>% 
   select(pm_mean_sampling_period, income_3level, 
          residents_smoke,
          home_floors_2level, home_sqft_2level,
          home_pets_2level,
          stove_age_3level, chimney_clean_3level, 
          wood_collect_2level,
-         sums_events_sampling_period,
+         sums_events_sampling_period_7.5,
          mean_temp_sampling_period_5,
          amb_pm_sampling_period_5,
          stove_grade_3level,
          home_fireplace) %>% 
   mutate(log_pm_mean_sampling_period = log(pm_mean_sampling_period)) %>%  
-  select(-pm_mean_sampling_period)
+  select(-pm_mean_sampling_period) 
 
-  #na.exclude()
+  na.exclude()
 ```
 
 **Note**
 
 When selecting data above, WMT has 63 observations
 When use `na.exclude()` to only use complete data (what is needed for AIC selection),
-the observations drops to 34. While there is only 7.5% missing data, it is spread
+the observations drops to 27. While there is only 8.4% missing data, it is spread
 out enough that excluding it to have complete observations means we can only use
 less than half for model selection. This would be a very biased version of model
 selection to exclude that much data, which justifies multiple imputation to 
-impute the 7.5% missing data and use that for model selection.
+impute the 8.4% missing data and use that for model selection.
 The missing observations are even more extreme for NN and AK.
 
 Next, assess data structure and patterns of missing data
@@ -206,7 +206,7 @@ Document missing data thoroughly for manuscript
 str(selected_vars)
 
 # Check % missing data
-mean(is.na(selected_vars)) # 7.5% for WMT
+mean(is.na(selected_vars)) # 8.4% for WMT
 
 # Using mice package
 
@@ -284,12 +284,12 @@ missing_summary <- complete_case %>%
 missing_summary
 
 missing_summary <- complete_case %>% 
-  group_by(area, wood_collect_2level) %>% 
+  group_by(area, income_3level) %>% 
   summarize(n = n()) %>% 
   group_by(area) %>% 
   mutate(total_n = sum(n),
          perc = n/total_n*100) %>% 
-  select(area, wood_collect_2level, n, perc, total_n)
+  select(area, income_3level, n, perc, total_n)
 missing_summary
 
 
@@ -308,12 +308,12 @@ missing_summary <- missing_data %>%
 missing_summary
 
 missing_summary <- missing_data %>% 
-  group_by(area, wood_collect_2level) %>% 
+  group_by(area, income_3level) %>% 
   summarize(n = n()) %>% 
   group_by(area) %>% 
   mutate(total_n = sum(n),
          perc = n/total_n*100) %>% 
-  select(area, wood_collect_2level, n, perc, total_n)
+  select(area, income_3level, n, perc, total_n)
 missing_summary
 
 
@@ -331,12 +331,12 @@ set.seed(123)
 # Impute missing data; m = 10 datasets (check % missing data and match)
 imputed_data <- mice(selected_vars, m=10, maxit = 40,
                      method = c("polr", "logreg", "logreg", "logreg", "logreg",
-                                "polr", "polr", "logreg", "logreg", "pmm",
-                                "pmm", "polr", "logreg", "pmm"))
+                                "polr", "polr", "logreg", "pmm",
+                                "pmm", "pmm", "polr", "polr", "pmm"))
 
-write_rds(imputed_data, paste0(file_path, "Output/imputed_exposure_data_22may2020.rds"))
+write_rds(imputed_data, paste0(file_path, "Output/imputed_exposure_data_2july2020.rds"))
 
-imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_22may2020.rds"))
+imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_2july2020.rds"))
 
 # Compare imputed summary to original summary
 summary(selected_vars)
@@ -345,7 +345,7 @@ summary(complete(imputed_data))
 # Look at imputation methods for each var; consider changing
 imputed_data$method
 
-# Can add "long" or "broad arguments
+# Can add "long" or "broad" arguments
 complete(imputed_data, "long")
 
 # Sample one of the imputed datasets
@@ -391,9 +391,9 @@ model_ave <- mami(imputed_data, missing.data = "imputed", model = "gaussian",
                   outcome = "log_pm_mean_sampling_period", 
                   method = "MA.criterion", criterion = "AIC", print.time = TRUE)
 
-write_rds(model_ave, paste0(file_path, "Output/imputed_exposure_model_22may2020.rds"))
+write_rds(model_ave, paste0(file_path, "Output/imputed_exposure_model_2july2020.rds"))
 
-exposure_model <- read_rds(paste0(file_path, "Output/imputed_exposure_model_22may2020.rds"))
+exposure_model <- read_rds(paste0(file_path, "Output/imputed_exposure_model_2july2020.rds"))
 
 summary(model_ave)
 

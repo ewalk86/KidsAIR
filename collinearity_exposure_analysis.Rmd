@@ -33,6 +33,9 @@ library(kableExtra)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
 
@@ -44,9 +47,6 @@ exposure_analysis_data_short <-
 
 sums_rolling_pm_data <- 
   read_rds(paste0(file_path, "Output/sums_rolling_pm_data.rds"))
-
-health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 ```{r, eval=TRUE, include=TRUE}
@@ -123,7 +123,7 @@ pm_mean_sampling_period <- analysis_data %>%
          home_pets_2level,
          stove_age_3level, chimney_clean_3level, 
          wood_collect_2level,
-         sums_events_sampling_period,
+         sums_events_sampling_period_7.5,
          mean_temp_sampling_period_5,
          amb_pm_sampling_period_5,
          stove_grade_3level,
@@ -142,7 +142,7 @@ other_vars <- analysis_data %>%
          home_pets_2level,
          stove_age_3level, chimney_clean_3level, 
          wood_collect_2level,
-         sums_events_sampling_period,
+         sums_events_sampling_period_7.5,
          mean_temp_sampling_period_5,
          amb_pm_sampling_period_5,
          stove_grade_3level,

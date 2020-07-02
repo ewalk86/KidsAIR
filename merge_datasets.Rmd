@@ -489,25 +489,30 @@ sums_temp_change <- sums_rolling_pm_data %>%
   replace_with_na(replace = list(lead_temp = 999)) %>% 
   mutate(temp_diff = lead_temp - temp_c_sums,
          # change temp in the following line
-         temp_diff_check = if_else(temp_diff >= 5, 1, 0),
-         heat_event = if_else(temp_diff_check == 1 & lag(temp_diff_check) == 1, 0,
-                              temp_diff_check),
-         heat_event = if_else(is.na(temp_diff_check), 1,
-                              heat_event)) %>% 
-  group_by(area, home, sampling_day) %>% 
-  mutate(sums_events_sampling_day = sum(heat_event, na.rm = TRUE),
-         sums_events_sampling_day_cat = cut(sums_events_sampling_day, 
-                                            breaks = c(0, 2, 50),
-                           labels = c("<2", "2+"),
-                                 right = FALSE)) %>% 
-  distinct(sampling_day, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  select(area:pm_rolling_20, sums_mean_winter:sums_mean_sampling_period,
-         time_diff:sums_events_sampling_day_cat) %>% 
+         temp_diff_check_2.5 = if_else(temp_diff >= 2.5, 1, 0),
+         heat_event_2.5 = if_else(temp_diff_check_2.5 == 1 & lag(temp_diff_check_2.5) == 1, 0,
+                              temp_diff_check_2.5),
+         heat_event_2.5 = if_else(is.na(temp_diff_check_2.5), 1,
+                              heat_event_2.5),
+         temp_diff_check_5 = if_else(temp_diff >= 5, 1, 0),
+         heat_event_5 = if_else(temp_diff_check_5 == 1 & lag(temp_diff_check_5) == 1, 0,
+                              temp_diff_check_5),
+         heat_event_5 = if_else(is.na(temp_diff_check_5), 1,
+                              heat_event_5),
+         temp_diff_check_7.5 = if_else(temp_diff >= 7.5, 1, 0),
+         heat_event_7.5 = if_else(temp_diff_check_7.5 == 1 & lag(temp_diff_check_7.5) == 1, 0,
+                              temp_diff_check_7.5),
+         heat_event_7.5 = if_else(is.na(temp_diff_check_7.5), 1,
+                              heat_event_7.5)) %>% 
   arrange(area, home, sample_date) %>% 
-  group_by(home) %>% 
-  mutate(sums_events_sampling_period = mean(sums_events_sampling_day, na.rm = TRUE)) %>% 
-  select(area, home, home_winter_id, sums_events_sampling_period) %>% 
+  group_by(area, home) %>% 
+  mutate(sums_events_sampling_period_2.5 = sum(heat_event_2.5, na.rm = TRUE),
+         sums_events_sampling_period_5 = sum(heat_event_5, na.rm = TRUE),
+         sums_events_sampling_period_7.5 = sum(heat_event_7.5, na.rm = TRUE)) %>% 
+  select(area, home, home_winter_id, 
+         sums_events_sampling_period_2.5,
+         sums_events_sampling_period_5,
+         sums_events_sampling_period_7.5) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup()
 
