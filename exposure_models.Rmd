@@ -35,7 +35,7 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) 
 
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
@@ -186,6 +186,9 @@ selected_vars <- analysis_data %>%
   select(-pm_mean_sampling_period) 
 
   na.exclude()
+  
+  # Check % missing data
+mean(is.na(selected_vars)) # 8% for WMT, 10% for NN, 16% for AK, 10% total
 ```
 
 **Note**
@@ -340,13 +343,13 @@ imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_dat
 
 # Compare imputed summary to original summary
 summary(selected_vars)
-summary(complete(imputed_data))
+summary(complete(imputed_exposure_data))
 
 # Look at imputation methods for each var; consider changing
 imputed_data$method
 
 # Can add "long" or "broad" arguments
-complete(imputed_data, "long")
+complete(imputed_exposure_data, "long")
 
 # Sample one of the imputed datasets
 check1 <- complete(imputed_data, 3)
@@ -414,11 +417,23 @@ exp_results
 
 ```{r}
 # Look at R^2 for final selected model
+imputed_exposure_data <- read_rds(paste0(file_path, "Output/imputed_exposure_data_2july2020.rds"))
+
+model_data <- complete(imputed_exposure_data, "long") 
+
 model_results <- lm(log_pm_mean_sampling_period ~
-                      residents_smoke +
-                      chimney_clean_3level +
-                      stove_grade_3level,
-                      data = imputed_exposure_data$data)
+                    income_3level + 
+                    residents_smoke +
+                    home_floors_2level +
+                    home_sqft_2level +
+                    stove_age_3level + 
+                    chimney_clean_3level + 
+                    sums_events_sampling_period_7.5 + 
+                    mean_temp_sampling_period_5 + 
+                    amb_pm_sampling_period_5 + 
+                    stove_grade_3level + 
+                    home_fireplace,
+                    data = model_data)
 
 summary(model_results)
 ```

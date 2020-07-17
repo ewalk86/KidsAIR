@@ -30,6 +30,9 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 # Load data
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
 pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
 
 exposure_analysis_data_long <- 
@@ -71,6 +74,7 @@ pm_guidelines
 #Pm by different levels of covariates
 pm_check <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  arrange(pm_mean_sampling_period) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   group_by(chimney_clean_3level) %>% 
   summarize("n" = n(),
@@ -85,11 +89,11 @@ pm_check
 
 
 # closer look at stove grade and PM
-pm_stove_grade <- exposure_analysis_data_short %>%
+pm_stove_grade <- health_exposure_data_sampling_day %>%
   select(area, home, pm_mean_sampling_period, stove_grade_3level, 
          treatment_assigned, winter_id, home_winter_id) %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(home != "WMA300") %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  arrange(pm_mean_sampling_period) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   mutate(stove_grade_2level = fct_collapse(stove_grade_3level,
                                            "A" = "A",
