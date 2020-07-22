@@ -285,3 +285,61 @@ other_vars_area <- health_exposure_data_sampling_day %>%
 other_vars_area
 ```
 
+
+
+```{r, fig.height=1.25, fig.width=4.15}
+# Poster figures
+
+plot_data <- health_exposure_data_sampling_day %>% 
+  mutate(income_3level = factor(income_3level, 
+                                labels = c("< $20,000", "$20,000-$49,999", "$50,000+")),
+         chimney_clean_3level = factor(chimney_clean_3level, 
+                                labels = c("< 6 months ago", "6-12 months ago", "12 + months ago")),
+         stove_grade_3level = factor(stove_grade_3level, 
+                                labels = c("High-quality", "Medium-quality", "Low-quality")),
+         area = factor(area,
+                       labels = c("Alaska", "Navajo Nation", "Western Montana")))
+  
+
+home_char_function <- function(data, var, title_label) {
+  
+  home_char_plot <- data %>% 
+  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  arrange(area, home, sampling_day) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  select(area, var) %>% 
+  rename(plot_var = var) %>% 
+  filter(!is.na(plot_var)) %>% 
+  ggplot() +
+    geom_bar(aes(fct_rev(plot_var), fill = area)) +
+    theme_minimal() +
+    coord_flip() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 16, colour = "black"),
+          legend.text = element_blank(),
+          legend.title = element_blank(),
+          legend.position = "",
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    labs(title = title_label) +
+    scale_fill_manual(values = cbPalette)
+  home_char_plot
+  
+}
+
+home_char_function(plot_data, "income_3level", "Household income")
+home_char_function(plot_data, "residents_under5_2level", "Kids < 5 years of age")
+home_char_function(plot_data, "home_floors_2level", "Home floors/levels")
+home_char_function(plot_data, "stove_age_3level", "Stove age")
+home_char_function(plot_data, "chimney_clean_3level", "Chimney cleaned")
+home_char_function(plot_data, "wood_collect_2level", "Wood collected")
+home_char_function(plot_data, "stove_grade_3level", "Stove grade")
+```
+
+

@@ -229,7 +229,7 @@ boxplots_kids_pm
 
 \pagebreak  
 
-```{r, fig.height=, fig.width=8}
+```{r, fig.height=4, fig.width=3}
 boxplots_kids_pm <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
   arrange(area, home, sampling_day) %>% 
@@ -253,7 +253,7 @@ boxplots_kids_pm <- health_exposure_data_sampling_day %>%
           axis.ticks = element_blank())
 boxplots_kids_pm
 
-ggsave("boxplots_kids_pm.jpg", height = 7, width = 8)
+ggsave("boxplots_kids_pm.jpg", height = 7, width = 4)
 ```
 
 \pagebreak  
