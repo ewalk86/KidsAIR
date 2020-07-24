@@ -20,7 +20,33 @@ library(knitr)
 ```
 
 ```{r}
-health_exposure_data_sampling_day <- read_rds("Output/health_exposure_data_sampling_day.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
+health_data_merged <- 
+  read_rds(paste0(file_path, "Output/health_data_merged.rds")) 
+
+wmt_chw <- read_xlsx(paste0(file_path, "input/WMT/childhomewinter.xlsx")) %>% 
+  mutate(area = "WMT") %>% 
+  rename(paul_comments = 19)
+nn_chw <- read_xlsx(paste0(file_path, "input/NN/childhomewinter.xlsx")) %>% 
+  mutate(area = "NN") %>% 
+  rename(paul_comments = 19)
+ak_chw <- read_xlsx(paste0(file_path, "input/AK/childhomewinter.xlsx")) %>% 
+  mutate(area = "AK") %>% 
+  rename(paul_comments = 19)
+
+child_home_winter <- rbind(wmt_chw, nn_chw, ak_chw) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         child_id_num = as.character(ChildID),
+         paul_lrti = AnyARI) %>% 
+  select(area, home_winter_id, child_id_num, paul_lrti, paul_comments) %>% 
+  filter(paul_lrti %in% c("Yes", "Debating"))
+
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
+  select(child_id_num, child_id_char, area, winter_id)
 ```
 
 # Diagnosing LRTI from the data
@@ -62,18 +88,13 @@ Next steps
 
 ```{r}
 # LRTI Diagnosis data
-lrti_diagnosis_data <- health_exposure_data_sampling_day %>% 
+lrti_diagnosis_data <- health_data_merged %>% 
   # select relevant health data
   select(area, home, home_winter_id, winter_id, child_id_num, 
-         visit_date, med_visit_date, med_visit_referred,
-         csq_date:csq_symptom_free_date,
-         csq_see_dr, csq_dr_diagnosis,
-         med_rec_visit_date:med_rec_comments,
-         csq_miss_work:csq_comments,
-         med_visit_ari:med_visit_mean_temp,
-         lrti_number:lrti_professional_comments) %>% 
-  # Currently only have this data for WMT - need to get new files and updates dataset
-  filter(area == "WMT") %>% 
+         visit_date, csq_date:sibling_school, treatment_assigned) %>% 
+  filter(!is.na(visit_date)) %>% 
+  full_join(child_home_winter, by = c("area", "home_winter_id", "child_id_num")) %>% 
+  filter(home_winter_id == 19)
   # This is the most broad way of distinguishing if a child was sick
   # Careful when filtering here. Could still make cases that these vars didn't catch
   # Best to have a look through all rows, then use this to filter data down so it
