@@ -1,7 +1,7 @@
 ---
 title: "Kids LRTI tracking"
 author: "Ethan Walker"
-date: "Started 6 April 2020, Updated 9 April 2020"
+date: "Started 6 April 2020, Updated 28 July 2020"
 output: pdf_document 
 ---
 
@@ -94,14 +94,30 @@ lrti_diagnosis_data <- health_data_merged %>%
          visit_date, csq_date:sibling_school, treatment_assigned) %>% 
   filter(!is.na(visit_date)) %>% 
   full_join(child_home_winter, by = c("area", "home_winter_id", "child_id_num")) %>% 
-  filter(home_winter_id == 19)
-  # This is the most broad way of distinguishing if a child was sick
-  # Careful when filtering here. Could still make cases that these vars didn't catch
-  # Best to have a look through all rows, then use this to filter data down so it
-  # is easier to work with to assess dates/at-risk times
-  filter(csq_sick_2_weeks == "Yes" | csq_still_sick == "Yes") %>% 
-  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
-  ungroup()
+  
+# 6 homes have LRTI data, but actually dropped. Notes on those homes below:
+# AK HWID 19/Child ID 25: No record that they participated except initial med visits/CSQs. Likely dropped.
+# AK HWID 83/Child ID 70: Dropped prior to winter 1
+# NN HWID 32/Child ID 45: No record that they participated except initial med visits/CSQs. Likely dropped.
+# NN HWID 162/Child ID 171: Dropped prior to winter 1
+# NN HWID 164/Child ID 173: Dropped prior to winter 1
+# NN HWID 213/Child ID 197: Dropped prior to winter 1
+# I confirmed that all of the above homes dropped, so filtering them from dataset
+  
+  filter(!is.na(home)) %>% 
+  filter(!is.na(paul_lrti)) %>% 
+  
+# This filtered data contains all observations for kids with LRTI diagnosis of "Yes" or "Debating"
+# Next steps will be to:
+  # Select necessary variables to identify dates and other info for analysis
+  # Identify where they left off assigning dates previously
+  # Look through LRTI "No" designations and make sure Paul didn't miss any potential diagnoses
+  # Assign inital dates for those that don't have them
+    # Make notes along the way for a meeting with Paul to confirm final dates
+  
+  select(area, child_id_num, home_winter_id, paul_lrti, paul_comments) %>% 
+  arrange(area, child_id_num)
+
 
 #  filter(visit_date > "2018-06-01") # filter for newer data by date
 
