@@ -42,8 +42,8 @@ child_home_winter <- rbind(wmt_chw, nn_chw, ak_chw) %>%
   mutate(home_winter_id = as.character(HomeWinterID),
          child_id_num = as.character(ChildID),
          paul_lrti = AnyARI) %>% 
-  select(area, home_winter_id, child_id_num, paul_lrti, paul_comments) %>% 
-  filter(paul_lrti %in% c("Yes", "Debating"))
+  select(area, home_winter_id, child_id_num, paul_lrti, paul_comments)  
+  #filter(paul_lrti %in% c("Yes", "Debating"))
 
 demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
   select(child_id_num, child_id_char, area, winter_id)
@@ -115,15 +115,33 @@ lrti_diagnosis_data <- health_data_merged %>%
   # Assign inital dates for those that don't have them
     # Make notes along the way for a meeting with Paul to confirm final dates
   
-  select(area, child_id_num, home_winter_id, paul_lrti, paul_comments) %>% 
-  arrange(area, child_id_num)
+  select(area, home, child_id_num, home_winter_id, winter_id, 
+         paul_lrti, paul_comments,
+         visit_date:treatment_assigned) %>% 
+  mutate(child_id_num = as.numeric(child_id_num),
+         home_winter_id = as.numeric(home_winter_id)) %>% 
+  arrange(area, child_id_num, home_winter_id)
 
 
-#  filter(visit_date > "2018-06-01") # filter for newer data by date
+write_rds(lrti_diagnosis_data, paste0(file_path, "Output/lrti_diagnosis_data.rds"))
+write_csv(lrti_diagnosis_data, paste0(file_path, "Output/lrti_diagnosis_data.csv", na = " "))
 
 
-# write_rds(lrti_diagnosis_data, "Output/lrti_diagnosis_data.rds")
-# write_csv(lrti_diagnosis_data, "Output/lrti_diagnosis_data.csv", na = " ")
+lrti_notes_decisions <- lrti_diagnosis_data %>% 
+  distinct(area, child_id_num, home_winter_id, .keep_all = TRUE) %>% 
+  select(area, home, child_id_num, home_winter_id, winter_id, 
+         paul_lrti, paul_comments) %>% 
+  mutate(notes_initial = "",
+         start_date_initial = "",
+         end_date_initial = "",
+         notes_final = "",
+         lrti_final = "",
+         lrti_start_date_final = "",
+         lrti_end_date_final = "")
+
+
+write_rds(lrti_notes_decisions, paste0(file_path, "Output/lrti_notes_decisions.rds"))
+write_csv(lrti_notes_decisions, paste0(file_path, "Output/lrti_notes_decisions.csv", na = " "))
 ```
 
 The filtering below narrows down the LRTI definition too much; we are missing cases
