@@ -343,3 +343,24 @@ home_char_function(plot_data, "stove_grade_3level", "Stove grade")
 ```
 
 
+```{r}
+# Summary data for results letters to send to participants
+
+home_summary <- health_exposure_data_sampling_day %>% 
+  group_by(home) %>% 
+  arrange(home, sampling_day) %>% 
+  select(area, home, winter_id, pm_mean_sampling_period, rh_indoor_min, rh_indoor_max) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  mutate("Min RH (%)" = if_else(rh_indoor_min > rh_indoor_max, rh_indoor_max, rh_indoor_min),
+         "Max RH (%)" = if_else(rh_indoor_max < rh_indoor_min, rh_indoor_min, rh_indoor_max)) %>% 
+  arrange(area, home) %>% 
+  mutate("Mean PM2.5 (ug/m3)" = round(pm_mean_sampling_period, digits = 1),
+         check = if_else(`Min RH (%)` > `Max RH (%)`, 1, 0)) %>% 
+  select(-rh_indoor_min, -rh_indoor_max, -pm_mean_sampling_period, -check) %>% 
+  rename(Area = area,
+         Home = home,
+         Winter = winter_id)
+
+write_csv(home_summary, paste0(file_path, "Output/kids_letter_data.csv"), na = "")
+```
+
