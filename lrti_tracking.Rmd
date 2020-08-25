@@ -25,6 +25,10 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 health_exposure_data_sampling_day <- 
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 
+check_data <- health_exposure_data_sampling_day %>% 
+  filter(child_id_num == 68 & area == "NN")
+  filter(home == "CH110")
+
 health_data_merged <- 
   read_rds(paste0(file_path, "Output/health_data_merged.rds")) 
 
@@ -46,6 +50,7 @@ child_home_winter <- rbind(wmt_chw, nn_chw, ak_chw) %>%
   #filter(paul_lrti %in% c("Yes", "Debating"))
 
 demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
+  filter(child_id_num == 52)
   select(child_id_num, child_id_char, area, winter_id)
 ```
 
@@ -105,7 +110,16 @@ lrti_diagnosis_data <- health_data_merged %>%
 # I confirmed that all of the above homes dropped, so filtering them from dataset
   
   filter(!is.na(home)) %>% 
-  filter(!is.na(paul_lrti)) %>% 
+  select(area, home, child_id_num, home_winter_id, winter_id, 
+         paul_lrti, paul_comments,
+         visit_date:treatment_assigned) %>% 
+  mutate(lrti_any_winter = if_else(!is.na(paul_lrti), 1, 0)) %>% 
+  group_by(home) %>% 
+  mutate(lrti_any_winter = sum(lrti_any_winter)) %>% 
+  select(area, home, lrti_any_winter, child_id_num, home_winter_id, winter_id, 
+         paul_lrti, paul_comments,
+         visit_date:treatment_assigned) %>% 
+  filter(lrti_any_winter > 0) %>% 
   
 # This filtered data contains all observations for kids with LRTI diagnosis of "Yes" or "Debating"
 # Next steps will be to:
@@ -115,9 +129,6 @@ lrti_diagnosis_data <- health_data_merged %>%
   # Assign inital dates for those that don't have them
     # Make notes along the way for a meeting with Paul to confirm final dates
   
-  select(area, home, child_id_num, home_winter_id, winter_id, 
-         paul_lrti, paul_comments,
-         visit_date:treatment_assigned) %>% 
   mutate(child_id_num = as.numeric(child_id_num),
          home_winter_id = as.numeric(home_winter_id)) %>% 
   arrange(area, child_id_num, home_winter_id)
@@ -144,93 +155,146 @@ write_rds(lrti_notes_decisions, paste0(file_path, "Output/lrti_notes_decisions.r
 write_csv(lrti_notes_decisions, paste0(file_path, "Output/lrti_notes_decisions.csv", na = " "))
 ```
 
-The filtering below narrows down the LRTI definition too much; we are missing cases
-where children had LRTI but did not visit a healthcare facility and have a med rec.
-If we only use these cases, it could bias the results.
 
-There are instances of LRTI in our records that weren’t confirmed in the medical record. 
-There are other instances where the medical record diagnosed LRTI, but our records 
-overturned it. What is our criteria for diagnosing LRTI, where is it documented, 
-and how can we be sure it is consistent in diagnosing LRTI?
-
+# Merge dataset with final LRTI notes and dates, then assign person-time
 ```{r}
-# Further filtering and re-ordering of variables
-lrti_diagnosis_data_filtered <- lrti_diagnosis_data %>% 
-  select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
-         med_rec_visit_date:med_rec_comments, med_visit_lethargy:csq_comments,
-         lrti_number:lrti_professional_comments) %>% 
-  group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
-  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, csq_collect) %>% 
-  # If a home CSQ was done on same visit date as initial phone CSQ, filter for only the home CSQ
-  distinct(csq_sick_2_weeks, .keep_all = TRUE) %>% 
-  select(area:csq_still_sick, med_visit_referred, csq_see_dr, 
-         csq_first_symptom_date:lrti_professional_comments) %>% 
-  # Were they referred (med visit) or did they see a Dr (CSQ)?
-  filter(med_visit_referred == "Yes" | csq_see_dr == "Yes") %>% 
-  # If yes, did we get medical records?
-  filter(!is.na(med_rec_visit_date)) %>% 
-  # If yes, was there an ARI diagnosis?
-  filter(med_rec_ari == "ARI" | med_rec_ari == "Possible ARI") %>% 
-  group_by(child_id_num) %>% 
-  distinct(med_rec_visit_date, .keep_all = TRUE)
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
+lrti_notes_decisions <- read_xlsx(paste0(file_path, "Input/lrti_notes_decisions.xlsx")) %>% 
+  filter(lrti_final == "Yes") %>% 
+  select(area, home, child_id_num, home_winter_id, winter_id, lrti_final, 
+         lrti_start_date_final, lrti_end_date_final, notes_final, total_cases_this_winter)
+
+wmt_homewinter_initial <- read_csv(paste0(file_path, "Input/WMT/homewinter.csv"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  filter(winterid == 1 | winterid ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
+  mutate(home_winter_id = as.character(homewinterid),
+         intervention_date = ymd(interventiondate),
+         area = "WMT") %>% 
+  select(area, home_winter_id, intervention_date)
+
+nn_homewinter_initial <- read_csv(paste0(file_path, "Input/NN/homewinter.csv"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  filter(winterid == 1 | winterid ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
+  mutate(home_winter_id = as.character(homewinterid),
+         intervention_date = mdy(interventiondate),
+         area = "NN") %>% 
+  select(area, home_winter_id, intervention_date)
+
+ak_homewinter_initial <- read_csv(paste0(file_path, "Input/AK/homewinter.csv"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  filter(winterid == 1 | winterid ==2) %>% # filter for winterid == 1 or 2. What about missing intervention date?
+  mutate(home_winter_id = as.character(homewinterid),
+         intervention_date = mdy(interventiondate),
+         area = "AK") %>% 
+  select(area, home_winter_id, intervention_date)
+
+intervention_dates <- rbind(wmt_homewinter_initial, 
+                            nn_homewinter_initial,
+                            ak_homewinter_initial)
+
+
+lrti_yes <- lrti_notes_decisions %>% 
+  mutate(child_id_num = as.character(child_id_num),
+         home_winter_id = as.character(home_winter_id),
+         winter_id = as.character(winter_id)) %>% 
+  # join lrti data with full dataset
+  full_join(health_exposure_data_sampling_day, 
+            by = c("area", "home", "child_id_num", "home_winter_id", "winter_id")) %>% 
+  filter(lrti_final == "Yes") %>% 
+  # select vars for calculating person-time
+  select(area, home, child_id_num, home_winter_id, winter_id, lrti_final, 
+         lrti_start_date_final, lrti_end_date_final, notes_final, total_cases_this_winter,
+         csq_date) %>% 
+  left_join(intervention_dates, by = c("area", "home_winter_id")) %>% 
+  group_by(area, child_id_num, winter_id) %>% 
+  arrange(area, child_id_num, winter_id, csq_date) %>% 
+  # var for person-time start date for each winter/child combo
+  # this date is intervention date + 14 days
+  mutate(person_time_start = intervention_date + 14) %>% 
+  filter(!is.na(csq_date)) %>% 
+  # var for person-time end date for each winter/child combo
+  # this date is the earliest of the last csq or april 30 of the study year
+  mutate(person_time_end = last(csq_date),
+         latest_date = "04-30") %>% 
+  separate(person_time_end, into = c("pte_year", "pte_mo", "pte_day"), sep = "-", remove = FALSE) %>% 
+  unite(latest_date, c("pte_year", "latest_date"), sep = "-") %>% 
+  select(-pte_mo, -pte_day) %>% 
+  mutate(latest_date = ymd(latest_date),
+         person_time_end = if_else(person_time_end > latest_date,
+                                   latest_date, person_time_end),
+         person_time_possible = person_time_end - person_time_start) %>% 
+  # person-time possible is number of days from start to end date for each child/winter combo
+  group_by(area, child_id_num, winter_id, lrti_start_date_final) %>% 
+  # end of lrti is the lrti end date +14 days
+  mutate(lrti_end_date_plus14 = ymd(lrti_end_date_final) + 14,
+         lrti_end_date_plus14 = if_else(lrti_end_date_plus14 > latest_date,
+                                 latest_date, lrti_end_date_plus14)) %>% 
+  # filter out lrti cases that start later than person-time end date (2 cases)
+  filter(lrti_start_date_final <= person_time_end) %>% 
+  # calculate days with LRTI
+  mutate(person_time_lrti = ymd(lrti_end_date_plus14) - ymd(lrti_start_date_final)) %>% 
+  distinct(area, child_id_num, winter_id, lrti_start_date_final, .keep_all = TRUE) %>% 
+  group_by(area, child_id_num, winter_id) %>% 
+  # calculate total LRTI days per child/winter combo
+  mutate(person_time_lrti_total = sum(person_time_lrti)) %>% 
+  ungroup() %>% 
+  #distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
+  # new var for time without lrti
+  mutate(person_time_no_lrti_total = person_time_possible - person_time_lrti_total) %>% 
+  arrange(area, child_id_num, winter_id) 
+
+
+
+
+lrti_no <- lrti_notes_decisions %>% 
+  mutate(child_id_num = as.character(child_id_num),
+         home_winter_id = as.character(home_winter_id),
+         winter_id = as.character(winter_id)) %>% 
+  # join lrti data with full dataset
+  full_join(health_exposure_data_sampling_day, 
+            by = c("area", "home", "child_id_num", "home_winter_id", "winter_id")) %>% 
+  filter(is.na(lrti_final)) %>% 
+  # select vars for calculating person-time
+  select(area, home, child_id_num, home_winter_id, winter_id, lrti_final, 
+         lrti_start_date_final, lrti_end_date_final, notes_final, total_cases_this_winter,
+         csq_date) %>% 
+  left_join(intervention_dates, by = c("area", "home_winter_id")) %>% 
+  group_by(area, child_id_num, winter_id) %>% 
+  arrange(area, child_id_num, winter_id, csq_date) %>% 
+  # var for person-time start date for each winter/child combo
+  # this date is intervention date + 14 days
+  mutate(person_time_start = intervention_date + 14) %>% 
+  filter(!is.na(csq_date)) %>% 
+  # var for person-time end date for each winter/child combo
+  # this date is the earliest of the last csq or april 30 of the study year
+  mutate(person_time_end = last(csq_date),
+         latest_date = "04-30") %>% 
+  separate(person_time_end, into = c("pte_year", "pte_mo", "pte_day"), sep = "-", remove = FALSE) %>% 
+  unite(latest_date, c("pte_year", "latest_date"), sep = "-") %>% 
+  select(-pte_mo, -pte_day) %>% 
+  mutate(latest_date = ymd(latest_date),
+         person_time_end = if_else(person_time_end > latest_date,
+                                   latest_date, person_time_end),
+         person_time_end = if_else(person_time_end < person_time_start, last(csq_date), person_time_end),
+         person_time_possible = as.numeric(person_time_end - person_time_start),
+         person_time_possible = if_else(person_time_possible < 0, 0,
+                                        person_time_possible)) %>% 
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
+  arrange(area, child_id_num, winter_id) 
+
+
+lrti_final_data <- plyr::rbind.fill(lrti_yes, lrti_no) %>% 
+  arrange(area, child_id_num, winter_id)
+
+
+write_csv(lrti_final_data, paste0(file_path, "Output/lrti_final_data.csv"), na = "")
 ```
 
-
-
-
-# Defining start date, end date, and at-risk period for each diagnosed LRTI case
-
-First, I need to know (or make) exactly which variable is a final diagnosed case 
-of LRTI in the data. Then, I can create a method in R to identify start/end/at-risk.
-The code below is a start at this, using Nick's handoff documents/algorithm.
-
-The initial attempt at having R select start dates did not match up well with
-the cases in which Paul had already finalized the start/end dates. There seems
-to be a good amount of professional opinion by assessing symptoms and medical
-records. It may be best to filter a dataset down to only confirmed LRTI cases
-and useful health/medical variables, then decide start/end/at-risk times 
-on a case-by-case basis.
-
-```{r}
-# LRTI start date, end date, and at-risk period identification
-lrti_date_data <- health_exposure_data_sampling_day %>% 
-  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
-         med_visit_date:med_visit_notes, chw_dr_relook:chw_ari_comments,
-         csq_date:csq_comments, med_rec_visit_date:med_rec_comments,
-         lrti_number:lrti_professional_comments) %>% 
-  filter(area == "WMT") %>% 
-  filter(csq_sick_2_weeks == "Yes") %>% 
-  select(area:med_visit_ari, csq_date:csq_symptom_free_date, 
-         med_rec_visit_date:med_rec_comments, 
-         med_visit_lethargy:lrti_professional_comments) %>% 
-  group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
-  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, csq_collect) %>% 
-  distinct(csq_sick_2_weeks, .keep_all = TRUE) %>% 
-  select(area:csq_still_sick, med_visit_referred, csq_see_dr, 
-         csq_first_symptom_date:lrti_professional_comments) %>% 
-  mutate(trash_date = ymd("2099-01-01"),
-         still_sick_date = if_else(csq_still_sick == "Yes", 
-                                   csq_date, trash_date),
-         med_rec_ari_date = if_else(!is.na(med_rec_visit_date), 
-                                    med_rec_visit_date, trash_date),
-         med_visit_ari_date = if_else(!is.na(med_visit_date), 
-                                      med_visit_date, trash_date)) %>% 
-  pivot_longer(cols = c("still_sick_date", "med_rec_ari_date", "med_visit_ari_date"),
-               names_to = "lrti_visits", values_to = "lrti_dates") %>% 
-  group_by(area, home, home_winter_id, winter_id, child_id_num, visit_date) %>% 
-  mutate(lrti_start_date_new = if_else(!is.na(csq_first_symptom_date),
-                                       csq_first_symptom_date, lrti_dates)) %>% 
-  select(area, home, home_winter_id, winter_id, child_id_num, visit_date,
-         csq_first_symptom_date, lrti_start_date_new, lrti_visits, lrti_dates, trash_date,
-         csq_sick_2_weeks, csq_still_sick, med_rec_ari, med_visit_ari,
-         lrti_number:lrti_professional_comments) %>% 
-  arrange(area, home, home_winter_id, winter_id, child_id_num, visit_date, lrti_dates) %>% 
-  distinct(visit_date, .keep_all = TRUE) %>% 
-  group_by(area, home, home_winter_id, winter_id, child_id_num) %>% 
-  distinct(lrti_start_date_new, .keep_all = TRUE) %>% 
-  distinct(child_id_num, lrti_number, .keep_all = TRUE) %>% 
-  filter(!is.na(lrti_number)) %>% 
-  select(child_id_num, home_winter_id, lrti_number, lrti_start_date_new:lrti_dates, 
-         lrti_start_date_final, lrti_end_date_final, area:lrti_professional_comments)
-```
 
