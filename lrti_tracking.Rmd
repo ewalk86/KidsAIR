@@ -1,7 +1,7 @@
 ---
 title: "Kids LRTI tracking"
 author: "Ethan Walker"
-date: "Started 6 April 2020, Updated 28 July 2020"
+date: "Started 6 April 2020, Updated 26 Aug 2020"
 output: pdf_document 
 ---
 
@@ -294,7 +294,51 @@ lrti_final_data <- plyr::rbind.fill(lrti_yes, lrti_no) %>%
   arrange(area, child_id_num, winter_id)
 
 
+write_rds(lrti_final_data, paste0(file_path, "Output/lrti_final_data.rds"))
 write_csv(lrti_final_data, paste0(file_path, "Output/lrti_final_data.csv"), na = "")
 ```
 
+
+# Summary stats for LRTI time at-risk. Check for odd values to finish data cleaning.
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds"))
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
+  select(area, home_winter_id, treatment_assigned) %>% 
+  distinct(area, home_winter_id, .keep_all = TRUE)
+
+
+summary_stats <- lrti_final_data %>% 
+  filter(winter_id != 0) %>% 
+  group_by(area, winter_id) %>% 
+  summarize("N" = n(),
+            "Mean PT Possible" = mean(person_time_possible, na.rm = TRUE),
+            "SD PT Possible" = sd(person_time_possible, na.rm = TRUE),
+            "Min PT Possible" = min(person_time_possible, na.rm = TRUE),
+            "Med PT Possible" = median(person_time_possible, na.rm = TRUE),
+            "Max PT Possible" = max(person_time_possible, na.rm = TRUE),
+            "Mean PT LRTI" = mean(person_time_lrti_total, na.rm = TRUE),
+            "SD PT LRTI" = sd(person_time_lrti_total, na.rm = TRUE),
+            "Min PT LRTI" = min(person_time_lrti_total, na.rm = TRUE),
+            "Med PT LRTI" = median(person_time_lrti_total, na.rm = TRUE),
+            "Max PT LRTI" = max(person_time_lrti_total, na.rm = TRUE))
+
+summary_stats
+
+
+fig1_stats <- lrti_final_data %>% 
+  left_join(health_exposure_data_sampling_day, by = c("area", "home_winter_id")) %>% 
+  filter(winter_id != 0) %>% 
+  group_by(area, winter_id, treatment_assigned) %>% 
+  filter(!is.na(person_time_possible)) %>% 
+  mutate(child_weeks_obs = as.numeric(person_time_possible),
+         child_weeks_obs = sum(child_weeks_obs)/7) %>% 
+  distinct(area, winter_id, treatment_assigned, .keep_all = TRUE) %>% 
+  select(area, winter_id, treatment_assigned, child_weeks_obs)
+
+fig1_stats
+```
 

@@ -333,3 +333,28 @@ table(spikes_data$spike_sum_1000)
 table(spikes_data$spike_sum_1000, spikes_data$stove_grade_3level)
 ```
 
+
+# Summary stats for Figure 1
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+exposure_analysis_data_short <- 
+  read_rds(paste0(file_path, "Output/exposure_analysis_data_short.rds")) %>% 
+  filter(winter_id == 1) %>% 
+  select(area, home_winter_id, winter_id, treatment_assigned, 
+         pm_sample_interval, pm_mean_sampling_period) %>% 
+  arrange(area, home_winter_id, pm_mean_sampling_period) %>% 
+  distinct(area, home_winter_id, .keep_all = TRUE)
+
+
+fig1_stats <- exposure_analysis_data_short %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, winter_id, treatment_assigned) %>% 
+  filter(!is.na(pm_sample_interval)) %>% 
+  mutate(pm_sample_days = as.numeric(pm_sample_interval),
+         pm_sample_days = sum(pm_sample_days)) %>% 
+  distinct(area, winter_id, treatment_assigned, .keep_all = TRUE) %>% 
+  select(area, winter_id, treatment_assigned, pm_sample_days)
+
+fig1_stats
+```
