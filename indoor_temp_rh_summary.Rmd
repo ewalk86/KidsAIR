@@ -27,22 +27,19 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-# Load data
-kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
-demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) 
-pm_clean <- read_rds(paste0(file_path, "Output/pm_clean.rds"))
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 ```{r, include=FALSE}
-temp_rh_summary <- indoor_temp_rh_clean %>%
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area) %>% 
-  summarize_if(is.numeric, list(mean = mean, sd = sd, min = min, 
-                                med = median, max = max), na.rm = TRUE) %>% 
-  select(-area) %>% 
-  t() 
-kable(temp_rh_summary, col.names = c("Alaska", "Navajo", "Montana"), 
-      digits = 1, align = "c")
+temp_rh_summary <- health_exposure_data_sampling_day %>%
+  select(area, home, home_winter_id, winter_id, 
+         temp_indoor_max, temp_indoor_min, rh_indoor_max, rh_indoor_min) %>% 
+  mutate(temp_diff = if_else(temp_indoor_min > temp_indoor_max, 1, 0),
+         rh_diff = if_else(rh_indoor_min > rh_indoor_max, 1, 0)) %>% 
+  filter(!is.na(temp_diff)) %>% 
+  distinct(area, home_winter_id, .keep_all = TRUE)
 ```
 
 

@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR indoor temp and humidity cleaning"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 23 June 2020"
+date: "Started 13 Jan 2020, Updated 15 Sept 2020"
 output: pdf_document
 ---
 
@@ -38,14 +38,14 @@ wmt_temp_rh <- temp_rh_initial_wmt %>%
          temp_indoor_min = as.numeric(TempCMin),
          area = "WMT") %>% 
   # replace -999 values with NA
-  replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
-                                 rh_indoor_min = -999, temp_indoor_current = -999,
+  replace_with_na(replace = list(rh_indoor_max = -999,
+                                 rh_indoor_min = -999, 
                                  temp_indoor_max = -999, temp_indoor_min = -999)) %>% 
-  replace_with_na(replace = list(rh_indoor_current = 0, rh_indoor_max = 0,
-                                 rh_indoor_min = 0, temp_indoor_current = 0,
+  replace_with_na(replace = list(rh_indoor_max = 0,
+                                 rh_indoor_min = 0, 
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
-  select(home_winter_id, area, rh_indoor_current, 
-         rh_indoor_max, rh_indoor_min, temp_indoor_current, 
+  select(home_winter_id, area, 
+         rh_indoor_max, rh_indoor_min, 
          temp_indoor_max, temp_indoor_min) %>% 
   arrange(home_winter_id)
   
@@ -69,14 +69,14 @@ nn_temp_rh <- temp_rh_initial_nn %>%
          temp_indoor_min = as.numeric(TempCMin),
          area = "NN") %>% 
   # replace 0 and -999 values with NA
-  replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
-                                 rh_indoor_min = -999, temp_indoor_current = -999,
+  replace_with_na(replace = list(rh_indoor_max = -999,
+                                 rh_indoor_min = -999, 
                                  temp_indoor_max = -999, temp_indoor_min = -999)) %>% 
-  replace_with_na(replace = list(rh_indoor_current = 0, rh_indoor_max = 0,
-                                 rh_indoor_min = 0, temp_indoor_current = 0,
+  replace_with_na(replace = list(rh_indoor_max = 0,
+                                 rh_indoor_min = 0, 
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
-  select(home_winter_id, area, rh_indoor_current, 
-         rh_indoor_max, rh_indoor_min, temp_indoor_current, 
+  select(home_winter_id, area, 
+         rh_indoor_max, rh_indoor_min, 
          temp_indoor_max, temp_indoor_min) %>% 
   arrange(home_winter_id)
   
@@ -100,14 +100,14 @@ ak_temp_rh <- temp_rh_initial_ak %>%
          temp_indoor_min = as.numeric(TempCMin),
          area = "AK") %>% 
   # replace -999 values with NA
-  replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
-                                 rh_indoor_min = -999, temp_indoor_current = -999,
+  replace_with_na(replace = list(rh_indoor_max = -999,
+                                 rh_indoor_min = -999, 
                                  temp_indoor_max = -999, temp_indoor_min = -999)) %>% 
-  replace_with_na(replace = list(rh_indoor_current = 0, rh_indoor_max = 0,
-                                 rh_indoor_min = 0, temp_indoor_current = 0,
+  replace_with_na(replace = list(rh_indoor_max = 0,
+                                 rh_indoor_min = 0, 
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
-  select(home_winter_id, area, rh_indoor_current, 
-         rh_indoor_max, rh_indoor_min, temp_indoor_current, 
+  select(home_winter_id, area, 
+         rh_indoor_max, rh_indoor_min, 
          temp_indoor_max, temp_indoor_min) %>% 
   arrange(home_winter_id)
   
@@ -117,6 +117,8 @@ write_rds(ak_temp_rh, paste0(file_path, "Output/ak_temp_rh.rds"))
 
 # Join temp/rh data from different areas
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 wmt_temp_rh <- read_rds(paste0(file_path, "Output/wmt_temp_rh.rds"))
 nn_temp_rh <- read_rds(paste0(file_path, "Output/nn_temp_rh.rds"))
 ak_temp_rh <- read_rds(paste0(file_path, "Output/ak_temp_rh.rds"))
@@ -134,7 +136,17 @@ kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"
 
 indoor_temp_rh_clean <- kids_indoor_temp_rh %>% 
   mutate(area = as.factor(area)) %>% 
-  right_join(kids_linked_ids, by = c("area", "home_winter_id"))
+  right_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  mutate(rh_indoor_min2 = if_else(rh_indoor_min > rh_indoor_max, rh_indoor_max, rh_indoor_min),
+         rh_indoor_max2 = if_else(rh_indoor_max < rh_indoor_min, rh_indoor_min, rh_indoor_max),
+         temp_indoor_min2 = if_else(temp_indoor_min > temp_indoor_max, temp_indoor_max, temp_indoor_min),
+         temp_indoor_max2 = if_else(temp_indoor_max < temp_indoor_min, temp_indoor_min, temp_indoor_max)) %>% 
+  select(-rh_indoor_max, -rh_indoor_min, -temp_indoor_max, -temp_indoor_min) %>% 
+  rename(rh_indoor_max = rh_indoor_max2,
+         rh_indoor_min = rh_indoor_min2,
+         temp_indoor_max = temp_indoor_max2,
+         temp_indoor_min = temp_indoor_min2) 
+  
 
 summary(indoor_temp_rh_clean)
 

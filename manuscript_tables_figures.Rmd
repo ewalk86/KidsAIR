@@ -349,14 +349,21 @@ home_char_function(plot_data, "stove_grade_3level", "Stove grade")
 home_summary <- health_exposure_data_sampling_day %>% 
   group_by(home) %>% 
   arrange(home, sampling_day) %>% 
-  select(area, home, winter_id, pm_mean_sampling_period, rh_indoor_min, rh_indoor_max) %>% 
+  select(area, home, winter_id, pm_mean_sampling_period, pm_mean_sampling_day, 
+         rh_indoor_min, rh_indoor_max) %>% 
+  mutate(daily_min = min(pm_mean_sampling_day, na.rm = TRUE),
+         daily_max= max(pm_mean_sampling_day, na.rm = TRUE)) %>% 
   distinct(home, .keep_all = TRUE) %>% 
+  replace_with_na_all(condition = ~.x %in% c("Inf", "-Inf")) %>% 
   mutate("Min RH (%)" = if_else(rh_indoor_min > rh_indoor_max, rh_indoor_max, rh_indoor_min),
          "Max RH (%)" = if_else(rh_indoor_max < rh_indoor_min, rh_indoor_min, rh_indoor_max)) %>% 
   arrange(area, home) %>% 
   mutate("Mean PM2.5 (ug/m3)" = round(pm_mean_sampling_period, digits = 1),
+         "Min PM2.5 (ug/m3)" = round(daily_min, digits = 1),
+         "Max PM2.5 (ug/m3)" = round(daily_max, digits = 1),
          check = if_else(`Min RH (%)` > `Max RH (%)`, 1, 0)) %>% 
-  select(-rh_indoor_min, -rh_indoor_max, -pm_mean_sampling_period, -check) %>% 
+  select(-rh_indoor_min, -rh_indoor_max, -pm_mean_sampling_period, -check,
+         -daily_min, -daily_max) %>% 
   rename(Area = area,
          Home = home,
          Winter = winter_id)

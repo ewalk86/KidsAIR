@@ -23,7 +23,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 ##### WMT #####
 # Load data
-stove_grades_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/stove.csv"), 
+stove_grades_initial_wmt <- read_xlsx(paste0(file_path, "Input/WMT/stove.xlsx"), 
                                   na = c("NULL", ""))
 
 wmt_stove_grades <- stove_grades_initial_wmt %>% 
@@ -34,7 +34,10 @@ wmt_stove_grades <- stove_grades_initial_wmt %>%
          area = "WMT") %>% 
   select(home_id, home_winter_id, area, stove_grade) %>% 
   ungroup() %>% 
-  arrange(home_winter_id)
+  arrange(home_winter_id) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(home_id != 0 & home_id != 999) 
+  
 
 # Save as RDS
 write_rds(wmt_stove_grades, paste0(file_path, "Output/wmt_stove_grades.rds"))
@@ -42,7 +45,7 @@ write_rds(wmt_stove_grades, paste0(file_path, "Output/wmt_stove_grades.rds"))
 
 ##### NN #####
 # Load data
-stove_grades_initial_nn <- read_csv(paste0(file_path, "Input/NN/stove.csv"), 
+stove_grades_initial_nn <- read_xlsx(paste0(file_path, "Input/NN/stove.xlsx"), 
                                   na = c("NULL", ""))
 
 nn_stove_grades <- stove_grades_initial_nn %>% 
@@ -53,7 +56,9 @@ nn_stove_grades <- stove_grades_initial_nn %>%
          area = "NN") %>% 
   select(home_id, home_winter_id, area, stove_grade) %>% 
   ungroup() %>% 
-  arrange(home_winter_id)
+  arrange(home_winter_id) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(home_id != 0 & home_id != 999)
 
 # Save as RDS
 write_rds(nn_stove_grades, paste0(file_path, "Output/nn_stove_grades.rds"))
@@ -61,7 +66,7 @@ write_rds(nn_stove_grades, paste0(file_path, "Output/nn_stove_grades.rds"))
 
 ##### AK #####
 # Load data
-stove_grades_initial_ak <- read_csv(paste0(file_path, "Input/AK/stove.csv"), 
+stove_grades_initial_ak <- read_xlsx(paste0(file_path, "Input/AK/stove.xlsx"), 
                                   na = c("NULL", ""))
 
 ak_stove_grades <- stove_grades_initial_ak %>% 
@@ -72,7 +77,9 @@ ak_stove_grades <- stove_grades_initial_ak %>%
          area = "AK") %>% 
   select(home_id, home_winter_id, area, stove_grade) %>% 
   ungroup() %>% 
-  arrange(home_winter_id)
+  arrange(home_winter_id) %>% 
+  filter(!is.na(stove_grade)) %>% 
+  filter(home_id != 0 & home_id != 999)
 
 # Save as RDS
 write_rds(ak_stove_grades, paste0(file_path, "Output/ak_stove_grades.rds"))
@@ -80,6 +87,8 @@ write_rds(ak_stove_grades, paste0(file_path, "Output/ak_stove_grades.rds"))
 
 # Join stove grade data from different areas
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
 wmt_stove_grades <- read_rds(paste0(file_path, "Output/wmt_stove_grades.rds"))
 nn_stove_grades <- read_rds(paste0(file_path, "Output/nn_stove_grades.rds"))
 ak_stove_grades <- read_rds(paste0(file_path, "Output/ak_stove_grades.rds"))
@@ -98,12 +107,11 @@ kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"
 
 stove_grades_clean <- kids_stove_grades %>% 
   mutate(area = as.factor(area)) %>% 
-  filter(home_id != 0) %>% 
   # Mark gave a couple of "D" grades when there was not enough info to score the stove
   # removing those "D" grades from final dataset
   filter(stove_grade != "D") %>% 
   select(-home_id) %>% 
-  right_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>% 
   arrange(area, home, winter_id)
 
 summary(stove_grades_clean)

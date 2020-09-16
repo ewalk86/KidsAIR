@@ -53,6 +53,7 @@ sums_rolling_pm_data <-
 ####### Format full data to use for analysis
 analysis_data <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  filter(area == "AK") %>% 
   arrange(area, home, sampling_day) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -113,7 +114,7 @@ analysis_function <- function(covar, label,
   
   analysis_results <<- lm(log(pm_mean_sampling_period) ~ analysis_covar, analysis_data)
   
-  #print(table(model.frame(analysis_results)$analysis_covar))
+  print(table(model.frame(analysis_results)$analysis_covar))
   print(nobs(analysis_results))
   
   tidy_results <<- tidy(analysis_results, conf.int = TRUE) %>% 
@@ -124,6 +125,7 @@ analysis_function <- function(covar, label,
            'Lower 95% CL' = round((exp(conf.low)-1)*100, digits = 2),
            Term = gsub("analysis_covar", paste0(label, ": "), term)) %>% 
     select(Term, Estimate, 'Lower 95% CL', 'Upper 95% CL', 'P-value')
+  view(tidy_results)
   
 }
 
@@ -161,7 +163,7 @@ d26 <- analysis_function("wood_cords", "Wood cords")
 d27 <- analysis_function("moisture_closest", "Wood moisture - closest to sampling")
 d28 <- analysis_function("moisture_closest_2level", "Wood moisture - closest to sampling")
 d29 <- analysis_function("mean_moisture_winter", "Wood moisture - Winter mean")
-d30 <- analysis_function("moisture_winter_2level", "Wood moisture - Winter mean")
+#d30 <- analysis_function("moisture_winter_2level", "Wood moisture - Winter mean")
 
 d31 <- analysis_function("temp_min_5", "Minimum indoor temp - per 5 degree increase")
 d32 <- analysis_function("temp_max_5", "Maximum indoor temp - per 5 degree increase")

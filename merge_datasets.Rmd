@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: merge exposure datasets"
 author: "Ethan Walker"
-date: "Started 24 March 2020, Updated 26 June 2020"
+date: "Started 24 March 2020, Updated 15 Sept 2020"
 output: pdf_document
 ---
 
@@ -148,6 +148,9 @@ pm_sums_joined3 <- sums_join %>%
   ungroup() %>% 
   arrange(area, home, sample_date)
 
+#write_rds(pm_sums_joined3, paste0(file_path, "Output/pm_sums_joined3.rds"))
+pm_sums_joined3 <- read_rds(paste0(file_path, "Output/pm_sums_joined3.rds"))
+
 
 # Join PM/SUMs data with other covariate datasets
 analysis_data1 <- home_act_clean %>% 
@@ -280,7 +283,7 @@ analysis_data4 <- indoor_temp_rh_clean %>%
   filter(winter_id == 1) %>% 
   mutate(winter_id = as.character(winter_id)) %>%
   select(area, home, home_winter_id, winter_id, treatment_assigned, treatment_actual, 
-         rh_indoor_current:temp_indoor_min) %>% 
+         rh_indoor_min:temp_indoor_max) %>% 
   ungroup() %>% 
   right_join(analysis_data3, by = c("area", "home", "home_winter_id", "winter_id", 
                                     "treatment_assigned", "treatment_actual")) %>% 
