@@ -53,7 +53,7 @@ sums_rolling_pm_data <-
 ####### Format full data to use for analysis
 analysis_data <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
-  filter(area == "AK") %>% 
+  #filter(area == "AK") %>% 
   arrange(area, home, sampling_day) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
@@ -129,6 +129,11 @@ analysis_function <- function(covar, label,
   
 }
 
+# Check for variance in random effect for area and see if simple/mixed models have different results
+analysis_results1 <- lm(log(pm_mean_sampling_period) ~ stove_grade_3level, analysis_data)
+analysis_results2 <- lmer(log(pm_mean_sampling_period) ~ stove_grade_3level + (1|area), analysis_data)
+#summary(analysis_results1)
+#summary(analysis_results2)
 
 ####### Variables to run through fuction and save results
 d1 <- analysis_function("education_3level", "Education")
