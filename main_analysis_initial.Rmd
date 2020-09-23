@@ -1,0 +1,62 @@
+---
+title: "KidsAIR: Main analysis initial steps"
+author: "Ethan Walker"
+date: "Started 23 Sept 2020, Updated 23 Sept 2020"
+output: pdf_document
+header-includes:
+    - \usepackage[labelformat=empty]{caption}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = FALSE, include = FALSE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r, eval=TRUE, include=TRUE}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+
+```{r, eval=TRUE, include=TRUE}
+# Load individual datasets
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
+treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+
+lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>% 
+  group_by(area, home_winter_id, child_id_num) %>% 
+  mutate(lrti_events = n(),
+         person_time_no_lrti_total = as.numeric(person_time_no_lrti_total),
+         lrti_incidence = lrti_events/person_time_no_lrti_total*7,
+         lrti_incidence = if_else(is.na(lrti_incidence), 0, lrti_incidence))
+```
+
+
+```{r}
+# Merge dataset with blinded treatments and final LRTI data, select analysis variables
+analysis_data <- health_exposure_data_sampling_day %>% 
+  select(-treatment_assigned, -treatment_actual) %>% 
+  left_join(treatments_masked, by = "home") %>% 
+  right_join(lrti_final_data, by = c("area", "child_id_num", "home_winter_id")) %>% 
+  distinct(area, child_id_num, home_winter_id, .keep_all = TRUE) %>% 
+  select(area, home, home_winter_id, )
+
+```
+

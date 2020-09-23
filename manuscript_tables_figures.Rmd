@@ -41,6 +41,10 @@ health_data_merged <-
 
 kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
 
+treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+
 demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) 
 
 exposure_analysis_data_long <- 
@@ -75,9 +79,15 @@ kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
-ak_ids <- read_rds(paste0(file_path, "Output/ak_ids_linked.rds"))
-nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds"))
-wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds"))
+ak_ids <- read_rds(paste0(file_path, "Output/ak_ids_linked.rds")) %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds")) %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds")) %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
 
 kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
   filter(!is.na(treatment)) %>% 
@@ -85,6 +95,15 @@ kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>%
   filter(home != "WMA222" & home != "WMA233") %>%
   count(area, winter_id, treatment) %>% 
   filter(winter_id != 2)
+
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
+  select(-treatment) %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(home)) %>% 
+  mutate(original = 1) %>% 
+  right_join(treatments_masked, by = "home") %>% 
+  filter(home != "WMA222" & home != "WMA233") %>%
+  filter(original == 1)
 ```
 
 # Count number of households and kids that participated by area and winter
