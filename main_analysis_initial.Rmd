@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: Main analysis initial steps"
 author: "Ethan Walker"
-date: "Started 23 Sept 2020, Updated 23 Sept 2020"
+date: "Started 23 Sept 2020, Updated 28 Sept 2020"
 output: pdf_document
 header-includes:
     - \usepackage[labelformat=empty]{caption}
@@ -41,11 +41,22 @@ treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), 
          home = gsub("_", "", x = home))
 
 lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>% 
-  group_by(area, home_winter_id, child_id_num) %>% 
-  mutate(lrti_events = n(),
+  arrange(area, home, child_id_num, winter_id) %>% 
+  mutate(cohort = round_date(csq_date, unit = "year")) %>% 
+  separate(cohort, c("cohort", "trash"), sep = "-") %>% 
+  group_by(area, child_id_num, home_winter_id) %>% 
+  mutate(lrti_events = n()) %>% 
+  group_by(area, child_id_num) %>% 
+  distinct(area, child_id_num, home_winter_id, .keep_all = TRUE) %>% 
+  mutate(lrti_events = as.numeric(lrti_events),
+         lrti_events = if_else(is.na(person_time_no_lrti_total), 0, lrti_events),
+         lrti_events_total = sum(lrti_events, na.rm = TRUE),
          person_time_no_lrti_total = as.numeric(person_time_no_lrti_total),
-         lrti_incidence = lrti_events/person_time_no_lrti_total*7,
-         lrti_incidence = if_else(is.na(lrti_incidence), 0, lrti_incidence))
+         time_at_risk_total = sum(person_time_no_lrti_total, na.rm = TRUE),
+         lrti_incidence = lrti_events_total/sum(time_at_risk_total)*7,
+         lrti_incidence = if_else(is.na(lrti_incidence), 0, lrti_incidence)) %>% 
+  distinct(area, child_id_num, .keep_all = TRUE) %>% 
+  select(area, home, cohort, child_id_num, lrti_events_total, time_at_risk_total, lrti_incidence)
 ```
 
 
@@ -54,9 +65,29 @@ lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
 analysis_data <- health_exposure_data_sampling_day %>% 
   select(-treatment_assigned, -treatment_actual) %>% 
   left_join(treatments_masked, by = "home") %>% 
-  right_join(lrti_final_data, by = c("area", "child_id_num", "home_winter_id")) %>% 
-  distinct(area, child_id_num, home_winter_id, .keep_all = TRUE) %>% 
-  select(area, home, home_winter_id, )
+  right_join(lrti_final_data, by = c("area", "home", "child_id_num")) %>% 
+  distinct(area, child_id_num, .keep_all = TRUE) %>% 
+  select(area, home, cohort, child_id_num, lrti_events_total, time_at_risk_total, lrti_incidence, newtx) %>% 
+  rename(treatment = newtx)
+```
 
+
+```{r}
+# Initial summary data for LRTI
+incidence_summary <- analysis_data %>% 
+  group_by(treatment) %>% 
+  summarize(mean_inc = mean(lrti_incidence, na.rm = TRUE),
+            sd_inc = sd(lrti_incidence, na.rm = TRUE),
+            min_inc = min(lrti_incidence, na.rm = TRUE),
+            median_inc = median(lrti_incidence, na.rm = TRUE),
+            max_inc = max(lrti_incidence, na.rm = TRUE))
+incidence_summary
+```
+
+
+```{r}
+model_results <- glmer(lrti_incidence ~ treatment + (1 | home:cohort:area), data = analysis_data, family = poisson(link = "log"))
+
+summary(model_results)
 ```
 
