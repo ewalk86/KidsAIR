@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: Main analysis initial steps"
 author: "Ethan Walker"
-date: "Started 23 Sept 2020, Updated 28 Sept 2020"
+date: "Started 23 Sept 2020, Updated 30 Sept 2020"
 output: pdf_document
 header-includes:
     - \usepackage[labelformat=empty]{caption}
@@ -73,20 +73,197 @@ analysis_data <- health_exposure_data_sampling_day %>%
 
 
 ```{r}
+# clean up data for table 1 summary
+table_1_data <- health_exposure_data_sampling_day %>% 
+  select(-treatment_assigned, -treatment_actual) %>% 
+  left_join(treatments_masked, by = "home") %>%
+  rename(treatment = newtx) %>% 
+  arrange(area, home, winter_id, sampling_day) %>% 
+  filter(winter_id == 1) %>% 
+  distinct(area, home, .keep_all = TRUE) 
+
+
+# summary data for manuscript tables
+char_funct_total <- function(var, data = table_1_data){
+
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = round(n()/total_n*100)) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  select(new_var, n, percent) %>% 
+  arrange(new_var)
+demographics_summary
+}
+
+char_funct_treatment <- function(var, data = table_1_data){
+
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  group_by(treatment) %>% 
+  mutate(treatment_n = n()) %>% 
+  group_by(treatment, new_var) %>% 
+    mutate(n = n(),
+         percent = round(n()/treatment_n*100)) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  select(new_var, n, percent) %>% 
+  arrange(treatment, new_var)
+demographics_summary
+}
+
+
+
+char_funct_total("gender_parent")
+char_funct_treatment("gender_parent")
+char_funct_total("hispanic_parent")
+char_funct_treatment("hispanic_parent")
+char_funct_total("race_parent")
+char_funct_treatment("race_parent")
+char_funct_total("education_3level")
+char_funct_treatment("education_3level")
+char_funct_total("income_3level")
+char_funct_treatment("income_3level")
+char_funct_total("home_floors_2level")
+char_funct_treatment("home_floors_2level")
+char_funct_total("home_year_built_2level")
+char_funct_treatment("home_year_built_2level")
+char_funct_total("home_pets_2level")
+char_funct_treatment("home_pets_2level")
+char_funct_total("home_pets")
+char_funct_treatment("home_pets")
+char_funct_total("stove_age_3level")
+char_funct_treatment("stove_age_3level")
+char_funct_total("chimney_clean_3level")
+char_funct_treatment("chimney_clean_3level")
+char_funct_total("wood_collect_method_2level")
+char_funct_treatment("wood_collect_method_2level")
+char_funct_total("wood_collect_2level")
+char_funct_treatment("wood_collect_2level")
+char_funct_total("stove_grade_3level")
+char_funct_treatment("stove_grade_3level")
+char_funct_total("burn_level_3level")
+char_funct_treatment("burn_level_3level")
+char_funct_total("ruca_code")
+char_funct_treatment("ruca_code")
+char_funct_total("ruca_code_2")
+char_funct_treatment("ruca_code_2")
+char_funct_total("ruca_code_3")
+char_funct_treatment("ruca_code_3")
+```
+
+
+```{r}
+# clean up data for table 1 summary
+table_1_data <- health_exposure_data_sampling_day %>% 
+  select(-treatment_assigned, -treatment_actual) %>% 
+  left_join(treatments_masked, by = "home") %>%
+  rename(treatment = newtx) %>% 
+  arrange(area, home, winter_id, sampling_day) %>% 
+  filter(winter_id == 1) %>% 
+  distinct(area, home, .keep_all = TRUE) 
+
+
+# summary data for manuscript tables
+num_funct_total <- function(var, data = table_1_data){
+
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  mutate(new_var = as.numeric(new_var)) %>% 
+  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
+  filter(!is.na(new_var)) %>% 
+  select(treatment, home, new_var) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+demographics_summary
+}
+
+num_funct_treatment <- function(var, data = table_1_data){
+
+demographics_summary <- data %>% 
+  rename(new_var = var) %>%
+  mutate(new_var = as.numeric(new_var)) %>% 
+  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
+  filter(!is.na(new_var)) %>% 
+  select(treatment, home, new_var) %>% 
+  group_by(treatment) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+demographics_summary
+}
+
+
+num_funct_total("residents_under_five")
+num_funct_treatment("residents_under_five")
+num_funct_total("home_bedrooms")
+num_funct_treatment("home_bedrooms")
+num_funct_total("pm_mean_sampling_period")
+num_funct_treatment("pm_mean_sampling_period")
+num_funct_total("pm_sample_interval")
+num_funct_treatment("pm_sample_interval")
+num_funct_total("moisture_closest")
+num_funct_treatment("moisture_closest")
+num_funct_total("temp_indoor_max")
+num_funct_treatment("temp_indoor_max")
+num_funct_total("rh_indoor_max")
+num_funct_treatment("rh_indoor_max")
+num_funct_total("mean_temp")
+num_funct_treatment("mean_temp")
+num_funct_total("amb_pm_24hr")
+num_funct_treatment("amb_pm_24hr")
+num_funct_total("sums_events_sampling_period_2.5")
+num_funct_treatment("sums_events_sampling_period_2.5")
+num_funct_total("sums_events_sampling_period_5")
+num_funct_treatment("sums_events_sampling_period_5")
+num_funct_total("sums_events_sampling_period_7.5")
+num_funct_treatment("sums_events_sampling_period_7.5")
+```
+
+
+```{r}
 # Initial summary data for LRTI
 incidence_summary <- analysis_data %>% 
   group_by(treatment) %>% 
   summarize(mean_inc = mean(lrti_incidence, na.rm = TRUE),
             sd_inc = sd(lrti_incidence, na.rm = TRUE),
+            n_inc = n(),
             min_inc = min(lrti_incidence, na.rm = TRUE),
             median_inc = median(lrti_incidence, na.rm = TRUE),
             max_inc = max(lrti_incidence, na.rm = TRUE))
 incidence_summary
+
+# Histogram for distribution of data
+incidence_plot <- analysis_data %>% 
+  ggplot() +
+    geom_histogram(aes(lrti_incidence)) +
+    theme_light() +
+    facet_wrap(~treatment)
+incidence_plot
+
+# Check for overdispersion in data using likelihood ratio test
+library(pscl)
+library(MASS)
+
+nb_results <- glm.nb(lrti_incidence ~ treatment, data = analysis_data)
+odTest(nb_results)
+
+# According to these results, data is overdispersed
+# Variance is much higher than the mean for LRTI incidence
+# Assumption of Poisson is variance = mean, so recommend using negative binomial model
+
+summary(nb_results)
+
+# Link for analysis ideas and notes:
+# https://stats.idre.ucla.edu/r/dae/negative-binomial-regression/ 
+# https://stats.idre.ucla.edu/r/dae/poisson-regression/ 
+# https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/ 
 ```
 
 
 ```{r}
-model_results <- glmer(lrti_incidence ~ treatment + (1 | home:cohort:area), data = analysis_data, family = poisson(link = "log"))
+# Mixed model
+model_results <- glmer.nb(lrti_incidence ~ treatment + (1 | home:cohort:area), data = analysis_data)
 
 summary(model_results)
 ```
