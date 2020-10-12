@@ -272,6 +272,7 @@ lrti_no <- lrti_notes_decisions %>%
   # this date is intervention date + 14 days
   mutate(person_time_start = intervention_date + 14) %>% 
   filter(!is.na(csq_date)) %>% 
+  mutate(person_time_start = if_else(is.na(person_time_start), first(csq_date) + 14, person_time_start)) %>% 
   # var for person-time end date for each winter/child combo
   # this date is the earliest of the last csq or april 30 of the study year
   mutate(person_time_end = last(csq_date),

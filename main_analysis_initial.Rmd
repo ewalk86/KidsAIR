@@ -44,19 +44,25 @@ lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
   arrange(area, home, child_id_num, winter_id) %>% 
   mutate(cohort = round_date(csq_date, unit = "year")) %>% 
   separate(cohort, c("cohort", "trash"), sep = "-") %>% 
-  group_by(area, child_id_num, home_winter_id) %>% 
+  group_by(area, child_id_num, winter_id) %>% 
   mutate(lrti_events = n()) %>% 
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   group_by(area, child_id_num) %>% 
-  distinct(area, child_id_num, home_winter_id, .keep_all = TRUE) %>% 
   mutate(lrti_events = as.numeric(lrti_events),
          lrti_events = if_else(is.na(person_time_no_lrti_total), 0, lrti_events),
-         lrti_events_total = sum(lrti_events, na.rm = TRUE),
+         lrti_events_overall = sum(lrti_events, na.rm = TRUE),
          person_time_no_lrti_total = as.numeric(person_time_no_lrti_total),
-         time_at_risk_total = sum(person_time_no_lrti_total, na.rm = TRUE),
-         lrti_incidence = lrti_events_total/sum(time_at_risk_total)*7,
+         person_time_no_lrti_total = if_else(is.na(person_time_no_lrti_total), person_time_possible,
+                                             person_time_no_lrti_total),
+         person_time_at_risk_total = sum(person_time_no_lrti_total, na.rm = TRUE),
+         person_time_at_risk_total = as.numeric(person_time_at_risk_total)/7,
+         lrti_incidence = lrti_events_overall/person_time_at_risk_total,
          lrti_incidence = if_else(is.na(lrti_incidence), 0, lrti_incidence)) %>% 
+  arrange(area, home, child_id_num, winter_id) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
-  select(area, home, cohort, child_id_num, lrti_events_total, time_at_risk_total, lrti_incidence)
+  ungroup() %>% 
+  filter(person_time_at_risk_total > 0) %>% 
+  select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence)
 ```
 
 
@@ -64,11 +70,23 @@ lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
 # Merge dataset with blinded treatments and final LRTI data, select analysis variables
 analysis_data <- health_exposure_data_sampling_day %>% 
   select(-treatment_assigned, -treatment_actual) %>% 
+  mutate(child_age = fct_collapse(age_child_nov,
+                                  "< 1" = "Less than 1",
+                                  "1+" = c(1, 2, 3, 4))) %>% 
   left_join(treatments_masked, by = "home") %>% 
+  arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_final_data, by = c("area", "home", "child_id_num")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
-  select(area, home, cohort, child_id_num, lrti_events_total, time_at_risk_total, lrti_incidence, newtx) %>% 
-  rename(treatment = newtx)
+  select(area, home, cohort, child_id_num, child_age, lrti_events_overall, 
+         person_time_at_risk_total, lrti_incidence, newtx) %>% 
+  rename(treatment = newtx,
+         lrti_events = lrti_events_overall,
+         person_time_at_risk = person_time_at_risk_total) %>% 
+  mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
+  mutate(lrti_events_di = if_else(lrti_events == 0, 0, 1)) %>% 
+  filter(lrti_incidence < 0.7) %>% 
+  mutate(treatment = factor(treatment,
+                            levels = c("Dearborn", "Smith", "Blackfoot")))
 ```
 
 
@@ -225,6 +243,7 @@ num_funct_treatment("sums_events_sampling_period_7.5")
 # Initial summary data for LRTI
 incidence_summary <- analysis_data %>% 
   group_by(treatment) %>% 
+  #filter(lrti_incidence < 0.7) %>% 
   summarize(mean_inc = mean(lrti_incidence, na.rm = TRUE),
             sd_inc = sd(lrti_incidence, na.rm = TRUE),
             n_inc = n(),
@@ -233,19 +252,38 @@ incidence_summary <- analysis_data %>%
             max_inc = max(lrti_incidence, na.rm = TRUE))
 incidence_summary
 
+
+count_summary <- analysis_data %>% 
+  group_by(treatment) %>% 
+  filter(lrti_incidence < 0.7) %>% 
+  summarize(mean_events = mean(lrti_events, na.rm = TRUE),
+            sd_events = sd(lrti_events, na.rm = TRUE),
+            n_events = n(),
+            min_events = min(lrti_events, na.rm = TRUE),
+            median_events = median(lrti_events, na.rm = TRUE),
+            max_events = max(lrti_events, na.rm = TRUE))
+count_summary
+
+
 # Histogram for distribution of data
-incidence_plot <- analysis_data %>% 
+events_plot <- analysis_data %>% 
   ggplot() +
-    geom_histogram(aes(lrti_incidence)) +
+    geom_histogram(aes(lrti_events)) +
     theme_light() +
     facet_wrap(~treatment)
-incidence_plot
+events_plot
+
+events_di_plot <- analysis_data %>% 
+  ggplot() +
+    geom_boxplot(aes(lrti_events_di, person_time_at_risk)) +
+    facet_wrap(~treatment)
+events_di_plot
 
 # Check for overdispersion in data using likelihood ratio test
 library(pscl)
 library(MASS)
 
-nb_results <- glm.nb(lrti_incidence ~ treatment, data = analysis_data)
+nb_results <- glm.nb(lrti_events ~ treatment + offset(log_person_time_at_risk), data = analysis_data)
 odTest(nb_results)
 
 # According to these results, data is overdispersed
@@ -258,13 +296,43 @@ summary(nb_results)
 # https://stats.idre.ucla.edu/r/dae/negative-binomial-regression/ 
 # https://stats.idre.ucla.edu/r/dae/poisson-regression/ 
 # https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/ 
+
+# Other diagnostic plots and tests
+library(vcd)
+fit <- goodfit(analysis_data$lrti_events)
+summary(fit) 
+rootogram(fit)
+Ord_plot(analysis_data$lrti_events)
+
+library(car)
+influencePlot(nb_results)
+
+library(pscl)
+
+
 ```
 
 
 ```{r}
-# Mixed model
-model_results <- glmer.nb(lrti_incidence ~ treatment + (1 | home:cohort:area), data = analysis_data)
+# Mixed model variations
 
-summary(model_results)
+poisson_results <- glmer(lrti_events ~ treatment + child_age + (1 | home:cohort:area), 
+                         data = analysis_data, family = poisson(link = "log"), offset = log_person_time_at_risk)
+summary(poisson_results)
+
+
+
+negbin_results <- glmer.nb(lrti_events ~ treatment + child_age + (1 | home:cohort:area) + offset(log_person_time_at_risk), 
+                           data = analysis_data)
+summary(negbin_results)
+
+plot(negbin_results)
+qqnorm(residuals(negbin_results))
+qqline(residuals(negbin_results))
+
+
+logreg_results <- glmer(lrti_events_di ~ treatment + child_age + (1 | home:cohort:area), 
+                        data = analysis_data, family = binomial, offset = log_person_time_at_risk)
+summary(logreg_results)
 ```
 
