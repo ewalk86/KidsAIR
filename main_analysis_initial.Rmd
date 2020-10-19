@@ -29,7 +29,7 @@ library(kableExtra)
 
 
 ```{r, eval=TRUE, include=TRUE}
-# Load individual datasets
+# Load individual datasets, add new vars, and merge/select analysis dataset
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
@@ -39,6 +39,14 @@ health_exposure_data_sampling_day <-
 treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
   mutate(home = gsub(" ", "", x = home),
          home = gsub("_", "", x = home))
+
+kids_amb_pm_data <- 
+  read_rds(paste0(file_path, "Output/kids_amb_pm_data_new.rds")) %>% 
+  mutate(sample_date = ymd(amb_pm_date))
+
+kids_amb_temp_data <- 
+  read_rds(paste0(file_path, "Output/kids_amb_temp_data_new.rds")) %>% 
+  mutate(sample_date = ymd(temp_date)) 
 
 lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
@@ -59,16 +67,34 @@ lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
          lrti_incidence = lrti_events_overall/person_time_at_risk_total,
          lrti_incidence = if_else(is.na(lrti_incidence), 0, lrti_incidence)) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
+  left_join(kids_amb_pm_data, by = c("area", "home")) %>% 
+  mutate(pm_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
+  filter(pm_filter == 1) %>% 
+  group_by(area, child_id_num) %>% 
+  mutate(amb_pm_lrti = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
+         amb_pm_lrti, person_time_start, person_time_end) %>% 
+  left_join(kids_amb_temp_data, by = c("area", "home")) %>% 
+  mutate(temp_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
+  filter(temp_filter == 1 | child_id_num == 94) %>% 
+  group_by(area, child_id_num) %>% 
+  mutate(amb_temp_lrti = mean(mean_temp, na.rm = TRUE),
+         amb_temp_lrti = if_else(child_id_num == 94, NaN, amb_temp_lrti),
+         amb_dewp_lrti = mean(mean_dewp, na.rm = TRUE),
+         amb_dewp_lrti = if_else(child_id_num == 94, NaN, amb_dewp_lrti),
+         amb_pressure_lrti = mean(mean_pressure, na.rm = TRUE),
+         amb_pressure_lrti = if_else(child_id_num == 94, NaN, amb_pressure_lrti),
+         amb_wind_lrti = mean(mean_wind_knots, na.rm = TRUE),
+         amb_wind_lrti = if_else(child_id_num == 94, NaN, amb_wind_lrti)) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  filter(person_time_at_risk_total > 0) %>% 
-  select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence)
-```
+  select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
+         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti)
 
-
-```{r}
 # Merge dataset with blinded treatments and final LRTI data, select analysis variables
-analysis_data <- health_exposure_data_sampling_day %>% 
+kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>% 
   select(-treatment_assigned, -treatment_actual) %>% 
   mutate(child_age = fct_collapse(age_child_nov,
                                   "< 1" = "Less than 1",
@@ -78,15 +104,43 @@ analysis_data <- health_exposure_data_sampling_day %>%
   right_join(lrti_final_data, by = c("area", "home", "child_id_num")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   select(area, home, cohort, child_id_num, child_age, lrti_events_overall, 
-         person_time_at_risk_total, lrti_incidence, newtx) %>% 
+         person_time_at_risk_total, lrti_incidence, newtx,
+         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti,
+         gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
+         home_floors_2level, home_year_built_2level, home_pets_2level, home_pets,
+         stove_age_3level, chimney_clean_3level, wood_collect_method_2level,
+         wood_collect_2level, stove_grade_3level, burn_level_3level, ruca_code,
+         ruca_code_2, ruca_code_3, residents_smoke, residents_smoke_inside,
+         residents_under_five, home_bedrooms, pm_mean_sampling_period, pm_sample_interval,
+         moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
+         sums_events_sampling_period_5, sums_events_sampling_period_7.5) %>% 
   rename(treatment = newtx,
          lrti_events = lrti_events_overall,
          person_time_at_risk = person_time_at_risk_total) %>% 
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
   mutate(lrti_events_di = if_else(lrti_events == 0, 0, 1)) %>% 
-  filter(lrti_incidence < 0.7) %>% 
   mutate(treatment = factor(treatment,
-                            levels = c("Dearborn", "Smith", "Blackfoot")))
+                            levels = c("Blackfoot", "Dearborn", "Smith")))
+
+write_rds(kids_analysis_data_1obs_per_child, 
+          paste0(file_path, "Output/kids_analysis_data_1obs_per_child.rds"))
+write_csv(kids_analysis_data_1obs_per_child, 
+          paste0(file_path, "Output/kids_analysis_data_1obs_per_child.csv"), na = "")
+```
+
+
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+analysis_data <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_1obs_per_child.rds"))
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
+treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
 ```
 
 
@@ -169,6 +223,10 @@ char_funct_total("ruca_code_2")
 char_funct_treatment("ruca_code_2")
 char_funct_total("ruca_code_3")
 char_funct_treatment("ruca_code_3")
+char_funct_total("residents_smoke")
+char_funct_treatment("residents_smoke")
+char_funct_total("residents_smoke_inside")
+char_funct_treatment("residents_smoke_inside")
 ```
 
 
@@ -236,6 +294,20 @@ num_funct_total("sums_events_sampling_period_5")
 num_funct_treatment("sums_events_sampling_period_5")
 num_funct_total("sums_events_sampling_period_7.5")
 num_funct_treatment("sums_events_sampling_period_7.5")
+
+at_home_pm_summary <- health_exposure_data_sampling_day %>% 
+  select(-treatment_assigned, -treatment_actual) %>% 
+  left_join(treatments_masked, by = "home") %>%
+  rename(treatment = newtx) %>% 
+  arrange(area, home, winter_id, sampling_day) %>% 
+  filter(winter_id == 1) %>% 
+  distinct(area, child_id_num, .keep_all = TRUE) %>% 
+  mutate(new_var = pm_at_home_sampling_period) %>% 
+  filter(!is.na(new_var)) %>%
+  group_by(treatment) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+at_home_pm_summary
 ```
 
 
@@ -265,6 +337,22 @@ count_summary <- analysis_data %>%
 count_summary
 
 
+# amb data summary
+# amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti
+ambient_summary <- analysis_data %>% 
+  mutate(new_var = amb_pm_lrti) %>% 
+  #group_by(treatment) %>% 
+  filter(!is.na(new_var)) %>% 
+  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
+  summarize(mean_amb = mean(new_var, na.rm = TRUE),
+            sd_amb = sd(new_var, na.rm = TRUE),
+            n_amb = n(),
+            min_amb = min(new_var, na.rm = TRUE),
+            median_amb = median(new_var, na.rm = TRUE),
+            max_amb = max(new_var, na.rm = TRUE))
+ambient_summary
+
+
 # Histogram for distribution of data
 events_plot <- analysis_data %>% 
   ggplot() +
@@ -278,13 +366,22 @@ events_di_plot <- analysis_data %>%
     geom_boxplot(aes(lrti_events_di, person_time_at_risk)) +
     facet_wrap(~treatment)
 events_di_plot
+```
 
+
+```{r}
 # Check for overdispersion in data using likelihood ratio test
 library(pscl)
 library(MASS)
 
-nb_results <- glm.nb(lrti_events ~ treatment + offset(log_person_time_at_risk), data = analysis_data)
+nb_results <- glm.nb(lrti_events ~ treatment + offset(log_person_time_at_risk), 
+                     data = analysis_data)
+
+poisson_results <- glm(lrti_events ~ treatment + offset(log_person_time_at_risk), 
+                       family = "poisson", data = analysis_data)
+
 odTest(nb_results)
+
 
 # According to these results, data is overdispersed
 # Variance is much higher than the mean for LRTI incidence
@@ -309,7 +406,10 @@ influencePlot(nb_results)
 
 library(pscl)
 
+inf_results <- influence(nb_results)$hat
+inf_results
 
+influence(nb_results)$coef
 ```
 
 

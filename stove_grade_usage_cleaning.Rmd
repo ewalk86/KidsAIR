@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR wood stove grades and usage"
 author: "Ethan Walker"
-date: "Started 13 Jan 2020, Updated 23 June 2020"
+date: "Started 13 Jan 2020, Updated 18 Oct 2020"
 output: pdf_document
 ---
 
@@ -247,5 +247,130 @@ stove_use_clean <- kids_stove_use %>%
 summary(stove_use_clean)
 
 write_rds(stove_use_clean, paste0(file_path, "Output/stove_use_clean.rds"))
+```
+
+#####################################
+
+# Load, format, and KW monitor data
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+##### WMT #####
+# Load data
+kw_initial_wmt <- read_csv(paste0(file_path, "Input/WMT/filtretechange.csv"), 
+                                  na = c("NULL", "", "...", -99, -999, -9999))
+
+kw_wmt <- kw_initial_wmt %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         kw_date = ymd(ChangeDate),
+         kw_hours = as.numeric(KWHours),
+         area = "WMT") %>% 
+  select(home_winter_id, area, kw_date, kw_hours) %>% 
+  filter(!is.na(kw_hours)) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, kw_date) 
+  
+
+# Save as RDS
+write_rds(kw_wmt, paste0(file_path, "Output/kw_wmt.rds"))
+
+
+##### NN #####
+# Load data
+kw_initial_nn <- read_csv(paste0(file_path, "Input/NN/filtretechange.csv"), 
+                                  na = c("NULL", "", "...", -99, -999, -9999))
+
+kw_nn <- kw_initial_nn %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         kw_date = ymd(ChangeDate),
+         kw_hours = as.numeric(KWHours),
+         area = "NN") %>% 
+  select(home_winter_id, area, kw_date, kw_hours) %>% 
+  filter(!is.na(kw_hours)) %>%  
+  ungroup() %>% 
+  arrange(home_winter_id, kw_date) 
+  
+
+# Save as RDS
+write_rds(kw_nn, paste0(file_path, "Output/kw_nn.rds"))
+
+
+##### AK #####
+# Load data
+kw_initial_ak <- read_csv(paste0(file_path, "Input/AK/filtretechange.csv"), 
+                                  na = c("NULL", "", "...", -99, -999, -9999))
+
+kw_ak <- kw_initial_ak %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         kw_date = ymd(ChangeDate),
+         kw_hours = as.numeric(KWHours),
+         area = "AK") %>% 
+  select(home_winter_id, area, kw_date, kw_hours) %>%  
+  filter(!is.na(kw_hours)) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, kw_date) 
+  
+
+# Save as RDS
+write_rds(kw_ak, paste0(file_path, "Output/kw_ak.rds"))
+```
+
+# Join KW hour data from different areas
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kw_wmt <- read_rds(paste0(file_path, "Output/kw_wmt.rds"))
+kw_nn <- read_rds(paste0(file_path, "Output/kw_nn.rds"))
+kw_ak <- read_rds(paste0(file_path, "Output/kw_ak.rds"))
+
+kids_kw <- rbind(kw_wmt, kw_nn, kw_ak) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id, kw_date)
+
+write_rds(kids_kw, paste0(file_path, "Output/kids_kw.rds"))
+```
+
+# Clean up all KW hour data
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_kw <- read_rds(paste0(file_path, "Output/kids_kw.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds"))
+treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+
+
+kids_kw_clean <- kids_kw %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>%  
+  filter(!is.na(home)) %>% 
+  arrange(area, home_winter_id, kw_date) %>% 
+  group_by(area, home_winter_id) %>% 
+  mutate(kw_hours_total = sum(kw_hours))
+
+summary(kids_kw_clean)
+
+kw_summary <- kids_kw_clean %>% 
+  select(-treatment_assigned, -treatment_actual) %>% 
+  left_join(treatments_masked, by = "home") %>% 
+  distinct(area, home, kw_hours_total) %>% 
+  ungroup() %>% 
+  #group_by(newtx) %>% 
+  summarize(mean(kw_hours_total),
+            sd(kw_hours_total),
+            n(),
+            min(kw_hours_total),
+            median(kw_hours_total),
+            max(kw_hours_total))
+kw_summary
+
+# Some homes/stoves were graded during both winters, typically when new photos were added
+# Since photos were added in these cases, grades may have changed from Winter 1 to Winter 2
+# We can't make the assumption that the stove was exactly the same for both winters,
+# so it will be best to use the grade corresponding to each winter for analysis.
+
+write_rds(kids_kw_clean, paste0(file_path, "Output/kids_kw_clean.rds"))
 ```
 
