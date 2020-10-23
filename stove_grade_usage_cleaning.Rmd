@@ -348,7 +348,10 @@ kids_kw_clean <- kids_kw %>%
   filter(!is.na(home)) %>% 
   arrange(area, home_winter_id, kw_date) %>% 
   group_by(area, home_winter_id) %>% 
-  mutate(kw_hours_total = sum(kw_hours))
+  mutate(kw_hours_last = last(kw_hours),
+         diff_check = if_else(kw_hours_last < kw_hours, 1, 0),
+         diff_check2 = kw_hours_last - kw_hours)  
+  distinct(area, home_winter_id, diff_check, .keep_all = TRUE)
 
 summary(kids_kw_clean)
 
@@ -357,6 +360,7 @@ kw_summary <- kids_kw_clean %>%
   left_join(treatments_masked, by = "home") %>% 
   distinct(area, home, kw_hours_total) %>% 
   ungroup() %>% 
+  filter(area == "WMT") %>% 
   #group_by(newtx) %>% 
   summarize(mean(kw_hours_total),
             sd(kw_hours_total),

@@ -136,7 +136,12 @@ analysis_data <- read_rds(paste0(file_path,
                                  "Output/kids_analysis_data_1obs_per_child.rds"))
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
+  mutate(home_pets = as.factor(home_pets),
+         home_pets_3level = fct_collapse(home_pets,
+                                    "0" = "0",
+                                    "1" = "1",
+                                    "2+" = c("2","3","4","5","6","7","8","9","10","12","14")))
 
 treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
   mutate(home = gsub(" ", "", x = home),
@@ -152,6 +157,7 @@ table_1_data <- health_exposure_data_sampling_day %>%
   rename(treatment = newtx) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
+  filter(area == "NN") %>% 
   distinct(area, home, .keep_all = TRUE) 
 
 
@@ -189,8 +195,6 @@ demographics_summary
 
 char_funct_total("gender_parent")
 char_funct_treatment("gender_parent")
-char_funct_total("hispanic_parent")
-char_funct_treatment("hispanic_parent")
 char_funct_total("race_parent")
 char_funct_treatment("race_parent")
 char_funct_total("education_3level")
@@ -203,8 +207,12 @@ char_funct_total("home_year_built_2level")
 char_funct_treatment("home_year_built_2level")
 char_funct_total("home_pets_2level")
 char_funct_treatment("home_pets_2level")
-char_funct_total("home_pets")
-char_funct_treatment("home_pets")
+char_funct_total("home_pets_3level")
+char_funct_treatment("home_pets_3level")
+char_funct_total("residents_smoke")
+char_funct_treatment("residents_smoke")
+char_funct_total("residents_smoke_inside")
+char_funct_treatment("residents_smoke_inside")
 char_funct_total("stove_age_3level")
 char_funct_treatment("stove_age_3level")
 char_funct_total("chimney_clean_3level")
@@ -223,10 +231,6 @@ char_funct_total("ruca_code_2")
 char_funct_treatment("ruca_code_2")
 char_funct_total("ruca_code_3")
 char_funct_treatment("ruca_code_3")
-char_funct_total("residents_smoke")
-char_funct_treatment("residents_smoke")
-char_funct_total("residents_smoke_inside")
-char_funct_treatment("residents_smoke_inside")
 ```
 
 
@@ -238,6 +242,7 @@ table_1_data <- health_exposure_data_sampling_day %>%
   rename(treatment = newtx) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
+  filter(area == "NN") %>% 
   distinct(area, home, .keep_all = TRUE) 
 
 
@@ -304,6 +309,7 @@ at_home_pm_summary <- health_exposure_data_sampling_day %>%
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   mutate(new_var = pm_at_home_sampling_period) %>% 
   filter(!is.na(new_var)) %>%
+  filter(area == "NN") %>% 
   group_by(treatment) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
@@ -314,7 +320,8 @@ at_home_pm_summary
 ```{r}
 # Initial summary data for LRTI
 incidence_summary <- analysis_data %>% 
-  group_by(treatment) %>% 
+  filter(area == "NN") %>% 
+  #group_by(treatment) %>% 
   #filter(lrti_incidence < 0.7) %>% 
   summarize(mean_inc = mean(lrti_incidence, na.rm = TRUE),
             sd_inc = sd(lrti_incidence, na.rm = TRUE),
@@ -340,8 +347,9 @@ count_summary
 # amb data summary
 # amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti
 ambient_summary <- analysis_data %>% 
+  filter(area == "NN") %>% 
   mutate(new_var = amb_pm_lrti) %>% 
-  #group_by(treatment) %>% 
+  group_by(treatment) %>% 
   filter(!is.na(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   summarize(mean_amb = mean(new_var, na.rm = TRUE),
