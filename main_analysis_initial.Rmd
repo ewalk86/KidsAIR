@@ -74,7 +74,7 @@ lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
   mutate(amb_pm_lrti = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
+  dplyr::select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
          amb_pm_lrti, person_time_start, person_time_end) %>% 
   left_join(kids_amb_temp_data, by = c("area", "home")) %>% 
   mutate(temp_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
@@ -90,12 +90,12 @@ lrti_final_data <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
          amb_wind_lrti = if_else(child_id_num == 94, NaN, amb_wind_lrti)) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
+  dplyr::select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti)
 
 # Merge dataset with blinded treatments and final LRTI data, select analysis variables
 kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>% 
-  select(-treatment_assigned, -treatment_actual) %>% 
+  #select(-treatment_assigned, -treatment_actual) %>% 
   mutate(child_age = fct_collapse(age_child_nov,
                                   "< 1" = "Less than 1",
                                   "1+" = c(1, 2, 3, 4))) %>% 
@@ -103,8 +103,8 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_final_data, by = c("area", "home", "child_id_num")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
-  select(area, home, cohort, child_id_num, child_age, lrti_events_overall, 
-         person_time_at_risk_total, lrti_incidence, newtx,
+  dplyr::select(area, home, cohort, child_id_num, child_age, lrti_events_overall, 
+         person_time_at_risk_total, lrti_incidence, newtx, treatment_assigned,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
          home_floors_2level, home_year_built_2level, home_pets_2level, home_pets,
@@ -120,7 +120,9 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
   mutate(lrti_events_di = if_else(lrti_events == 0, 0, 1)) %>% 
   mutate(treatment = factor(treatment,
-                            levels = c("Blackfoot", "Dearborn", "Smith")))
+                            levels = c("Blackfoot", "Dearborn", "Smith")),
+         treatment_assigned = factor(treatment_assigned,
+                                     levels = c("Placebo", "Filter", "Education")))
 
 write_rds(kids_analysis_data_1obs_per_child, 
           paste0(file_path, "Output/kids_analysis_data_1obs_per_child.rds"))
@@ -132,8 +134,14 @@ write_csv(kids_analysis_data_1obs_per_child,
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+
+
 analysis_data <- read_rds(paste0(file_path, 
-                                 "Output/kids_analysis_data_1obs_per_child.rds"))
+                                 "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
+  rownames_to_column() %>% 
+  mutate(filter_outliers = if_else(rowname %in% c(14, 57, 58, 249, 280, 16, 19, 20, 118), 1, 0)) %>% 
+  filter(lrti_incidence < 0.7) %>% 
+  filter(filter_outliers == 0)
 
 health_exposure_data_sampling_day <- 
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
@@ -359,8 +367,10 @@ ambient_summary <- analysis_data %>%
             median_amb = median(new_var, na.rm = TRUE),
             max_amb = max(new_var, na.rm = TRUE))
 ambient_summary
+```
 
 
+```{r}
 # Histogram for distribution of data
 events_plot <- analysis_data %>% 
   ggplot() +
@@ -369,33 +379,37 @@ events_plot <- analysis_data %>%
     facet_wrap(~treatment)
 events_plot
 
+inc_plot <- analysis_data %>% 
+  ggplot() +
+    geom_histogram(aes(lrti_incidence)) +
+    theme_light() +
+    facet_wrap(~treatment)
+inc_plot
+
 events_di_plot <- analysis_data %>% 
   ggplot() +
-    geom_boxplot(aes(lrti_events_di, person_time_at_risk)) +
+    geom_histogram(aes(lrti_events_di)) +
     facet_wrap(~treatment)
 events_di_plot
 ```
 
 
 ```{r}
-# Check for overdispersion in data using likelihood ratio test
-library(pscl)
+# Summarize initial models, check overdispersion and other diagnostic criteria
 library(MASS)
 
+# Simple model with offset
 nb_results <- glm.nb(lrti_events ~ treatment + offset(log_person_time_at_risk), 
                      data = analysis_data)
+
+summary(nb_results)
+anova(nb_results, test="Chisq")
 
 poisson_results <- glm(lrti_events ~ treatment + offset(log_person_time_at_risk), 
                        family = "poisson", data = analysis_data)
 
-odTest(nb_results)
-
-
-# According to these results, data is overdispersed
-# Variance is much higher than the mean for LRTI incidence
-# Assumption of Poisson is variance = mean, so recommend using negative binomial model
-
-summary(nb_results)
+summary(poisson_results)
+anova(poisson_results, test="Chisq")
 
 # Link for analysis ideas and notes:
 # https://stats.idre.ucla.edu/r/dae/negative-binomial-regression/ 
@@ -403,21 +417,66 @@ summary(nb_results)
 # https://stats.idre.ucla.edu/r/faq/random-coefficient-poisson-models/ 
 
 # Other diagnostic plots and tests
+# https://stats.stackexchange.com/questions/70558/diagnostic-plots-for-count-regression 
+
 library(vcd)
 fit <- goodfit(analysis_data$lrti_events)
 summary(fit) 
 rootogram(fit)
 Ord_plot(analysis_data$lrti_events)
+distplot(analysis_data$lrti_events, type = "nbinom")
 
-library(car)
-influencePlot(nb_results)
+
+library(AER)
+dispersiontest(poisson_results, trafo=1) # test indicates poisson model is overdispersed
+
 
 library(pscl)
+odTest(nb_results) # test indicates poisson model is overdispersed
+# According to these results, data is overdispersed
+# Variance is much higher than the mean for LRTI incidence
+# Assumption of Poisson is variance = mean, so recommend using negative binomial model
+
+mod2 <- zeroinfl(lrti_events ~ treatment + offset(log_person_time_at_risk), 
+                 data = analysis_data, dist="poisson")
+AIC(poisson_results, mod2)
+# Above results indicate zero-inflated poisson model is a better fit than poisson model
+
+mod2 <- zeroinfl(lrti_events ~ treatment + offset(log_person_time_at_risk), 
+                 data = analysis_data, dist="negbin")
+AIC(nb_results, mod2)
+# Above results indicate neg bin model is a better fit than zero-inflated neg bin model
+# Since data is also overdispersed (neg bin model better fit than poisson),
+# a neg bin model seems to be the best fit overall
+
+
+# plot residuals
+res <- residuals(nb_results, type="deviance")
+plot(predict(nb_results), res)
+abline(h=0, lty=2)
+qqnorm(res)
+qqline(res)
+
+library(faraway)
+halfnorm(residuals(nb_results))
+
+library(boot)
+glm.diag.plots(nb_results)
+
+
+# Check for influential datapoints
+library(car)
+nb_influence <- influencePlot(nb_results)
+influencePlot(poisson_results)
 
 inf_results <- influence(nb_results)$hat
 inf_results
 
 influence(nb_results)$coef
+
+
+qqnorm(residuals(nb_results))
+qqnorm(residuals(poisson_results))
 ```
 
 
@@ -434,13 +493,37 @@ negbin_results <- glmer.nb(lrti_events ~ treatment + child_age + (1 | home:cohor
                            data = analysis_data)
 summary(negbin_results)
 
-plot(negbin_results)
-qqnorm(residuals(negbin_results))
-qqline(residuals(negbin_results))
 
 
 logreg_results <- glmer(lrti_events_di ~ treatment + child_age + (1 | home:cohort:area), 
                         data = analysis_data, family = binomial, offset = log_person_time_at_risk)
 summary(logreg_results)
+```
+
+
+```{r}
+# Run mixed model and diagnostic plots from above
+
+negbin_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                           offset(log_person_time_at_risk), data = analysis_data)
+
+summary(negbin_results)
+tidy(negbin_results, conf.int = TRUE)
+
+
+# plot residuals
+res <- residuals(negbin_results, type="deviance")
+plot(predict(negbin_results), res)
+abline(h=0, lty=2)
+qqnorm(res)
+qqline(res)
+
+plot(residuals(negbin_results) ~ fitted(negbin_results), xlab="Fitted", ylab="Residuals")
+abline(h=0)
+
+
+library(faraway)
+halfnorm(residuals(negbin_results))
+
 ```
 
