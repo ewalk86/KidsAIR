@@ -132,9 +132,9 @@ write_csv(kids_analysis_data_1obs_per_child,
 
 
 ```{r}
+# Load analysis dataset
+
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-
-
 
 analysis_data <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
@@ -158,6 +158,8 @@ treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), 
 
 
 ```{r}
+# Summary analysis for categorical variables
+
 # clean up data for table 1 summary
 table_1_data <- health_exposure_data_sampling_day %>% 
   select(-treatment_assigned, -treatment_actual) %>% 
@@ -165,7 +167,7 @@ table_1_data <- health_exposure_data_sampling_day %>%
   rename(treatment = newtx) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
-  filter(area == "NN") %>% 
+  filter(area == "NN") %>% # Change area filter as necessary
   distinct(area, home, .keep_all = TRUE) 
 
 
@@ -243,6 +245,8 @@ char_funct_treatment("ruca_code_3")
 
 
 ```{r}
+# Summary analysis for numeric variables
+
 # clean up data for table 1 summary
 table_1_data <- health_exposure_data_sampling_day %>% 
   select(-treatment_assigned, -treatment_actual) %>% 
@@ -250,7 +254,7 @@ table_1_data <- health_exposure_data_sampling_day %>%
   rename(treatment = newtx) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
-  filter(area == "NN") %>% 
+  filter(area == "NN") %>% # Change area filter as necessary
   distinct(area, home, .keep_all = TRUE) 
 
 
@@ -308,6 +312,7 @@ num_funct_treatment("sums_events_sampling_period_5")
 num_funct_total("sums_events_sampling_period_7.5")
 num_funct_treatment("sums_events_sampling_period_7.5")
 
+# At-home PM summary - different than function above due to distinct obs by child instead of home
 at_home_pm_summary <- health_exposure_data_sampling_day %>% 
   select(-treatment_assigned, -treatment_actual) %>% 
   left_join(treatments_masked, by = "home") %>%
@@ -317,8 +322,8 @@ at_home_pm_summary <- health_exposure_data_sampling_day %>%
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   mutate(new_var = pm_at_home_sampling_period) %>% 
   filter(!is.na(new_var)) %>%
-  filter(area == "NN") %>% 
-  group_by(treatment) %>% 
+  filter(area == "NN") %>% # Change area filter as necessary 
+  group_by(treatment) %>% # Change treatment grouping as necessary 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 at_home_pm_summary
@@ -326,10 +331,12 @@ at_home_pm_summary
 
 
 ```{r}
+# Summary for outcome events and ambient data
+
 # Initial summary data for LRTI
 incidence_summary <- analysis_data %>% 
-  filter(area == "NN") %>% 
-  #group_by(treatment) %>% 
+  filter(area == "NN") %>% # Change area filter as necessary  
+  #group_by(treatment) %>% # Change treatment grouping as necessary  
   #filter(lrti_incidence < 0.7) %>% 
   summarize(mean_inc = mean(lrti_incidence, na.rm = TRUE),
             sd_inc = sd(lrti_incidence, na.rm = TRUE),
@@ -341,8 +348,8 @@ incidence_summary
 
 
 count_summary <- analysis_data %>% 
-  group_by(treatment) %>% 
-  filter(lrti_incidence < 0.7) %>% 
+  group_by(treatment) %>% # Change treatment grouping as necessary 
+  #filter(lrti_incidence < 0.7) %>% 
   summarize(mean_events = mean(lrti_events, na.rm = TRUE),
             sd_events = sd(lrti_events, na.rm = TRUE),
             n_events = n(),
@@ -355,11 +362,11 @@ count_summary
 # amb data summary
 # amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti
 ambient_summary <- analysis_data %>% 
-  filter(area == "NN") %>% 
+  filter(area == "NN") %>% # Change area filter as necessary  
   mutate(new_var = amb_pm_lrti) %>% 
-  group_by(treatment) %>% 
+  group_by(treatment) %>% # Change treatment grouping as necessary 
   filter(!is.na(new_var)) %>% 
-  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
+  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% # convert degrees F to C 
   summarize(mean_amb = mean(new_var, na.rm = TRUE),
             sd_amb = sd(new_var, na.rm = TRUE),
             n_amb = n(),
@@ -371,7 +378,8 @@ ambient_summary
 
 
 ```{r}
-# Histogram for distribution of data
+# Histograms for distribution of outcome data
+
 events_plot <- analysis_data %>% 
   ggplot() +
     geom_histogram(aes(lrti_events)) +
@@ -386,9 +394,34 @@ inc_plot <- analysis_data %>%
     facet_wrap(~treatment)
 inc_plot
 
+events_plot_pm <- analysis_data %>% 
+  mutate(pm_cat = cut(pm_mean_sampling_period,
+                      breaks = c(0, 9.85, 18.06, 34.88, 286),
+                      labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
+  filter(!is.na(pm_cat)) %>% 
+  ggplot() +
+    geom_col(aes(pm_cat, lrti_events)) +
+    theme_light() +
+    facet_wrap(~treatment)
+events_plot_pm
+
+scatter_plot_pm <- analysis_data %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
+  ggplot() +
+    geom_point(aes(lrti_events, pm_mean_sampling_period)) +
+    theme_light() +
+    facet_wrap(~treatment)
+scatter_plot_pm
+
 events_di_plot <- analysis_data %>% 
   ggplot() +
     geom_histogram(aes(lrti_events_di)) +
+    facet_wrap(~treatment)
+events_di_plot
+
+events_di_plot <- analysis_data %>% 
+  ggplot() +
+    geom_boxplot(aes(lrti_events_di, pm_mean_sampling_period, group = lrti_events_di)) +
     facet_wrap(~treatment)
 events_di_plot
 ```
@@ -396,6 +429,7 @@ events_di_plot
 
 ```{r}
 # Summarize initial models, check overdispersion and other diagnostic criteria
+
 library(MASS)
 
 # Simple model with offset
@@ -433,6 +467,7 @@ dispersiontest(poisson_results, trafo=1) # test indicates poisson model is overd
 
 library(pscl)
 odTest(nb_results) # test indicates poisson model is overdispersed
+
 # According to these results, data is overdispersed
 # Variance is much higher than the mean for LRTI incidence
 # Assumption of Poisson is variance = mean, so recommend using negative binomial model
@@ -524,6 +559,5 @@ abline(h=0)
 
 library(faraway)
 halfnorm(residuals(negbin_results))
-
 ```
 
