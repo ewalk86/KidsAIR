@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis primary models'
 author: "Ethan Walker"
-date: "Started 27 Oct 2020, Updated 27 Oct 2020"
+date: "Started 27 Oct 2020, Updated 28 Oct 2020"
 output:
   html_document:
 ---
@@ -26,6 +26,7 @@ library(knitr)
 library(kableExtra)
 library(MASS)
 library(faraway)
+library(influence.ME)
 ```
 
 
@@ -36,67 +37,32 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 analysis_data <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) 
   rownames_to_column() %>% 
-  mutate(filter_outliers = if_else(rowname %in% c(14, 57, 58, 249, 280, 16, 19, 20, 118), 1, 0)) %>% 
-  filter(lrti_incidence < 0.7) %>% 
+  #mutate(filter_outliers = if_else(rowname %in% c(57), 1, 0)) %>% 
+  mutate(log_person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 2.33, log_person_time_at_risk)) %>% 
+  mutate(person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 72, person_time_at_risk)) 
+  #filter(lrti_incidence < 0.7) %>% 
   filter(filter_outliers == 0)
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
-  mutate(home_pets = as.factor(home_pets),
-         home_pets_3level = fct_collapse(home_pets,
-                                    "0" = "0",
-                                    "1" = "1",
-                                    "2+" = c("2","3","4","5","6","7","8","9","10","12","14")))
-
-treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
-  mutate(home = gsub(" ", "", x = home),
-         home = gsub("_", "", x = home))
-```
-
-
-```{r}
-# Mixed model variations
-
-poisson_results <- glmer(lrti_events ~ treatment + child_age + (1 | home:cohort:area), 
-                         data = analysis_data, family = poisson(link = "log"), offset = log_person_time_at_risk)
-summary(poisson_results)
-
-
-
-nb_treatment_results <- glmer.nb(lrti_events ~ treatment + child_age + (1 | home:cohort:area) + 
-                                 offset(log_person_time_at_risk), data = analysis_data)
-summary(nb_treatment_results)
-
-
-
-nb_pm_results <- glmer.nb(lrti_events ~ log(pm_mean_sampling_period) + child_age + 
-                          (1 | home:cohort:area) + offset(log_person_time_at_risk), 
-                          data = analysis_data)
-summary(nb_pm_results)
-
-
-
-logreg_results <- glmer(lrti_events_di ~ treatment + child_age + (1 | home:cohort:area), 
-                        data = analysis_data, family = binomial, offset = log_person_time_at_risk)
-summary(logreg_results)
-
-
-
-linear_results <- glmer(pm_mean_sampling_period ~ treatment + child_age + (1 | home:cohort:area), 
-                        data = analysis_data)
-summary(linear_results)
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
 ```
 
 
 Intent-to-treat model framework: LRTI outcome
+
+What's wrong with the QQ plot?
+What does the half-normal quantile plot mean?
+Does the residual vs fitted plot look appropriate?
 ```{r}
 # Run mixed model and diagnostic plots from above
 
-model_results <- glmer.nb(lrti_events ~ treatment + child_age + (1 | home:cohort:area) + 
+model_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
                           offset(log_person_time_at_risk), data = analysis_data)
 
-summary(model_results)
+#summary(model_results)
 
 # plot residuals/diagnostics
 res <- residuals(model_results, type="deviance")
@@ -106,13 +72,19 @@ qqnorm(res)
 qqline(res)
 halfnorm(residuals(model_results))
 
+#influential <- influence(model_results, obs = TRUE)
+#cooks <- cooks.distance.estex(influential, sort = TRUE)
+#plot.estex(influential, which = "cook")
+# Most influential datapoints: 57, 102, 280, 396, 61, 58
+
+
 # plot results
 tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
   filter(group_filter == 1) %>% 
-  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(term = gsub("treatment_assigned", "", term)) %>% 
   dplyr::select(term, estimate, p.value, conf.low, conf.high)
-tidy_results
+#tidy_results
 
 plot_estimates <- tidy_results %>%
   ggplot() +
@@ -123,7 +95,7 @@ plot_estimates <- tidy_results %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   #ggtitle(label = "Systolic BP ITT models") +
-  labs(y = "Intervention vs Placebo") +
+  labs(y = "LRTI events per child-week at risk \n compared to placebo treatment") +
   labs(x = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 25,
@@ -137,20 +109,21 @@ plot_estimates <- tidy_results %>%
           panel.border = element_blank(), 
           panel.grid = element_blank(),
           legend.position = "none") 
-  scale_y_continuous(breaks = c(-3, -2, -1, 0, 1, 2, 3, 4, 5), 
-                     labels = c(-3, -2, -1, 0, 1, 2, 3, 4, 5)) 
 plot_estimates
 ```
 
 
 Intent-to-treat model framework: PM outcome
+
+What's wrong with the residual vs fitted plot?
+This more model is more influenced by additional covariates than the LRTI ITT model
 ```{r}
 # Run mixed model and diagnostic plots from above
 
-model_results <- glmer(log(pm_mean_sampling_period) ~ treatment + child_age + (1 | home:cohort:area), 
-                        data = analysis_data)
+model_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + child_age + 
+                       (1 | home:cohort:area), data = analysis_data)
 
-summary(model_results)
+#summary(model_results)
 
 # plot residuals/diagnostics
 res <- residuals(model_results, type="deviance")
@@ -160,11 +133,16 @@ qqnorm(res)
 qqline(res)
 halfnorm(residuals(model_results))
 
+#influential <- influence(model_results, obs = TRUE)
+#cooks <- cooks.distance.estex(influential, sort = TRUE)
+#plot.estex(influential, which = "cook")
+
+
 # plot results
 tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
   filter(group_filter == 1) %>% 
-  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(term = gsub("treatment_assigned", "", term)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high)
 #tidy_results
 
@@ -177,7 +155,7 @@ plot_estimates <- tidy_results %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   #ggtitle(label = "Systolic BP ITT models") +
-  labs(y = "Intervention vs Placebo") +
+  labs(y = "Difference in PM2.5 \n compared to placebo") +
   labs(x = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 25,
@@ -196,14 +174,34 @@ plot_estimates
 
 
 Exposure-response model framework
+
+First assess simple associations between LRTI and covariates
+Start with covariates that are associated with PM2.5 from the exposure paper
+Run these simple models with Placebo homes to get an idea of associations at "baseline"
+Then select a priori confounders based on simple associations and other literature
+
+```{r}
+placebo_analysis_data <- analysis_data %>% 
+  filter(treatment_assigned == "Placebo")
+
+covar_model <- glmer(lrti_events ~ home_bedrooms + (1 | area), data = placebo_analysis_data,
+                   family = poisson(link = "log"), offset = log_person_time_at_risk)
+summary(covar_model)
+
+# Selected vars:
+# education_3level, residents_smoke
+```
+
+
 ```{r}
 # Run mixed model and diagnostic plots from above
 
-model_results <- glmer.nb(lrti_events ~ log(pm_mean_sampling_period) + child_age + 
+model_results <- glmer.nb(lrti_events ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + 
                           (1 | home:cohort:area) + offset(log_person_time_at_risk), 
                           data = analysis_data)
 
-summary(model_results)
+#summary(model_results)
 
 # plot residuals/diagnostics
 res <- residuals(model_results, type="deviance")
@@ -213,13 +211,19 @@ qqnorm(res)
 qqline(res)
 halfnorm(residuals(model_results))
 
+#influential <- influence(model_results, obs = TRUE)
+#cooks <- cooks.distance.estex(influential, sort = TRUE)
+#plot.estex(influential, which = "cook")
+# Most influential data points: 58, 19, 420, 85, 301, 383, 413
+
+
 # plot results
 tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
-  mutate(group_filter = if_else(grepl("log", term), 1, 0)) %>% 
+  mutate(group_filter = if_else(grepl("pm", term), 1, 0)) %>% 
   filter(group_filter == 1) %>% 
-  mutate(term = "Log PM2.5") %>% 
+  mutate(term = "PM2.5") %>% 
   dplyr::select(term, estimate, p.value, conf.low, conf.high)
-tidy_results
+#tidy_results
 
 plot_estimates <- tidy_results %>%
   ggplot() +
@@ -230,7 +234,7 @@ plot_estimates <- tidy_results %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   #ggtitle(label = "Systolic BP ITT models") +
-  labs(y = "LRTI cases per log unit PM2.5 increase") +
+  labs(y = "LRTI cases per IQR increase in PM2.5") +
   labs(x = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_blank(),
@@ -245,5 +249,64 @@ plot_estimates <- tidy_results %>%
           legend.position = "none") 
 plot_estimates
 ```
+
+
+Logistic regression framework
+
+```{r}
+# Run mixed model and diagnostic plots from above
+
+model_results <- glmer(lrti_events_di ~ treatment_assigned + child_age + 
+                       (1 | home:cohort:area), data = analysis_data, 
+                       family = binomial, offset = log_person_time_at_risk)
+
+#summary(model_results)
+
+# plot residuals/diagnostics
+res <- residuals(model_results, type="deviance")
+plot(predict(model_results), res)
+abline(h=0, lty=2)
+qqnorm(res)
+qqline(res)
+halfnorm(residuals(model_results))
+
+#influential <- influence(model_results, obs = TRUE)
+#cooks <- cooks.distance.estex(influential, sort = TRUE)
+#plot.estex(influential, which = "cook")
+
+
+# plot results
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_assigned", "", term)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high)
+#tidy_results
+
+plot_estimates <- tidy_results %>%
+  ggplot() +
+  geom_point(aes(x=term, y=estimate), size = 4) +
+  #scale_shape_manual(values = c(15, 16, 17, 18, 13, 9)) +
+  geom_errorbar(aes(x=term, ymin=conf.low, ymax=conf.high), 
+                size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  #ggtitle(label = "Systolic BP ITT models") +
+  labs(y = "Risk of LRTI event compared to Placebo") +
+  labs(x = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "none") 
+plot_estimates
+```
+
 
 

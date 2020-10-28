@@ -1,0 +1,251 @@
+---
+title: 'KidsAIR: Main analysis secondary models'
+author: "Ethan Walker"
+date: "Started 28 Oct 2020, Updated 28 Oct 2020"
+output:
+  html_document:
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, include = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r, eval=TRUE, include=TRUE}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(MASS)
+library(faraway)
+```
+
+
+```{r}
+# Load analysis dataset
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+analysis_data <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) 
+
+analysis_data_outliers <- analysis_data %>% 
+  #rownames_to_column() %>% 
+  #mutate(filter_outliers = if_else(rowname %in% c(57), 1, 0)) %>% 
+  mutate(log_person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 2.33, log_person_time_at_risk)) %>% 
+  mutate(person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 72, person_time_at_risk)) 
+  #filter(lrti_incidence < 0.7) %>% 
+  filter(filter_outliers == 0)
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+```
+
+
+Sensitivity analyses for ITT framework, LRTI outcome
+
+```{r}
+# Run model variations
+itt_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_income_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        income_3level + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_education_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        education_3level + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_smoke_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        residents_smoke + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_burn_level_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        burn_level_3level + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_home_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home) + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_no_age_results <- glmer.nb(lrti_events ~ treatment_assigned + (1 | home:cohort:area) + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_outlier_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        offset(log_person_time_at_risk), data = analysis_data_outliers)
+
+
+
+# Run function to clean results
+results_function <- function(model_results, model_name) {
+  
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_assigned", "", term),
+         model = model_name) %>% 
+  dplyr::select(model, term, estimate, p.value, conf.low, conf.high)
+tidy_results
+
+}
+
+
+
+# Run results through function, save, combine for plotting
+itt_tidy <- results_function(itt_results, "ITT Primary")
+itt_income_tidy <- results_function(itt_income_results, "ITT + income")
+itt_education_tidy <- results_function(itt_education_results, "ITT + education")
+itt_smoke_tidy <- results_function(itt_smoke_results, "ITT + smoke hx")
+itt_burn_level_tidy <- results_function(itt_burn_level_results, "ITT + burn level")
+itt_home_tidy <- results_function(itt_home_results, "ITT home only")
+itt_no_age_tidy <- results_function(itt_no_age_results, "ITT - age")
+itt_outlier_tidy <- results_function(itt_outlier_results, "ITT outlier")
+
+itt_results_combined <- rbind(itt_tidy, itt_income_tidy, itt_education_tidy, 
+                              itt_smoke_tidy, itt_burn_level_tidy, itt_home_tidy,
+                              itt_no_age_tidy, itt_outlier_tidy)
+
+
+
+# Plot results
+itt_plot_estimates <- itt_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("ITT Primary", "ITT + income", "ITT + education",
+                                   "ITT + smoke hx", "ITT + burn level", "ITT home only",
+                                   "ITT - age", "ITT outlier"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  #scale_shape_manual(values = c(15, 16, 17, 18, 13, 9)) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  #ggtitle(label = "Systolic BP ITT models") +
+  labs(y = "LRTI events per child-week at risk \n compared to placebo treatment") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 25,
+                                     hjust = .8, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+```
+
+
+Sensitivity analyses for ITT framework, PM2.5 outcome
+
+```{r}
+# Run model variations
+itt_pm_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + child_age + 
+                       (1 | home:cohort:area), data = analysis_data)
+
+itt_pm_income_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                               child_age + (1 | home:cohort:area) + 
+                               income_3level, data = analysis_data)
+
+itt_pm_education_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                  child_age + (1 | home:cohort:area) + 
+                                  education_3level, data = analysis_data)
+
+itt_pm_smoke_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                              child_age + (1 | home:cohort:area) + 
+                              residents_smoke, data = analysis_data)
+
+itt_pm_burn_level_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | home:cohort:area) + 
+                                   burn_level_3level, data = analysis_data)
+
+itt_pm_home_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                             child_age + (1 | home), data = analysis_data)
+
+itt_pm_no_age_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                               (1 | home:cohort:area), data = analysis_data)
+
+itt_pm_outlier_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                child_age + (1 | home:cohort:area), data = analysis_data_outliers)
+
+
+
+# Run function to clean results
+results_function <- function(model_results, model_name) {
+  
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_assigned", "", term),
+         model = model_name) %>% 
+  dplyr::select(model, term, estimate, conf.low, conf.high)
+tidy_results
+
+}
+
+
+
+# Run results through function, save, combine for plotting
+itt_pm_tidy <- results_function(itt_pm_results, "ITT Primary")
+itt_pm_income_tidy <- results_function(itt_pm_income_results, "ITT + income")
+itt_pm_education_tidy <- results_function(itt_pm_education_results, "ITT + education")
+itt_pm_smoke_tidy <- results_function(itt_pm_smoke_results, "ITT + smoke hx")
+itt_pm_burn_level_tidy <- results_function(itt_pm_burn_level_results, "ITT + burn level")
+itt_pm_home_tidy <- results_function(itt_pm_home_results, "ITT home only")
+itt_pm_no_age_tidy <- results_function(itt_pm_no_age_results, "ITT - age")
+itt_pm_outlier_tidy <- results_function(itt_pm_outlier_results, "ITT outlier")
+
+itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_income_tidy, itt_pm_education_tidy, 
+                              itt_pm_smoke_tidy, itt_pm_burn_level_tidy, itt_pm_home_tidy,
+                              itt_pm_no_age_tidy, itt_pm_outlier_tidy)
+
+
+
+# Plot results
+itt_pm_plot_estimates <- itt_pm_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("ITT Primary", "ITT + income", "ITT + education",
+                                   "ITT + smoke hx", "ITT + burn level", "ITT home only",
+                                   "ITT - age", "ITT outlier"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  #scale_shape_manual(values = c(15, 16, 17, 18, 13, 9)) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  #ggtitle(label = "Systolic BP ITT models") +
+  labs(y = "Difference in PM2.5 \n compared to placebo") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 25,
+                                     hjust = .8, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_pm_plot_estimates
+```
+

@@ -111,7 +111,8 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          stove_age_3level, chimney_clean_3level, wood_collect_method_2level,
          wood_collect_2level, stove_grade_3level, burn_level_3level, ruca_code,
          ruca_code_2, ruca_code_3, residents_smoke, residents_smoke_inside,
-         residents_under_five, home_bedrooms, pm_mean_sampling_period, pm_sample_interval,
+         residents_under_five, home_bedrooms, pm_mean_sampling_period, 
+         pm_sample_interval, pm_at_home_sampling_period,
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5) %>% 
   rename(treatment = newtx,
