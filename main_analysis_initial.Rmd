@@ -114,7 +114,8 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          residents_under_five, home_bedrooms, pm_mean_sampling_period, 
          pm_sample_interval, pm_at_home_sampling_period,
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
-         sums_events_sampling_period_5, sums_events_sampling_period_7.5) %>% 
+         sums_events_sampling_period_5, sums_events_sampling_period_7.5,
+         home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum) %>% 
   rename(treatment = newtx,
          lrti_events = lrti_events_overall,
          person_time_at_risk = person_time_at_risk_total) %>% 
@@ -163,12 +164,14 @@ treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), 
 
 # clean up data for table 1 summary
 table_1_data <- health_exposure_data_sampling_day %>% 
-  select(-treatment_assigned, -treatment_actual) %>% 
-  left_join(treatments_masked, by = "home") %>%
-  rename(treatment = newtx) %>% 
+  mutate(treatment_assigned = factor(treatment_assigned,
+                                     levels = c("Placebo", "Filter", "Education"))) %>% 
+    #select(-treatment_assigned, -treatment_actual) %>% 
+  #left_join(treatments_masked, by = "home") %>%
+  #rename(treatment = newtx) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
-  filter(area == "NN") %>% # Change area filter as necessary
+  #filter(area == "NN") %>% # Change area filter as necessary
   distinct(area, home, .keep_all = TRUE) 
 
 
@@ -191,14 +194,14 @@ char_funct_treatment <- function(var, data = table_1_data){
 
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
-  group_by(treatment) %>% 
+  group_by(treatment_assigned) %>% 
   mutate(treatment_n = n()) %>% 
-  group_by(treatment, new_var) %>% 
+  group_by(treatment_assigned, new_var) %>% 
     mutate(n = n(),
          percent = round(n()/treatment_n*100)) %>% 
   distinct(new_var, .keep_all = TRUE) %>% 
   select(new_var, n, percent) %>% 
-  arrange(treatment, new_var)
+  arrange(treatment_assigned, new_var)
 demographics_summary
 }
 
@@ -242,6 +245,14 @@ char_funct_total("ruca_code_2")
 char_funct_treatment("ruca_code_2")
 char_funct_total("ruca_code_3")
 char_funct_treatment("ruca_code_3")
+char_funct_total("home_act_smoking_sum")
+char_funct_treatment("home_act_smoking_sum")
+char_funct_total("home_act_windows_sum")
+char_funct_treatment("home_act_windows_sum")
+char_funct_total("home_act_sweep_sum")
+char_funct_treatment("home_act_sweep_sum")
+char_funct_total("home_act_door_sum")
+char_funct_treatment("home_act_door_sum")
 ```
 
 
@@ -250,12 +261,14 @@ char_funct_treatment("ruca_code_3")
 
 # clean up data for table 1 summary
 table_1_data <- health_exposure_data_sampling_day %>% 
-  select(-treatment_assigned, -treatment_actual) %>% 
-  left_join(treatments_masked, by = "home") %>%
-  rename(treatment = newtx) %>% 
+  mutate(treatment_assigned = factor(treatment_assigned,
+                                     levels = c("Placebo", "Filter", "Education"))) %>% 
+  #select(-treatment_assigned, -treatment_actual) %>% 
+  #left_join(treatments_masked, by = "home") %>%
+  #rename(treatment = newtx) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
-  filter(area == "NN") %>% # Change area filter as necessary
+  #filter(area == "AK") %>% # Change area filter as necessary
   distinct(area, home, .keep_all = TRUE) 
 
 
@@ -267,7 +280,7 @@ demographics_summary <- data %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   filter(!is.na(new_var)) %>% 
-  select(treatment, home, new_var) %>% 
+  select(treatment_assigned, home, new_var) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
@@ -280,8 +293,8 @@ demographics_summary <- data %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
   filter(!is.na(new_var)) %>% 
-  select(treatment, home, new_var) %>% 
-  group_by(treatment) %>% 
+  select(treatment_assigned, home, new_var) %>% 
+  group_by(treatment_assigned) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
@@ -312,6 +325,16 @@ num_funct_total("sums_events_sampling_period_5")
 num_funct_treatment("sums_events_sampling_period_5")
 num_funct_total("sums_events_sampling_period_7.5")
 num_funct_treatment("sums_events_sampling_period_7.5")
+num_funct_total("home_act_smoking_sum")
+num_funct_treatment("home_act_smoking_sum")
+num_funct_total("home_act_windows_sum")
+num_funct_treatment("home_act_windows_sum")
+num_funct_total("home_act_sweep_sum")
+num_funct_treatment("home_act_sweep_sum")
+num_funct_total("home_act_door_sum")
+num_funct_treatment("home_act_door_sum")
+num_funct_total("home_act_incense_sum")
+num_funct_treatment("home_act_candle_sum")
 
 # At-home PM summary - different than function above due to distinct obs by child instead of home
 at_home_pm_summary <- health_exposure_data_sampling_day %>% 

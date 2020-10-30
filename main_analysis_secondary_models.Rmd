@@ -48,7 +48,8 @@ analysis_data_outliers <- analysis_data %>%
   filter(filter_outliers == 0)
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
+  dplyr::select(area, home, child_id_num, at_home, at_home_location)
 ```
 
 
@@ -73,6 +74,22 @@ itt_smoke_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 
 
 itt_burn_level_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
                         burn_level_3level + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_smoking_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        home_act_smoking_sum + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_windows_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        home_act_windows_sum + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_door_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        home_act_door_sum + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+
+itt_sweep_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
+                        home_act_sweep_sum + 
                         offset(log_person_time_at_risk), data = analysis_data)
 
 itt_home_results <- glmer.nb(lrti_events ~ treatment_assigned + child_age + (1 | home) + 
@@ -107,13 +124,18 @@ itt_income_tidy <- results_function(itt_income_results, "ITT + income")
 itt_education_tidy <- results_function(itt_education_results, "ITT + education")
 itt_smoke_tidy <- results_function(itt_smoke_results, "ITT + smoke hx")
 itt_burn_level_tidy <- results_function(itt_burn_level_results, "ITT + burn level")
+itt_smoking_tidy <- results_function(itt_smoking_results, "ITT + smoke act")
+itt_windows_tidy <- results_function(itt_windows_results, "ITT + window act")
+itt_door_tidy <- results_function(itt_door_results, "ITT + door act")
+itt_sweep_tidy <- results_function(itt_sweep_results, "ITT + sweep act")
 itt_home_tidy <- results_function(itt_home_results, "ITT home only")
 itt_no_age_tidy <- results_function(itt_no_age_results, "ITT - age")
 itt_outlier_tidy <- results_function(itt_outlier_results, "ITT outlier")
 
 itt_results_combined <- rbind(itt_tidy, itt_income_tidy, itt_education_tidy, 
-                              itt_smoke_tidy, itt_burn_level_tidy, itt_home_tidy,
-                              itt_no_age_tidy, itt_outlier_tidy)
+                              itt_smoke_tidy, itt_burn_level_tidy, itt_smoking_tidy,
+                              itt_windows_tidy, itt_door_tidy, itt_sweep_tidy,
+                              itt_home_tidy, itt_no_age_tidy, itt_outlier_tidy)
 
 
 
@@ -121,8 +143,9 @@ itt_results_combined <- rbind(itt_tidy, itt_income_tidy, itt_education_tidy,
 itt_plot_estimates <- itt_results_combined %>%
   mutate(model = factor(model,
                         levels = c("ITT Primary", "ITT + income", "ITT + education",
-                                   "ITT + smoke hx", "ITT + burn level", "ITT home only",
-                                   "ITT - age", "ITT outlier"))) %>% 
+                                   "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
+                                   "ITT + window act", "ITT + door act", "ITT + sweep act",
+                                   "ITT home only", "ITT - age", "ITT outlier"))) %>% 
   ggplot(aes(group = term, shape = term)) +
   geom_point(aes(x=model, y=estimate), 
              position = position_dodge(width = 0.5), size = 4) +
@@ -136,7 +159,7 @@ itt_plot_estimates <- itt_results_combined %>%
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 25,
-                                     hjust = .8, vjust = .8),
+                                     hjust = 1, vjust = .8),
           axis.text.y = element_text(size = 16, colour = "black"),
           axis.title.y = element_text(size = 16,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),

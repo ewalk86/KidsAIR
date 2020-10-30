@@ -238,3 +238,37 @@ medvisit_summary_function(kids_med_visit, "med_visit_crackles", "Crackles", "cou
 ```{r}
 medvisit_summary_function(kids_med_visit, "med_visit_referred", "Referred", "count")
 ```
+
+\pagebreak
+
+```{r}
+kids_at_home_log <- read_rds(paste0(file_path, "Output/kids_at_home_log.rds"))
+
+at_home_summary <- kids_at_home_log %>% 
+  mutate(treatment_assigned = factor(treatment_assigned,
+                                     levels = c("Placebo", "Filter", "Education"))) %>% 
+  arrange(area, home, child_id_num, sampling_day, sample_time) %>% 
+  group_by(area, home, child_id_num) %>% 
+  mutate(total_n = n(),
+         time_home = sum(at_home, na.rm = TRUE),
+         at_home_percent = time_home/total_n*100) %>% 
+  ungroup() %>% 
+  filter(!is.na(treatment_assigned)) %>% 
+  group_by(area, treatment_assigned) %>% 
+  summarize(mean_at_home = mean(at_home_percent, na.rm = TRUE),
+            sd_at_home = sd(at_home_percent, na.rm = TRUE),
+            min_at_home = min(at_home_percent, na.rm = TRUE),
+            median_at_home = median(at_home_percent, na.rm = TRUE),
+            max_at_home = max(at_home_percent, na.rm = TRUE))
+at_home_summary
+
+at_home_n <- kids_at_home_log %>% 
+  mutate(treatment_assigned = factor(treatment_assigned,
+                                     levels = c("Placebo", "Filter", "Education"))) %>% 
+  filter(!is.na(treatment_assigned)) %>% 
+  filter(!is.na(at_home)) %>% 
+  distinct(area, home, child_id_num, .keep_all = TRUE) %>% 
+  count(area, treatment_assigned)
+at_home_n
+```
+

@@ -274,6 +274,8 @@ kids_at_home_log_new <- kids_at_home_log %>%
   ungroup() %>% 
   arrange(area, home_winter_id, child_id_num, sampling_day, sample_time)
 
+write_rds(kids_at_home_log_new, paste0(file_path, "Output/kids_at_home_log.rds"))
+
 # start with cleaned PM dataset
 at_home_pm_merged <- pm_clean %>% 
   group_by(area, home) %>% 
