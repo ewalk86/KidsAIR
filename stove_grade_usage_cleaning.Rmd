@@ -396,8 +396,9 @@ kw_report_wmt <- read_csv(paste0(file_path, "Input/WMT/filtrete_report.csv"),
          hours_possible = as.numeric(Hours),
          kw_expected = as.numeric(Expected),
          kw_perc_expected = as.numeric(PercExp),
+         filter_type = as.character(FType),
          area = "WMT") %>% 
-  dplyr::select(area, home, home_winter_id, kw_date, kw_hours, kw_notes, 
+  dplyr::select(area, home, home_winter_id, kw_date, kw_hours, kw_notes, filter_type, 
          hours_possible, kw_expected, kw_perc_expected) %>% 
   #filter(!is.na(kw_hours)) %>% 
   ungroup() %>% 
@@ -420,8 +421,9 @@ kw_report_nn <- read_csv(paste0(file_path, "Input/NN/filtrete_report.csv"),
          hours_possible = as.numeric(Hours),
          kw_expected = as.numeric(Expected),
          kw_perc_expected = as.numeric(PercExp),
+         filter_type = as.character(FType),
          area = "NN") %>% 
-  dplyr::select(area, home, home_winter_id, kw_date, kw_hours, kw_notes, 
+  dplyr::select(area, home, home_winter_id, kw_date, kw_hours, kw_notes, filter_type, 
          hours_possible, kw_expected, kw_perc_expected) %>% 
   #filter(!is.na(kw_hours)) %>% 
   ungroup() %>% 
@@ -444,8 +446,9 @@ kw_report_ak <- read_csv(paste0(file_path, "Input/AK/filtrete_report.csv"),
          hours_possible = as.numeric(Hours),
          kw_expected = as.numeric(Expected),
          kw_perc_expected = as.numeric(PercExp),
+         filter_type = as.character(FType),
          area = "AK") %>% 
-  dplyr::select(area, home, home_winter_id, kw_date, kw_hours, kw_notes, 
+  dplyr::select(area, home, home_winter_id, kw_date, kw_hours, kw_notes, filter_type, 
          hours_possible, kw_expected, kw_perc_expected) %>% 
   #filter(!is.na(kw_hours)) %>% 
   ungroup() %>% 

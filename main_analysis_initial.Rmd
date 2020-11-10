@@ -1,7 +1,7 @@
 ---
 title: "KidsAIR: Main analysis initial steps"
 author: "Ethan Walker"
-date: "Started 23 Sept 2020, Updated 30 Sept 2020"
+date: "Started 23 Sept 2020, Updated 6 Nov 2020"
 output: pdf_document
 header-includes:
     - \usepackage[labelformat=empty]{caption}
@@ -33,21 +33,27 @@ library(kableExtra)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+
 health_exposure_data_sampling_day <- 
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+
 
 treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
   mutate(home = gsub(" ", "", x = home),
          home = gsub("_", "", x = home))
 
+
 kids_amb_pm_data <- 
   read_rds(paste0(file_path, "Output/kids_amb_pm_data_new.rds")) %>% 
   mutate(sample_date = ymd(amb_pm_date))
+
 
 kids_amb_temp_data <- 
   read_rds(paste0(file_path, "Output/kids_amb_temp_data_new.rds")) %>% 
   mutate(sample_date = ymd(temp_date)) 
 
+
+# Condense LRTI data to 1 obs per child/winter and select analysis vars
 lrti_1obs_per_winter <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
   mutate(cohort = round_date(csq_date, unit = "year")) %>% 
@@ -63,11 +69,14 @@ lrti_1obs_per_winter <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")
          person_time_at_risk_winter = as.numeric(person_time_no_lrti_winter)/7,
          lrti_incidence_winter = lrti_events_winter/person_time_at_risk_winter,
          lrti_incidence_winter = if_else(is.na(lrti_incidence_winter), 0, lrti_incidence_winter)) %>% 
-  arrange(area, home, child_id_num, winter_id) %>%distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
+  arrange(area, home, child_id_num, winter_id) %>%
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
   dplyr::select(area, home, cohort, child_id_num, winter_id, 
                 lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter) 
 
+
+# Condense LRTI data to 1 obs per child and select analysis vars
 lrti_1obs_total <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
   mutate(cohort = round_date(csq_date, unit = "year")) %>% 
@@ -78,14 +87,14 @@ lrti_1obs_total <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
   group_by(area, child_id_num) %>% 
   mutate(lrti_events = as.numeric(lrti_events),
          lrti_events = if_else(is.na(person_time_no_lrti_total), 0, lrti_events),
-         lrti_events_overall = sum(lrti_events, na.rm = TRUE),
+         lrti_events_total = sum(lrti_events, na.rm = TRUE),
          person_time_no_lrti_total = as.numeric(person_time_no_lrti_total),
          person_time_no_lrti_total = if_else(is.na(person_time_no_lrti_total), person_time_possible,
                                              person_time_no_lrti_total),
          person_time_at_risk_total = sum(person_time_no_lrti_total, na.rm = TRUE),
          person_time_at_risk_total = as.numeric(person_time_at_risk_total)/7,
-         lrti_incidence = lrti_events_overall/person_time_at_risk_total,
-         lrti_incidence = if_else(is.na(lrti_incidence), 0, lrti_incidence)) %>% 
+         lrti_incidence_total = lrti_events_total/person_time_at_risk_total,
+         lrti_incidence_total = if_else(is.na(lrti_incidence_total), 0, lrti_incidence_total)) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
   left_join(kids_amb_pm_data, by = c("area", "home")) %>% 
   mutate(pm_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
@@ -94,7 +103,7 @@ lrti_1obs_total <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
   mutate(amb_pm_lrti = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  dplyr::select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
+  dplyr::select(area, home, cohort, child_id_num, lrti_events_total, person_time_at_risk_total, lrti_incidence_total,
          amb_pm_lrti, person_time_start, person_time_end, home_winter_id, winter_id) %>% 
   left_join(kids_amb_temp_data, by = c("area", "home")) %>% 
   mutate(temp_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
@@ -110,12 +119,12 @@ lrti_1obs_total <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
          amb_wind_lrti = if_else(child_id_num == 94, NaN, amb_wind_lrti)) %>% 
   ungroup() %>% 
   dplyr::select(area, home, cohort, child_id_num, winter_id,
-                lrti_events_overall, person_time_at_risk_total, lrti_incidence,
+                lrti_events_total, person_time_at_risk_total, lrti_incidence_total,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  dplyr::select(area, home, cohort, child_id_num, lrti_events_overall, person_time_at_risk_total, lrti_incidence,
-         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti)
+  dplyr::select(area, home, cohort, child_id_num, lrti_events_total, person_time_at_risk_total, lrti_incidence_total,
+         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti) 
 
 
 # Merge dataset with blinded treatments and final LRTI data, select analysis variables
@@ -128,12 +137,12 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_total, by = c("area", "home", "child_id_num")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, child_age, lrti_events_overall, 
-         person_time_at_risk_total, lrti_incidence, newtx, treatment_assigned,
-         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti,
+  dplyr::select(area, home, cohort, child_id_num, child_age, lrti_events_total, 
+         person_time_at_risk_total, lrti_incidence_total, newtx, treatment_assigned,
+         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
          home_floors_2level, home_year_built_2level, home_pets_2level, home_pets,
-         stove_age_3level, chimney_clean_3level, wood_collect_method_2level,
+         stove_age_3level, chimney_clean_3level, wood_collect_method_2level, home_sqft_2level,
          wood_collect_2level, stove_grade_3level, burn_level_3level, ruca_code,
          ruca_code_2, ruca_code_3, residents_smoke, residents_smoke_inside,
          residents_under_five, home_bedrooms, pm_mean_sampling_period, 
@@ -142,14 +151,13 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
          home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum) %>% 
   rename(treatment = newtx,
-         lrti_events = lrti_events_overall,
          person_time_at_risk = person_time_at_risk_total) %>% 
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
-  mutate(lrti_events_di = if_else(lrti_events == 0, 0, 1)) %>% 
+  mutate(lrti_events_di_total = if_else(lrti_events_total == 0, 0, 1)) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,
-                                     levels = c("Placebo", "Filter", "Education")))
+                                     levels = c("Placebo", "Filter", "Education"))) 
 
 write_rds(kids_analysis_data_1obs_per_child, 
           paste0(file_path, "Output/kids_analysis_data_1obs_per_child.rds"))
@@ -167,12 +175,11 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, 
-                child_age, lrti_events_winter, 
-         person_time_at_risk_winter, lrti_incidence_winter, newtx, treatment_assigned,
+  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, gender,
+         lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter, newtx, treatment_assigned,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
          home_floors_2level, home_year_built_2level, home_pets_2level, home_pets,
-         stove_age_3level, chimney_clean_3level, wood_collect_method_2level,
+         stove_age_3level, chimney_clean_3level, wood_collect_method_2level, home_sqft_2level,
          wood_collect_2level, stove_grade_3level, burn_level_3level, ruca_code,
          ruca_code_2, ruca_code_3, residents_smoke, residents_smoke_inside,
          residents_under_five, home_bedrooms, pm_mean_sampling_period, 
@@ -186,7 +193,7 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,
-                                     levels = c("Placebo", "Filter", "Education")))
+                                     levels = c("Placebo", "Filter", "Education"))) 
 
 write_rds(kids_analysis_data_2obs_per_child, 
           paste0(file_path, "Output/kids_analysis_data_2obs_per_child.rds"))
