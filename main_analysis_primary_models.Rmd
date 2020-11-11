@@ -256,9 +256,9 @@ Logistic regression framework
 ```{r}
 # Run mixed model and diagnostic plots from above
 
-model_results <- glmer(lrti_events_di ~ treatment_assigned + child_age + 
-                       (1 | home:cohort:area), data = analysis_data, 
-                       family = binomial, offset = log_person_time_at_risk)
+model_results <- glmer(lrti_events_di_total ~ treatment_assigned + child_age + 
+                       (1 | home:cohort:area), 
+                       data = analysis_data, family = binomial)
 
 #summary(model_results)
 
@@ -281,7 +281,7 @@ tidy_results <- tidy(model_results, conf.int = TRUE) %>%
   filter(group_filter == 1) %>% 
   mutate(term = gsub("treatment_assigned", "", term)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high)
-#tidy_results
+tidy_results
 
 plot_estimates <- tidy_results %>%
   ggplot() +
