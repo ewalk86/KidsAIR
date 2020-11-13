@@ -53,6 +53,28 @@ kids_amb_temp_data <-
   mutate(sample_date = ymd(temp_date)) 
 
 
+kids_kw_report_1obs <- read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
+  group_by(home) %>% 
+  mutate(mean_kw_per_exp = mean(kw_perc_expected, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  distinct(area, home, .keep_all = TRUE) %>% 
+  mutate(kw_perc_exp_cat = cut(kw_perc_expected, 
+                               breaks = c(0, 42, 83, 129, 50000),
+                               labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
+  dplyr::select(-home_winter_id, -treatment_assigned, -treatment_actual, -home_id)
+
+
+kids_kw_report_2obs <- read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
+  group_by(area, home_winter_id) %>% 
+  mutate(mean_kw_per_exp = mean(kw_perc_expected, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  distinct(area, home_winter_id, .keep_all = TRUE) %>% 
+  mutate(kw_perc_exp_cat = cut(kw_perc_expected, 
+                               breaks = c(0, 37, 74, 118, 50000),
+                               labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
+  dplyr::select(-home_winter_id, -treatment_assigned, -treatment_actual, -home_id)
+
+
 # Condense LRTI data to 1 obs per child/winter and select analysis vars
 lrti_1obs_per_winter <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
@@ -136,6 +158,7 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   left_join(treatments_masked, by = "home") %>% 
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_total, by = c("area", "home", "child_id_num")) %>% 
+  left_join(kids_kw_report_1obs, by = c("area", "home")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   dplyr::select(area, home, cohort, child_id_num, child_age, lrti_events_total, 
          person_time_at_risk_total, lrti_incidence_total, newtx, treatment_assigned,
@@ -149,11 +172,21 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          pm_sample_interval, pm_at_home_sampling_period,
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
-         home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum) %>% 
+         home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum,
+         filter_type, mean_kw_per_exp, kw_perc_exp_cat) %>% 
   rename(treatment = newtx,
          person_time_at_risk = person_time_at_risk_total) %>% 
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
-  mutate(lrti_events_di_total = if_else(lrti_events_total == 0, 0, 1)) %>% 
+  mutate(lrti_events_di_total = if_else(lrti_events_total == 0, 0, 1),
+         filter_type2 = as.character(filter_type),
+         filter_type2 = if_else(treatment_assigned == "Education", "Ed Home", filter_type2),
+         filter_type2 = factor(filter_type2,
+                              levels = c("Honeywell", "Large Filtrete", "Small Filtrete",
+                                         "Winix", "Ed Home")),
+         kw_perc_exp_cat2 = as.character(kw_perc_exp_cat),
+         kw_perc_exp_cat2 = if_else(treatment_assigned == "Education", "Ed Home", kw_perc_exp_cat2),
+         kw_perc_exp_cat2 = factor(kw_perc_exp_cat2,
+                                  levels = c("Q1", "Q2", "Q3", "Q4", "Ed Home"))) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,
@@ -173,7 +206,8 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
                                   "1+" = c(1, 2, 3, 4))) %>% 
   left_join(treatments_masked, by = "home") %>% 
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
-  right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>% 
+  right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>%  
+  left_join(kids_kw_report_1obs, by = c("area", "home", "winter_id")) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, gender,
          lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter, newtx, treatment_assigned,
@@ -186,10 +220,20 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
          pm_sample_interval, pm_at_home_sampling_period,
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
-         home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum) %>% 
+         home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum,
+         filter_type, mean_kw_per_exp, kw_perc_exp_cat) %>% 
   rename(treatment = newtx) %>% 
   mutate(log_person_time_at_risk_winter = log(person_time_at_risk_winter)) %>% 
-  mutate(lrti_events_di_winter = if_else(lrti_events_winter == 0, 0, 1)) %>% 
+  mutate(lrti_events_di_winter = if_else(lrti_events_winter == 0, 0, 1),
+         filter_type2 = as.character(filter_type),
+         filter_type2 = if_else(treatment_assigned == "Education", "Ed Home", filter_type2),
+         filter_type2 = factor(filter_type2,
+                              levels = c("Honeywell", "Large Filtrete", "Small Filtrete",
+                                         "Winix", "Ed Home")),
+         kw_perc_exp_cat2 = as.character(kw_perc_exp_cat),
+         kw_perc_exp_cat2 = if_else(treatment_assigned == "Education", "Ed Home", kw_perc_exp_cat2),
+         kw_perc_exp_cat2 = factor(kw_perc_exp_cat2,
+                                  levels = c("Q1", "Q2", "Q3", "Q4", "Ed Home"))) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,
