@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 12 Nov 2020"
+date: "Updated 13 Nov 2020"
 output: pdf_document
 ---
 
@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE, include = TRUE,
 library(readxl)
 library(naniar)
 library(lubridate)
+library(emmeans)
 library(broom)
 library(broom.mixed)
 library(zoo)
@@ -75,12 +76,18 @@ itt_results <- glmer.nb(lrti_events_total ~ treatment_assigned + child_age +
 summary(itt_results)
 ```
 
+
 ## Diagnostic plots
 ```{r}
 #halfnorm(residuals(itt_results))
 
 itt_res <- simulateResiduals(itt_results)
 plot(itt_res, rank = FALSE, quantreg = TRUE)
+
+plot(itt_results, main = "ITT Primary model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_results), main = "ITT Primary model")
+qqline(residuals(itt_results))
 ```
 
 The function creates two plots. To the left, a qq-uniform plot to detect deviations from overall uniformity of the residuals (calling plotQQunif), and to the right, a plot of residuals against predicted values (calling plotResiduals). Outliers are highlighted in red (for more on outliers, see testOutliers). For a correctly specified model, we would expect  
@@ -92,6 +99,29 @@ b) uniformity of residuals in the vertical direction in the res against predicto
 Deviations of this can be interpreted as for a linear regression. See the vignette for detailed examples.  
 
 To provide a visual aid in detecting deviations from uniformity in y-direction, the plot of the residuals against the predicted values also performs an (optional) quantile regression, which provides 0.25, 0.5 and 0.75 quantile lines across the plots. These lines should be straight, horizontal, and at y-values of 0.25, 0.5 and 0.75. Note, however, that some deviations from this are to be expected by chance, even for a perfect model, especially if the sample size is small.
+
+```{r, eval=FALSE, include=FALSE}
+# Effect modification/interaction analysis
+# Try child_age, gender, home_floors_2level, home_sqft_2level
+
+# Run primary model and print results
+itt_results_int <- glmer.nb(lrti_events_total ~ treatment_assigned*child_age + 
+#                                  child_age +
+                        (1 | home:cohort:area) + 
+                        offset(log_person_time_at_risk), data = analysis_data)
+#write_rds(itt_results_int, paste0(file_path, "Output/itt_results_int_age.rds"))
+
+summary(itt_results_int)
+
+int_emmeans <- emmeans(itt_results_int, pairwise ~ treatment_assigned | child_age)
+summary(int_emmeans, conf.int = TRUE)
+confint(int_emmeans)
+# This line will plot the interaction term
+#emmip(itt_results_int, child_age ~ treatment_assigned, cov.reduce = range)
+table(model.frame(itt_results_int)$treatment_assigned)
+nobs(itt_results_int)
+```
+
 
 ```{r, eval=FALSE, include=FALSE}
 # Run and save model results
@@ -295,6 +325,7 @@ summary(itt_pm_results)
 ```
 
 ## Diagnostic plots
+### The correlation in the residuals vs fitted plot is due to the random term for "home"
 ```{r}
 plot(itt_pm_results, main = "PM ITT Primary model", 
      xlab = "fitted values", ylab = "residuals")
@@ -304,6 +335,28 @@ qqline(residuals(itt_pm_results))
 #itt_pm_res <- simulateResiduals(itt_pm_results)
 #plot(itt_pm_res, rank = TRUE, quantreg = TRUE)
 ```
+
+
+```{r, eval=FALSE, include=FALSE}
+# Effect modification/interaction analysis
+# Try child_age, gender, home_floors_2level, home_sqft_2level
+
+# Run primary model and print results
+itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*home_sqft_2level + 
+                              child_age + 
+                       (1 | home:cohort:area), data = analysis_data)
+#write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+
+summary(itt_pm_results_int)
+
+int_emtrends <- emtrends(itt_pm_results_int, home_sqft_2level ~ treatment_assigned, var = "log(pm_mean_sampling_period)")
+summary(int_emtrends, conf.int = TRUE)
+# This line will plot the interaction term
+#emmip(itt_pm_results_int, child_age ~ treatment_assigned, cov.reduce = range)
+table(model.frame(itt_pm_results_int)$treatment_assigned)
+nobs(itt_pm_results_int)
+```
+
 
 
 ```{r, eval=FALSE, include=FALSE}
@@ -719,13 +772,15 @@ logreg_results <- glmer(lrti_events_di_total ~ treatment_assigned + child_age +
 #write_rds(logreg_results, paste0(file_path, "Output/logreg_results.rds"))
 
 summary(logreg_results)
+```
 
-
+## At-risk period across treatment arms
+```{r}
 at_risk_summary <- analysis_data %>% 
   group_by(treatment_assigned) %>% 
-  summarize(mean(person_time_at_risk, na.rm = TRUE),
-            sd(person_time_at_risk, na.rm = TRUE),
-            median(person_time_at_risk, na.rm = TRUE))
+  summarize("Mean at-risk time" = mean(person_time_at_risk, na.rm = TRUE),
+            "SD at-risk time" = sd(person_time_at_risk, na.rm = TRUE),
+            "Med at-risk time" = median(person_time_at_risk, na.rm = TRUE))
 at_risk_summary
 ```
 

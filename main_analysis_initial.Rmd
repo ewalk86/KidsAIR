@@ -484,15 +484,15 @@ incidence_summary <- analysis_data %>%
 incidence_summary
 
 
-count_summary <- kids_analysis_data_1obs_per_child %>% 
+count_summary <- analysis_data %>% 
   #group_by(treatment) %>% # Change treatment grouping as necessary 
   #filter(lrti_incidence < 0.7) %>% 
-  summarize(mean_events = mean(lrti_events, na.rm = TRUE),
-            sd_events = sd(lrti_events, na.rm = TRUE),
+  summarize(mean_events = mean(lrti_events_total, na.rm = TRUE),
+            sd_events = sd(lrti_events_total, na.rm = TRUE),
             n_events = n(),
-            min_events = min(lrti_events, na.rm = TRUE),
-            median_events = median(lrti_events, na.rm = TRUE),
-            max_events = max(lrti_events, na.rm = TRUE))
+            min_events = min(lrti_events_total, na.rm = TRUE),
+            median_events = median(lrti_events_total, na.rm = TRUE),
+            max_events = max(lrti_events_total, na.rm = TRUE))
 count_summary
 
 
@@ -531,7 +531,7 @@ ambient_summary
 
 events_plot <- analysis_data %>% 
   ggplot() +
-    geom_histogram(aes(lrti_events)) +
+    geom_histogram(aes(lrti_events_total)) +
     theme_light() +
     facet_wrap(~treatment)
 events_plot
@@ -582,13 +582,13 @@ events_di_plot
 library(MASS)
 
 # Simple model with offset
-nb_results <- glm.nb(lrti_events ~ treatment + offset(log_person_time_at_risk), 
+nb_results <- glm.nb(lrti_events_total ~ treatment + offset(log_person_time_at_risk), 
                      data = analysis_data)
 
 summary(nb_results)
 anova(nb_results, test="Chisq")
 
-poisson_results <- glm(lrti_events ~ treatment + offset(log_person_time_at_risk), 
+poisson_results <- glm(lrti_events_total ~ treatment + offset(log_person_time_at_risk), 
                        family = "poisson", data = analysis_data)
 
 summary(poisson_results)
