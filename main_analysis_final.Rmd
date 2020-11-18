@@ -1,0 +1,207 @@
+---
+title: 'KidsAIR: Main analysis'
+author: "Ethan Walker"
+date: "Updated 17 Nov 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, include = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(emmeans)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(MASS)
+library(faraway)
+library(DHARMa)
+```
+
+
+```{r}
+# Load analysis dataset
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+analysis_data <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         lrti_events_di_total = as.factor(lrti_events_di_total),
+         person_time_at_risk_iqr = person_time_at_risk/20) 
+  #filter(gender == "Female")
+  #filter(home_sqft_2level == "1500+")
+
+analysis_data_outliers <- analysis_data %>% 
+  #rownames_to_column() %>% 
+  #mutate(filter_outliers = if_else(rowname %in% c(57), 1, 0)) %>% 
+  mutate(log_person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 2.33, log_person_time_at_risk)) %>% 
+  mutate(person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 72, person_time_at_risk),
+         lrti_events_total = as.factor(lrti_events_total),
+         lrti_events_di_total = as.factor(lrti_events_di_total)) 
+  
+analysis_data_winter1 <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) %>% 
+  filter(person_time_at_risk_winter > 0) %>% 
+  filter(winter_id == 1)
+
+analysis_data_winter2 <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) %>% 
+  filter(person_time_at_risk_winter > 0) %>% 
+  filter(winter_id == 2)
+```
+
+
+
+# Options for primary model framework
+
+## Poisson model
+```{r, echo=TRUE, eval=FALSE}
+poisson_results <- glmer(lrti_events_total ~ treatment_assigned + child_age + 
+                         (1 | home:cohort:area), 
+                         data = analysis_data, family = poisson(link = "log"), 
+                         offset = log_person_time_at_risk)
+#write_rds(poisson_results, paste0(file_path, "Output/poisson_results.rds"))
+```
+
+```{r}
+poisson_results <- read_rds(paste0(file_path, "Output/poisson_results.rds"))
+summary(poisson_results)
+#tidy(poisson_results, conf.int = TRUE)
+
+poisson_simres <- simulateResiduals(poisson_results)
+testDispersion(poisson_simres, alternative = "less")
+plot(poisson_simres, rank = FALSE, quantreg = TRUE)
+```
+
+## Negative binomial model
+```{r, echo=TRUE, eval=FALSE}
+negbin_results <- glmer.nb(lrti_events_total ~ treatment_assigned + child_age + 
+                           (1 | home:cohort:area) + 
+                           offset(log_person_time_at_risk), 
+                           data = analysis_data)
+#write_rds(negbin_results, paste0(file_path, "Output/negbin_results.rds"))
+```
+
+```{r}
+negbin_results <- read_rds(paste0(file_path, "Output/negbin_results.rds"))
+summary(negbin_results)
+#tidy(negbin_results, conf.int = TRUE)
+
+negbin_simres <- simulateResiduals(negbin_results)
+testDispersion(negbin_simres, alternative = "less")
+plot(negbin_simres, rank = FALSE, quantreg = TRUE)
+```
+
+## Logistic regression model
+```{r, echo=TRUE, eval=FALSE}
+logreg_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                        child_age + person_time_at_risk +
+                        (1 | home:cohort:area),
+                        data = analysis_data, family = binomial, nAGQ = 20)
+#write_rds(logreg_results, paste0(file_path, "Output/logreg_results.rds"))
+```
+
+```{r}
+logreg_results <- read_rds(paste0(file_path, "Output/logreg_results.rds"))
+summary(logreg_results)
+#tidy(logreg_results, conf.int = TRUE)
+
+logreg_simres <- simulateResiduals(logreg_results)
+testDispersion(logreg_simres, alternative = "two.sided")
+plot(logreg_simres, rank = FALSE, quantreg = TRUE)
+```
+
+
+
+```{r}
+# Function to clean results
+results_function <- function(model_results, model_name) {
+  
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_assigned", "", term),
+         model = model_name) %>% 
+  dplyr::select(model, term, estimate, p.value, conf.low, conf.high)
+tidy_results
+
+}
+
+
+# Run results through function, save, combine for plotting
+poisson_tidy <- results_function(poisson_results, "Poisson")
+negbin_tidy <- results_function(negbin_results, "Neg Bin")
+logreg_tidy <- results_function(logreg_results, "Log Reg")
+
+
+# Combine cleaned results
+itt_results_combined <- rbind(poisson_tidy, negbin_tidy, logreg_tidy)
+
+
+# Plot results
+itt_plot_estimates <- itt_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Poisson", "Neg Bin", "Log Reg"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Results for ITT framework, LRTI outcome") +
+  labs(y = "Estimate compared to placebo") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+# Save plot as jpg
+#ggsave("itt_plot_estimates.jpg", width = 12, height = 6)
+```
+
+# Interpretation:
+As Jon and I discussed 11/16/20, the Poisson and Negative Binomial models appear to be
+underdispersed (variance < mean), not overdispersed (variance > mean). These models 
+don't appear to be the best fit for our data. Additionally, results from the models 
+were essentially the same.  
+The Logistic Regression model appears to be a better fit for the data (no concerns 
+in the diagnostic plots). The good news is that the results were also very similar to 
+the Poisson/NegBin models, so we don't have to explain any big differences in results 
+if model selection concerns come up with reviewers. The bad news is that regardless 
+of model, there is no difference in LRTI between treatment arms.   
+Given these results, I'm leaning towards using the logistic regression model for the 
+primary ITT framework. There are models that can be used for underdispersed count 
+data (generalized Poisson regression?), but I can't find a good way to run those 
+as mixed models like we need to do. I think the logistic regression model will be 
+easier to explain/interpret, and we aren't really losing much information since there 
+were so few children with 2+ cases of LRTI.
