@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 17 Nov 2020"
+date: "Updated 18 Nov 2020"
 output: pdf_document
 ---
 
@@ -68,69 +68,156 @@ analysis_data_winter2 <- read_rds(paste0(file_path,
 ```
 
 
+# Intent-to-treat framework, LRTI outcome
 
-# Options for primary model framework
-
-## Poisson model
-```{r, echo=TRUE, eval=FALSE}
-poisson_results <- glmer(lrti_events_total ~ treatment_assigned + child_age + 
-                         (1 | home:cohort:area), 
-                         data = analysis_data, family = poisson(link = "log"), 
-                         offset = log_person_time_at_risk)
-#write_rds(poisson_results, paste0(file_path, "Output/poisson_results.rds"))
+```{r, echo=TRUE}
+# Run primary model and print results
+itt_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk +
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+#write_rds(itt_results, paste0(file_path, "Output/itt_results.rds"))
 ```
+
+
+## Model summary and diagnostic plots
+```{r}
+summary(itt_results)
+itt_res <- simulateResiduals(itt_results)
+testDispersion(itt_res, alternative = "two.sided")
+plot(itt_res, rank = FALSE, quantreg = TRUE)
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+# Run and save model results 
+
+itt_winter1_results <- glmer(lrti_events_di_winter ~ treatment_assigned + 
+                     child_age + person_time_at_risk_winter +
+                     (1 | home:cohort:area),
+                     data = analysis_data_winter1, family = binomial, nAGQ = 20)
+write_rds(itt_winter1_results, paste0(file_path, "Output/itt_winter1_results.rds"))
+
+
+itt_winter2_results <- glmer(lrti_events_di_winter ~ treatment_assigned + 
+                     child_age + person_time_at_risk_winter +
+                     (1 | home:cohort:area),
+                     data = analysis_data_winter2, family = binomial, nAGQ = 20)
+write_rds(itt_winter2_results, paste0(file_path, "Output/itt_winter2_results.rds"))
+
+
+itt_income_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + income_3level + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_income_results, paste0(file_path, "Output/itt_income_results.rds"))
+
+
+itt_filter_type_results <- glmer(lrti_events_di_total ~ treatment_filter_type +  
+                     child_age + person_time_at_risk + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_filter_type_results, paste0(file_path, "Output/itt_filter_type_results.rds"))
+
+
+itt_filter_comp_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + kw_perc_exp_cat2 + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_filter_comp_results, paste0(file_path, "Output/itt_filter_comp_results.rds"))
+
+
+itt_smoke_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + residents_smoke + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_smoke_results, paste0(file_path, "Output/itt_smoke_results.rds"))
+
+
+itt_burn_level_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + burn_level_3level + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_burn_level_results, paste0(file_path, "Output/itt_burn_level_results.rds"))
+
+
+itt_smoking_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + home_act_smoking_sum + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_smoking_results, paste0(file_path, "Output/itt_smoking_results.rds"))
+
+
+itt_windows_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + home_act_windows_sum + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_windows_results, paste0(file_path, "Output/itt_windows_results.rds"))
+
+
+itt_door_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + home_act_door_sum + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_door_results, paste0(file_path, "Output/itt_door_results.rds"))
+
+
+itt_sweep_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + home_act_sweep_sum + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_sweep_results, paste0(file_path, "Output/itt_sweep_results.rds"))
+
+
+itt_ambpm_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + amb_pm_lrti + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_ambpm_results, paste0(file_path, "Output/itt_ambpm_results.rds"))
+
+
+itt_ambtemp_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + amb_temp_lrti + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_ambtemp_results, paste0(file_path, "Output/itt_ambtemp_results.rds"))
+
+
+itt_home_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + 
+                     (1 | cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+write_rds(itt_home_results, paste0(file_path, "Output/itt_home_results.rds"))
+
+
+itt_outlier_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + 
+                     (1 | home:cohort:area),
+                     data = analysis_data_outliers, family = binomial, nAGQ = 20)
+write_rds(itt_outlier_results, paste0(file_path, "Output/itt_outlier_results.rds"))
+```
+
 
 ```{r}
-poisson_results <- read_rds(paste0(file_path, "Output/poisson_results.rds"))
-summary(poisson_results)
-#tidy(poisson_results, conf.int = TRUE)
-
-poisson_simres <- simulateResiduals(poisson_results)
-testDispersion(poisson_simres, alternative = "less")
-plot(poisson_simres, rank = FALSE, quantreg = TRUE)
-```
-
-## Negative binomial model
-```{r, echo=TRUE, eval=FALSE}
-negbin_results <- glmer.nb(lrti_events_total ~ treatment_assigned + child_age + 
-                           (1 | home:cohort:area) + 
-                           offset(log_person_time_at_risk), 
-                           data = analysis_data)
-#write_rds(negbin_results, paste0(file_path, "Output/negbin_results.rds"))
-```
-
-```{r}
-negbin_results <- read_rds(paste0(file_path, "Output/negbin_results.rds"))
-summary(negbin_results)
-#tidy(negbin_results, conf.int = TRUE)
-
-negbin_simres <- simulateResiduals(negbin_results)
-testDispersion(negbin_simres, alternative = "less")
-plot(negbin_simres, rank = FALSE, quantreg = TRUE)
-```
-
-## Logistic regression model
-```{r, echo=TRUE, eval=FALSE}
-logreg_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
-                        child_age + person_time_at_risk +
-                        (1 | home:cohort:area),
-                        data = analysis_data, family = binomial, nAGQ = 20)
-#write_rds(logreg_results, paste0(file_path, "Output/logreg_results.rds"))
-```
-
-```{r}
-logreg_results <- read_rds(paste0(file_path, "Output/logreg_results.rds"))
-summary(logreg_results)
-#tidy(logreg_results, conf.int = TRUE)
-
-logreg_simres <- simulateResiduals(logreg_results)
-testDispersion(logreg_simres, alternative = "two.sided")
-plot(logreg_simres, rank = FALSE, quantreg = TRUE)
-```
+# Load results
+itt_results <- read_rds(paste0(file_path, "Output/itt_results.rds"))
+itt_winter1_results <- read_rds(paste0(file_path, "Output/itt_winter1_results.rds"))
+#itt_winter2_results <- read_rds(paste0(file_path, "Output/itt_winter2_results.rds"))
+itt_income_results <- read_rds(paste0(file_path, "Output/itt_income_results.rds"))
+#itt_filter_type_results <- read_rds(paste0(file_path, "Output/itt_filter_type_results.rds"))
+itt_filter_comp_results <- read_rds(paste0(file_path, "Output/itt_filter_comp_results.rds"))
+itt_smoke_results <- read_rds(paste0(file_path, "Output/itt_smoke_results.rds"))
+itt_burn_level_results <- read_rds(paste0(file_path, "Output/itt_burn_level_results.rds"))
+itt_smoking_results <- read_rds(paste0(file_path, "Output/itt_smoking_results.rds"))
+itt_windows_results <- read_rds(paste0(file_path, "Output/itt_windows_results.rds"))
+itt_door_results <- read_rds(paste0(file_path, "Output/itt_door_results.rds"))
+itt_sweep_results <- read_rds(paste0(file_path, "Output/itt_sweep_results.rds"))
+itt_ambpm_results <- read_rds(paste0(file_path, "Output/itt_ambpm_results.rds"))
+itt_ambtemp_results <- read_rds(paste0(file_path, "Output/itt_ambtemp_results.rds"))
+itt_home_results <- read_rds(paste0(file_path, "Output/itt_home_results.rds"))
+itt_outlier_results <- read_rds(paste0(file_path, "Output/itt_outlier_results.rds"))
 
 
-
-```{r}
 # Function to clean results
 results_function <- function(model_results, model_name) {
   
@@ -146,19 +233,42 @@ tidy_results
 
 
 # Run results through function, save, combine for plotting
-poisson_tidy <- results_function(poisson_results, "Poisson")
-negbin_tidy <- results_function(negbin_results, "Neg Bin")
-logreg_tidy <- results_function(logreg_results, "Log Reg")
+itt_tidy <- results_function(itt_results, "ITT Primary")
+itt_winter1_tidy <- results_function(itt_winter1_results, "ITT Winter 1")
+#itt_winter2_tidy <- results_function(itt_winter2_results, "ITT Winter 2")
+itt_income_tidy <- results_function(itt_income_results, "ITT + income")
+#itt_filter_type_tidy <- results_function(itt_filter_type_results, "ITT + filt type")
+itt_filter_comp_tidy <- results_function(itt_filter_comp_results, "ITT + filt comp")
+itt_smoke_tidy <- results_function(itt_smoke_results, "ITT + smoke hx")
+itt_burn_level_tidy <- results_function(itt_burn_level_results, "ITT + burn level")
+itt_smoking_tidy <- results_function(itt_smoking_results, "ITT + smoke act")
+itt_windows_tidy <- results_function(itt_windows_results, "ITT + window act")
+itt_door_tidy <- results_function(itt_door_results, "ITT + door act")
+itt_sweep_tidy <- results_function(itt_sweep_results, "ITT + sweep act")
+itt_ambpm_tidy <- results_function(itt_ambpm_results, "ITT + amb PM")
+itt_ambtemp_tidy <- results_function(itt_ambtemp_results, "ITT + amb temp")
+itt_home_tidy <- results_function(itt_home_results, "ITT - home")
+itt_outlier_tidy <- results_function(itt_outlier_results, "ITT outlier")
 
 
 # Combine cleaned results
-itt_results_combined <- rbind(poisson_tidy, negbin_tidy, logreg_tidy)
+itt_results_combined <- rbind(itt_tidy, itt_winter1_tidy, 
+                              itt_income_tidy, itt_filter_comp_tidy,
+                              itt_smoke_tidy, itt_burn_level_tidy, itt_smoking_tidy,
+                              itt_windows_tidy, itt_door_tidy, itt_sweep_tidy,
+                              itt_ambpm_tidy, itt_ambtemp_tidy,
+                              itt_home_tidy, itt_outlier_tidy)
 
 
 # Plot results
 itt_plot_estimates <- itt_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("Poisson", "Neg Bin", "Log Reg"))) %>% 
+                        levels = c("ITT Primary", "ITT Winter 1", 
+                                   "ITT + income", "ITT + filt comp",
+                                   "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
+                                   "ITT + window act", "ITT + door act", "ITT + sweep act",
+                                   "ITT + amb PM", "ITT + amb temp",
+                                   "ITT - home", "ITT outlier"))) %>% 
   ggplot(aes(group = term, shape = term)) +
   geom_point(aes(x=model, y=estimate), 
              position = position_dodge(width = 0.5), size = 4) +
@@ -167,7 +277,7 @@ itt_plot_estimates <- itt_results_combined %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   ggtitle(label = "Results for ITT framework, LRTI outcome") +
-  labs(y = "Estimate compared to placebo") +
+  labs(y = "LRTI events per child-week \n at risk compared to placebo") +
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
@@ -189,19 +299,421 @@ itt_plot_estimates
 #ggsave("itt_plot_estimates.jpg", width = 12, height = 6)
 ```
 
-# Interpretation:
-As Jon and I discussed 11/16/20, the Poisson and Negative Binomial models appear to be
-underdispersed (variance < mean), not overdispersed (variance > mean). These models 
-don't appear to be the best fit for our data. Additionally, results from the models 
-were essentially the same.  
-The Logistic Regression model appears to be a better fit for the data (no concerns 
-in the diagnostic plots). The good news is that the results were also very similar to 
-the Poisson/NegBin models, so we don't have to explain any big differences in results 
-if model selection concerns come up with reviewers. The bad news is that regardless 
-of model, there is no difference in LRTI between treatment arms.   
-Given these results, I'm leaning towards using the logistic regression model for the 
-primary ITT framework. There are models that can be used for underdispersed count 
-data (generalized Poisson regression?), but I can't find a good way to run those 
-as mixed models like we need to do. I think the logistic regression model will be 
-easier to explain/interpret, and we aren't really losing much information since there 
-were so few children with 2+ cases of LRTI.
+ITT Winter 1 = Primary model with Winter 1 data only  
+ITT + income = Primary model plus categorical income variable  
+ITT + filt comp = Primary model plus variable for filter compliance  
+ITT + smoke hx = Primary model plus self-reported smoking variable  
+ITT + burn level = Primary model plus self-reported burn-level compared to typical  
+ITT + smoke act = Primary model plus # days during sampling with smoking  
+ITT + window act = Primary model plus # days during sampling with windows open  
+ITT + door act = Primary model plus # days during sampling with doors open  
+ITT + sweep act = Primary model plus # days during sampling with sweeping/cleaning  
+ITT + amb PM = Primary model plus amb PM during LRTI at-risk period  
+ITT + amb temp = Primary model plus amb temp during LRTI at-risk period  
+ITT - home = Primary model without home as random term  
+ITT outlier = Primary model with data that fixes incidence outlier  
+
+\pagebreak  
+
+# Intent-to-treat framework, PM2.5 outcome
+
+```{r, echo=TRUE}
+# Run primary model and print results
+itt_pm_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + child_age + 
+                       (1 | cohort:area), data = analysis_data_winter1)
+#write_rds(itt_pm_results, paste0(file_path, "Output/itt_pm_results.rds"))
+```
+
+## Model summary and diagnostic plots
+```{r}
+summary(itt_pm_results)
+plot(itt_pm_results, main = "PM ITT Primary model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_pm_results), main = "PM ITT Primary model")
+qqline(residuals(itt_pm_results))
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+# Effect modification/interaction analysis
+# Try child_age, gender, home_floors_2level, home_sqft_2level
+
+# Run primary model and print results
+itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*home_sqft_2level + 
+                              child_age + 
+                       (1 | cohort:area), data = analysis_data)
+#write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+
+summary(itt_pm_results_int)
+
+int_emtrends <- emtrends(itt_pm_results_int, home_sqft_2level ~ treatment_assigned, var = "log(pm_mean_sampling_period)")
+summary(int_emtrends, conf.int = TRUE)
+# This line will plot the interaction term
+#emmip(itt_pm_results_int, child_age ~ treatment_assigned, cov.reduce = range)
+table(model.frame(itt_pm_results_int)$treatment_assigned)
+nobs(itt_pm_results_int)
+```
+
+
+
+```{r, eval=FALSE, include=FALSE}
+# Run and save model results
+
+itt_pm_income_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                               child_age + (1 | cohort:area) + 
+                               income_3level, data = analysis_data_winter1)
+write_rds(itt_pm_income_results, paste0(file_path, "Output/itt_pm_income_results.rds"))
+
+
+itt_pm_filter_type_results <- glmer(log(pm_mean_sampling_period) ~ treatment_filter_type + 
+                                  child_age + (1 | cohort:area), data = analysis_data_winter1)
+write_rds(itt_pm_filter_type_results, paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
+ 
+
+itt_pm_filter_comp_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                  child_age + (1 | cohort:area) + 
+                                  kw_perc_exp_cat2, data = analysis_data_winter1)
+write_rds(itt_pm_filter_comp_results, paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
+
+
+itt_pm_smoke_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                              child_age + (1 | cohort:area) + 
+                              residents_smoke, data = analysis_data_winter1)
+write_rds(itt_pm_smoke_results, paste0(file_path, "Output/itt_pm_smoke_results.rds"))
+
+
+itt_pm_burn_level_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   burn_level_3level, data = analysis_data_winter1)
+write_rds(itt_pm_burn_level_results, paste0(file_path, "Output/itt_pm_burn_level_results.rds"))
+
+
+itt_pm_smoking_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   home_act_smoking_sum, data = analysis_data_winter1)
+write_rds(itt_pm_smoking_results, paste0(file_path, "Output/itt_pm_smoking_results.rds"))
+
+
+itt_pm_windows_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   home_act_windows_sum, data = analysis_data_winter1)
+write_rds(itt_pm_windows_results, paste0(file_path, "Output/itt_pm_windows_results.rds"))
+
+
+itt_pm_door_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   home_act_door_sum, data = analysis_data_winter1)
+write_rds(itt_pm_door_results, paste0(file_path, "Output/itt_pm_door_results.rds"))
+
+
+itt_pm_sweep_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   home_act_sweep_sum, data = analysis_data_winter1)
+write_rds(itt_pm_sweep_results, paste0(file_path, "Output/itt_pm_sweep_results.rds"))
+
+
+itt_pm_ambpm_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   amb_pm_lrti, data = analysis_data_winter1)
+write_rds(itt_pm_ambpm_results, paste0(file_path, "Output/itt_pm_ambpm_results.rds"))
+
+
+itt_pm_ambtemp_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+                                   child_age + (1 | cohort:area) + 
+                                   amb_temp_lrti, data = analysis_data_winter1)
+write_rds(itt_pm_ambtemp_results, paste0(file_path, "Output/itt_pm_ambtemp_results.rds"))
+```
+
+
+```{r}
+# Load results
+itt_pm_results <- read_rds(paste0(file_path, "Output/itt_pm_results.rds"))
+itt_pm_income_results <- read_rds(paste0(file_path, "Output/itt_pm_income_results.rds"))
+itt_pm_filter_type_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
+itt_pm_filter_comp_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
+itt_pm_smoke_results <- read_rds(paste0(file_path, "Output/itt_pm_smoke_results.rds"))
+itt_pm_burn_level_results <- read_rds(paste0(file_path, "Output/itt_pm_burn_level_results.rds"))
+itt_pm_smoking_results <- read_rds(paste0(file_path, "Output/itt_pm_smoking_results.rds"))
+itt_pm_windows_results <- read_rds(paste0(file_path, "Output/itt_pm_windows_results.rds"))
+itt_pm_door_results <- read_rds(paste0(file_path, "Output/itt_pm_door_results.rds"))
+itt_pm_sweep_results <- read_rds(paste0(file_path, "Output/itt_pm_sweep_results.rds"))
+itt_pm_ambpm_results <- read_rds(paste0(file_path, "Output/itt_pm_ambpm_results.rds"))
+itt_pm_ambtemp_results <- read_rds(paste0(file_path, "Output/itt_pm_ambtemp_results.rds"))
+
+
+# Run function to clean results
+results_function <- function(model_results, model_name) {
+  
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_assigned", "", term),
+         model = model_name) %>% 
+  dplyr::select(model, term, estimate, conf.low, conf.high)
+tidy_results
+
+}
+
+
+# Run results through function, save, combine for plotting
+itt_pm_tidy <- results_function(itt_pm_results, "ITT Primary")
+itt_pm_income_tidy <- results_function(itt_pm_income_results, "ITT + income")
+itt_pm_filter_type_tidy <- results_function(itt_pm_filter_type_results, "ITT filter type")
+itt_pm_filter_comp_tidy <- results_function(itt_pm_filter_comp_results, "ITT + filt comp")
+itt_pm_smoke_tidy <- results_function(itt_pm_smoke_results, "ITT + smoke hx")
+itt_pm_burn_level_tidy <- results_function(itt_pm_burn_level_results, "ITT + burn level")
+itt_pm_smoking_tidy <- results_function(itt_pm_smoking_results, "ITT + smoke act")
+itt_pm_windows_tidy <- results_function(itt_pm_windows_results, "ITT + window act")
+itt_pm_door_tidy <- results_function(itt_pm_door_results, "ITT + door act")
+itt_pm_sweep_tidy <- results_function(itt_pm_sweep_results, "ITT + sweep act")
+itt_pm_ambpm_tidy <- results_function(itt_pm_ambpm_results, "ITT + amb PM")
+itt_pm_ambtemp_tidy <- results_function(itt_pm_ambtemp_results, "ITT + amb temp")
+
+
+# Combine cleaned results
+itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_income_tidy, itt_pm_filter_comp_tidy, 
+                              itt_pm_smoke_tidy, itt_pm_burn_level_tidy, itt_pm_smoking_tidy,
+                              itt_pm_windows_tidy, itt_pm_door_tidy, itt_pm_sweep_tidy,
+                              itt_pm_ambpm_tidy, itt_pm_ambtemp_tidy)
+
+
+# Plot results
+itt_pm_plot_estimates <- itt_pm_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("ITT Primary", "ITT + income", "ITT + filt comp", 
+                                   "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
+                                   "ITT + window act", "ITT + door act", "ITT + sweep act",
+                                   "ITT + amb PM", "ITT + amb temp"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Results for ITT framework, PM outcome") +
+  labs(y = "Difference in log(PM2.5) \n compared to placebo") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_pm_plot_estimates
+
+
+# Save plot as jpg
+#ggsave("itt_pm_plot_estimates.jpg", width = 12, height = 6)
+```
+
+ITT + income = Primary model plus categorical income variable  
+ITT + filt comp = Primary model plus variable for filter compliance  
+ITT + smoke hx = Primary model plus self-reported smoking variable  
+ITT + burn level = Primary model plus self-reported burn-level compared to typical  
+ITT + smoke act = Primary model plus # days during sampling with smoking  
+ITT + window act = Primary model plus # days during sampling with windows open  
+ITT + door act = Primary model plus # days during sampling with doors open  
+ITT + sweep act = Primary model plus # days during sampling with sweeping/cleaning  
+ITT + amb PM = Primary model plus amb PM during LRTI at-risk period  
+ITT + amb temp = Primary model plus amb temp during LRTI at-risk period  
+
+\pagebreak  
+
+
+# Exposure-response framework, LRTI outcome
+
+```{r, echo=TRUE}
+# Run primary model and print results
+er_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + 
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+#write_rds(er_results, paste0(file_path, "Output/er_results.rds"))
+```
+
+## Model summary and diagnostic plots
+```{r}
+summary(er_results)
+er_res <- simulateResiduals(er_results)
+plot(er_res, rank = TRUE, quantreg = TRUE)
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+# Run and save model results
+
+er_income_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          income_3level + residents_smoke + 
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_income_results, paste0(file_path, "Output/er_income_results.rds"))
+
+
+er_filter_comp_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + kw_perc_exp_cat2 +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_filter_comp_results, paste0(file_path, "Output/er_filter_comp_results.rds"))
+
+
+er_burn_level_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + burn_level_3level +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_burn_level_results, paste0(file_path, "Output/er_burn_level_results.rds"))
+
+
+er_smoking_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + home_act_smoking_sum +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_smoking_results, paste0(file_path, "Output/er_smoking_results.rds"))
+
+
+er_windows_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + home_act_windows_sum +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_windows_results, paste0(file_path, "Output/er_windows_results.rds"))
+
+
+er_door_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + home_act_door_sum +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_door_results, paste0(file_path, "Output/er_door_results.rds"))
+
+
+er_sweep_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + home_act_sweep_sum +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_sweep_results, paste0(file_path, "Output/er_sweep_results.rds"))
+
+
+er_ambpm_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + amb_pm_lrti +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_ambpm_results, paste0(file_path, "Output/er_ambpm_results.rds"))
+
+
+er_ambtemp_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + amb_temp_lrti +
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_ambtemp_results, paste0(file_path, "Output/er_ambtemp_results.rds"))
+
+
+er_home_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + 
+                          (1 | cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+write_rds(er_home_results, paste0(file_path, "Output/er_home_results.rds"))
+```
+
+
+```{r}
+# Load results
+er_results <- read_rds(paste0(file_path, "Output/er_results.rds"))
+er_income_results <- read_rds(paste0(file_path, "Output/er_income_results.rds"))
+er_filter_comp_results <- read_rds(paste0(file_path, "Output/er_filter_comp_results.rds"))
+er_burn_level_results <- read_rds(paste0(file_path, "Output/er_burn_level_results.rds"))
+er_smoking_results <- read_rds(paste0(file_path, "Output/er_smoking_results.rds"))
+er_windows_results <- read_rds(paste0(file_path, "Output/er_windows_results.rds"))
+er_door_results <- read_rds(paste0(file_path, "Output/er_door_results.rds"))
+er_sweep_results <- read_rds(paste0(file_path, "Output/er_sweep_results.rds"))
+er_ambpm_results <- read_rds(paste0(file_path, "Output/er_ambpm_results.rds"))
+er_ambtemp_results <- read_rds(paste0(file_path, "Output/er_ambtemp_results.rds"))
+er_home_results <- read_rds(paste0(file_path, "Output/er_home_results.rds"))
+
+
+# Run function to clean results
+results_function <- function(model_results, model_name) {
+  
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("pm_mean", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = "PM2.5",
+         model = model_name) %>% 
+  dplyr::select(model, term, estimate, conf.low, conf.high)
+tidy_results
+
+}
+
+
+# Run results through function, save, combine for plotting
+er_tidy <- results_function(er_results, "ER Primary")
+er_income_tidy <- results_function(er_income_results, "ER + income")
+er_filter_comp_tidy <- results_function(er_filter_comp_results, "ER + filt comp")
+er_burn_level_tidy <- results_function(er_burn_level_results, "ER + burn level")
+er_smoking_tidy <- results_function(er_smoking_results, "ER + smoke act")
+er_windows_tidy <- results_function(er_windows_results, "ER + window act")
+er_door_tidy <- results_function(er_door_results, "ER + door act")
+er_sweep_tidy <- results_function(er_sweep_results, "ER + sweep act")
+er_ambpm_tidy <- results_function(er_ambpm_results, "ER + amb PM")
+er_ambtemp_tidy <- results_function(er_ambtemp_results, "ER + amb temp")
+er_home_tidy <- results_function(er_home_results, "ER - home")
+
+
+# Combine cleaned results
+er_results_combined <- rbind(er_tidy, er_income_tidy, er_filter_comp_tidy, er_burn_level_tidy, 
+                              er_smoking_tidy, er_windows_tidy, er_door_tidy,
+                              er_sweep_tidy, er_ambpm_tidy, er_ambtemp_tidy, er_home_tidy)
+
+
+# Plot results
+er_plot_estimates <- er_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("ER Primary", "ER + income", "ER + filt comp", "ER + burn level",
+                                   "ER + smoke act", "ER + window act", "ER + door act",
+                                   "ER + sweep act", "ER + amb PM", "ER + amb temp", "ER - home"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Results for ER framework, LRTI outcome") +
+  labs(y = "LRTI cases per IQR \n increase in PM2.5") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "none",
+          legend.text = element_text(size = 14, colour = "black")) 
+er_plot_estimates
+
+
+# Save plot as jpg
+#ggsave("er_plot_estimates.jpg", width = 12, height = 6)
+```
+
+ER + income = Primary model using income instead of education  
+ER + filt comp = Primary model plus variable for filter compliance  
+ER + burn level = Primary model plus self-reported burn-level compared to typical  
+ER + smoke act = Primary model plus # days during sampling with smoking  
+ER + window act = Primary model plus # days during sampling with windows open  
+ER + door act = Primary model plus # days during sampling with doors open  
+ER + sweep act = Primary model plus # days during sampling with sweeping/cleaning  
+ER + amb PM = Primary model plus amb PM during LRTI at-risk period  
+ER + amb temp = Primary model plus amb temp during LRTI at-risk period  
+ER - home = Primary model without home as random term  
+

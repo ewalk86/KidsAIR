@@ -129,7 +129,7 @@ nobs(itt_results_int)
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results
+# Run and save model results 
 
 itt_winter1_results <- glmer.nb(lrti_events_winter ~ treatment_assigned + child_age + (1 | home:cohort:area) + 
                         offset(log_person_time_at_risk_winter), data = analysis_data_winter1)

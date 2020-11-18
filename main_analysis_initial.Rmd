@@ -61,7 +61,7 @@ kids_kw_report_1obs <- read_rds(paste0(file_path, "Output/kids_kw_report_clean.r
   ungroup() %>% 
   distinct(area, home, .keep_all = TRUE) %>% 
   mutate(kw_perc_exp_cat = cut(kw_perc_expected, 
-                               breaks = c(0, 42, 83, 129, 50000),
+                               breaks = c(0, 30, 56, 106, 1000),
                                labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
   dplyr::select(-home_winter_id, -treatment_assigned, -treatment_actual, -home_id)
 
@@ -72,7 +72,7 @@ kids_kw_report_2obs <- read_rds(paste0(file_path, "Output/kids_kw_report_clean.r
   ungroup() %>% 
   distinct(area, home_winter_id, .keep_all = TRUE) %>% 
   mutate(kw_perc_exp_cat = cut(kw_perc_expected, 
-                               breaks = c(0, 37, 74, 118, 50000),
+                               breaks = c(0, 29, 53, 96, 1000),
                                labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
   dplyr::select(-home_winter_id, -treatment_assigned, -treatment_actual, -home_id)
 
@@ -94,10 +94,33 @@ lrti_1obs_per_winter <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")
          lrti_incidence_winter = lrti_events_winter/person_time_at_risk_winter,
          lrti_incidence_winter = if_else(is.na(lrti_incidence_winter), 0, lrti_incidence_winter)) %>% 
   arrange(area, home, child_id_num, winter_id) %>%
+  left_join(kids_amb_pm_data, by = c("area", "home")) %>% 
+  mutate(pm_filter = if_else((sample_date >= person_time_start) & (sample_date <= person_time_end), 1, 0)) %>% 
+  filter(pm_filter == 1) %>% 
+  group_by(area, child_id_num, winter_id) %>% 
+  mutate(amb_pm_lrti = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  dplyr::select(area, home, cohort, child_id_num, winter_id, 
-                lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter) 
+  dplyr::select(area, home, cohort, child_id_num, lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter,
+         amb_pm_lrti, person_time_start, person_time_end, home_winter_id, winter_id) %>% 
+  left_join(kids_amb_temp_data, by = c("area", "home")) %>% 
+  mutate(temp_filter = if_else((sample_date >= person_time_start) & (sample_date <= person_time_end), 1, 0)) %>% 
+  filter(temp_filter == 1 | child_id_num == 94) %>% 
+  group_by(area, child_id_num, winter_id) %>% 
+  mutate(amb_temp_lrti = mean(mean_temp, na.rm = TRUE),
+         amb_temp_lrti = if_else(child_id_num == 94, NaN, amb_temp_lrti),
+         amb_dewp_lrti = mean(mean_dewp, na.rm = TRUE),
+         amb_dewp_lrti = if_else(child_id_num == 94, NaN, amb_dewp_lrti),
+         amb_pressure_lrti = mean(mean_pressure, na.rm = TRUE),
+         amb_pressure_lrti = if_else(child_id_num == 94, NaN, amb_pressure_lrti),
+         amb_wind_lrti = mean(mean_wind_knots, na.rm = TRUE),
+         amb_wind_lrti = if_else(child_id_num == 94, NaN, amb_wind_lrti)) %>% 
+  ungroup() %>% 
+  dplyr::select(area, home, cohort, child_id_num, winter_id,
+                lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter,
+         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti) %>% 
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
+  ungroup()  
 
 
 # Condense LRTI data to 1 obs per child and select analysis vars
@@ -121,7 +144,7 @@ lrti_1obs_total <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
          lrti_incidence_total = if_else(is.na(lrti_incidence_total), 0, lrti_incidence_total)) %>% 
   arrange(area, home, child_id_num, winter_id) %>% 
   left_join(kids_amb_pm_data, by = c("area", "home")) %>% 
-  mutate(pm_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
+  mutate(pm_filter = if_else((sample_date >= person_time_start) & (sample_date <= person_time_end), 1, 0)) %>% 
   filter(pm_filter == 1) %>% 
   group_by(area, child_id_num) %>% 
   mutate(amb_pm_lrti = mean(amb_pm_24hr, na.rm = TRUE)) %>% 
@@ -130,7 +153,7 @@ lrti_1obs_total <- read_rds(paste0(file_path, "Output/lrti_final_data.rds")) %>%
   dplyr::select(area, home, cohort, child_id_num, lrti_events_total, person_time_at_risk_total, lrti_incidence_total,
          amb_pm_lrti, person_time_start, person_time_end, home_winter_id, winter_id) %>% 
   left_join(kids_amb_temp_data, by = c("area", "home")) %>% 
-  mutate(temp_filter = if_else(sample_date >= person_time_start & sample_date <= person_time_end, 1, 0)) %>% 
+  mutate(temp_filter = if_else((sample_date >= person_time_start) & (sample_date <= person_time_end), 1, 0)) %>% 
   filter(temp_filter == 1 | child_id_num == 94) %>% 
   group_by(area, child_id_num) %>% 
   mutate(amb_temp_lrti = mean(mean_temp, na.rm = TRUE),
@@ -180,15 +203,18 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          person_time_at_risk = person_time_at_risk_total) %>% 
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
   mutate(lrti_events_di_total = if_else(lrti_events_total == 0, 0, 1),
-         filter_type2 = as.character(filter_type),
-         filter_type2 = if_else(treatment_assigned == "Education", "Ed Home", filter_type2),
-         filter_type2 = factor(filter_type2,
-                              levels = c("Honeywell", "Large Filtrete", "Small Filtrete",
-                                         "Winix", "Ed Home")),
+         treatment_filter_type = as.character(treatment_assigned),
+         filter_type = as.character(filter_type),
+         treatment_filter_type = if_else(treatment_filter_type == "Filter", 
+                                         filter_type, treatment_filter_type),
+         treatment_filter_type = factor(treatment_filter_type,
+                                        levels = c("Placebo", "Education", 
+                                                   "Honeywell", "Large Filtrete", 
+                                                   "Small Filtrete", "Winix")),
          kw_perc_exp_cat2 = as.character(kw_perc_exp_cat),
-         kw_perc_exp_cat2 = if_else(treatment_assigned == "Education", "Ed Home", kw_perc_exp_cat2),
+         kw_perc_exp_cat2 = if_else(treatment_assigned == "Filter", kw_perc_exp_cat2, treatment_assigned),
          kw_perc_exp_cat2 = factor(kw_perc_exp_cat2,
-                                  levels = c("Q1", "Q2", "Q3", "Q4", "Ed Home"))) %>% 
+                                  levels = c("Placebo", "Education", "Q1", "Q2", "Q3", "Q4"))) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,
@@ -211,7 +237,8 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>%  
   left_join(kids_kw_report_1obs, by = c("area", "home", "winter_id")) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, gender,
+  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, 
+         amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
          lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter, newtx, treatment_assigned,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
          home_floors_2level, home_year_built_2level, home_pets_2level, home_pets,
@@ -227,15 +254,18 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   rename(treatment = newtx) %>% 
   mutate(log_person_time_at_risk_winter = log(person_time_at_risk_winter)) %>% 
   mutate(lrti_events_di_winter = if_else(lrti_events_winter == 0, 0, 1),
-         filter_type2 = as.character(filter_type),
-         filter_type2 = if_else(treatment_assigned == "Education", "Ed Home", filter_type2),
-         filter_type2 = factor(filter_type2,
-                              levels = c("Honeywell", "Large Filtrete", "Small Filtrete",
-                                         "Winix", "Ed Home")),
+         treatment_filter_type = as.character(treatment_assigned),
+         filter_type = as.character(filter_type),
+         treatment_filter_type = if_else(treatment_filter_type == "Filter", 
+                                         filter_type, treatment_filter_type),
+         treatment_filter_type = factor(treatment_filter_type,
+                                        levels = c("Placebo", "Education", 
+                                                   "Honeywell", "Large Filtrete", 
+                                                   "Small Filtrete", "Winix")),
          kw_perc_exp_cat2 = as.character(kw_perc_exp_cat),
-         kw_perc_exp_cat2 = if_else(treatment_assigned == "Education", "Ed Home", kw_perc_exp_cat2),
+         kw_perc_exp_cat2 = if_else(treatment_assigned == "Filter", kw_perc_exp_cat2, treatment_assigned),
          kw_perc_exp_cat2 = factor(kw_perc_exp_cat2,
-                                  levels = c("Q1", "Q2", "Q3", "Q4", "Ed Home"))) %>% 
+                                  levels = c("Placebo", "Education", "Q1", "Q2", "Q3", "Q4"))) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,

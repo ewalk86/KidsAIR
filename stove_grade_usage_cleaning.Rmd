@@ -496,7 +496,8 @@ kids_kw_report_clean <- kids_kw_report %>%
   mutate(kw_perc_expected = if_else(kw_hours == -999, 999999, kw_perc_expected),
          kw_perc_expected = abs(kw_perc_expected)) %>% 
   replace_with_na(replace = list(kw_perc_expected = 999999)) %>% 
-  mutate(kw_perc_expected = as.numeric(kw_perc_expected))
+  mutate(kw_perc_expected = as.numeric(kw_perc_expected)) %>% 
+  filter(treatment_assigned == "Filter")
 
 #summary(kids_kw_report_clean)
 
