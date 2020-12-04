@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 18 Nov 2020"
+date: "Updated 30 Nov 2020"
 output: pdf_document
 ---
 
@@ -87,6 +87,28 @@ itt_res <- simulateResiduals(itt_results)
 testDispersion(itt_res, alternative = "two.sided")
 plot(itt_res, rank = FALSE, quantreg = TRUE)
 ```
+
+
+```{r, eval=FALSE, include=FALSE}
+# Effect modification/interaction analysis
+# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
+
+# Run primary model and print results
+itt_results_int <- glmer(lrti_events_di_total ~ treatment_assigned*residents_smoke + 
+                     child_age + 
+                     person_time_at_risk + (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+#write_rds(itt_results_int, paste0(file_path, "Output/itt_results_int_age.rds"))
+summary(itt_results_int)
+
+int_emmeans <- emmeans(itt_results_int, pairwise ~ treatment_assigned | residents_smoke)
+summary(int_emmeans, conf.int = TRUE)
+confint(int_emmeans)
+
+table(model.frame(itt_results_int)$treatment_assigned)
+nobs(itt_results_int)
+```
+
 
 
 ```{r, eval=FALSE, include=FALSE}
@@ -277,7 +299,7 @@ itt_plot_estimates <- itt_results_combined %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   ggtitle(label = "Results for ITT framework, LRTI outcome") +
-  labs(y = "LRTI events per child-week \n at risk compared to placebo") +
+  labs(y = "Odds of LRTI compared to placebo") +
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
@@ -299,6 +321,7 @@ itt_plot_estimates
 #ggsave("itt_plot_estimates.jpg", width = 12, height = 6)
 ```
 
+ITT Primary = Logistic regression mixed model, as specified above  
 ITT Winter 1 = Primary model with Winter 1 data only  
 ITT + income = Primary model plus categorical income variable  
 ITT + filt comp = Primary model plus variable for filter compliance  
@@ -312,6 +335,13 @@ ITT + amb PM = Primary model plus amb PM during LRTI at-risk period
 ITT + amb temp = Primary model plus amb temp during LRTI at-risk period  
 ITT - home = Primary model without home as random term  
 ITT outlier = Primary model with data that fixes incidence outlier  
+
+## Analysis to assess effect modification
+
+There were small differences in the associations across age groups (<1 vs >=1)  
+and gender groups, but confidence intervals overlap substantially.  
+There were minimal differences in associations across groups for levels/floors  
+in the home, sqft of the home, or residents smoking.  
 
 \pagebreak  
 
@@ -336,22 +366,25 @@ qqline(residuals(itt_pm_results))
 
 ```{r, eval=FALSE, include=FALSE}
 # Effect modification/interaction analysis
-# Try child_age, gender, home_floors_2level, home_sqft_2level
+# Try home_floors_2level, home_sqft_2level, education_3level, child_age
+# home_year_built_2level, stove_age_3level, stove_grade_3level, chimney_clean_3level,
+# wood_collect_2level, burn_level_3level, residents_smoke
 
 # Run primary model and print results
-itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*home_sqft_2level + 
+itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*residents_smoke + 
                               child_age + 
-                       (1 | cohort:area), data = analysis_data)
+                       (1 | cohort:area), data = analysis_data_winter1)
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+#summary(itt_pm_results_int)
 
-summary(itt_pm_results_int)
+int_emmeans <- emmeans(itt_pm_results_int, pairwise ~ treatment_assigned | residents_smoke)
+#summary(int_emmeans, conf.int = TRUE)
+confint(int_emmeans)
 
-int_emtrends <- emtrends(itt_pm_results_int, home_sqft_2level ~ treatment_assigned, var = "log(pm_mean_sampling_period)")
-summary(int_emtrends, conf.int = TRUE)
-# This line will plot the interaction term
-#emmip(itt_pm_results_int, child_age ~ treatment_assigned, cov.reduce = range)
-table(model.frame(itt_pm_results_int)$treatment_assigned)
-nobs(itt_pm_results_int)
+table(model.frame(itt_results_int)$treatment_assigned)
+nobs(itt_results_int)
+
+((exp(-.418)-1)*100)
 ```
 
 
@@ -449,6 +482,9 @@ tidy_results <- tidy(model_results, conf.int = TRUE) %>%
   filter(group_filter == 1) %>% 
   mutate(term = gsub("treatment_assigned", "", term),
          model = model_name) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2)) %>% 
   dplyr::select(model, term, estimate, conf.low, conf.high)
 tidy_results
 
@@ -492,7 +528,7 @@ itt_pm_plot_estimates <- itt_pm_results_combined %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   ggtitle(label = "Results for ITT framework, PM outcome") +
-  labs(y = "Difference in log(PM2.5) \n compared to placebo") +
+  labs(y = "% difference in PM2.5 \n compared to placebo") +
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
@@ -514,6 +550,7 @@ itt_pm_plot_estimates
 #ggsave("itt_pm_plot_estimates.jpg", width = 12, height = 6)
 ```
 
+ITT Primary = Linear mixed model, as specified above  
 ITT + income = Primary model plus categorical income variable  
 ITT + filt comp = Primary model plus variable for filter compliance  
 ITT + smoke hx = Primary model plus self-reported smoking variable  
@@ -524,6 +561,15 @@ ITT + door act = Primary model plus # days during sampling with doors open
 ITT + sweep act = Primary model plus # days during sampling with sweeping/cleaning  
 ITT + amb PM = Primary model plus amb PM during LRTI at-risk period  
 ITT + amb temp = Primary model plus amb temp during LRTI at-risk period  
+
+
+## Analysis to assess effect modification
+
+There were small differences in the associations across groups for levels/floors,    
+age of home, when chimney was cleaned, and resident smoking status,  
+but confidence intervals overlap substantially.  
+There were minimal differences in associations across groups for other variables.    
+
 
 \pagebreak  
 
@@ -543,12 +589,43 @@ er_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_
 ```{r}
 summary(er_results)
 er_res <- simulateResiduals(er_results)
+testDispersion(er_res, alternative = "two.sided")
 plot(er_res, rank = TRUE, quantreg = TRUE)
 ```
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results
+# Effect modification/interaction analysis
+# Try education_3level, child_age, chimney_clean_3level, wood_collect_2level, residents_smoke
+
+# Run primary model and print results
+er_results_int <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr*chimney_clean_3level + 
+                          child_age + 
+                          education_3level + 
+                          residents_smoke + 
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
+#write_rds(er_results_int, paste0(file_path, "Output/er_results_int_age.rds"))
+#summary(er_results_int)
+
+int_emtrends <- emtrends(er_results_int, pairwise ~ chimney_clean_3level, var = "pm_mean_sampling_period_iqr")
+summary(int_emtrends, conf.int = TRUE)
+
+table(model.frame(itt_results_int)$treatment_assigned)
+nobs(itt_results_int)
+```
+
+
+
+```{r, eval=FALSE, include=FALSE}
+# Run and save model results 
+
+er_results_lr <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + person_time_at_risk_winter +
+                          (1 | home:cohort:area), 
+                          data = analysis_data_winter1, family = binomial, nAGQ = 20)
+write_rds(er_results_lr, paste0(file_path, "Output/er_results_lr.rds"))
+
 
 er_income_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
                           income_3level + residents_smoke + 
@@ -624,6 +701,7 @@ write_rds(er_home_results, paste0(file_path, "Output/er_home_results.rds"))
 ```{r}
 # Load results
 er_results <- read_rds(paste0(file_path, "Output/er_results.rds"))
+er_results_lr <- read_rds(paste0(file_path, "Output/er_results_lr.rds"))
 er_income_results <- read_rds(paste0(file_path, "Output/er_income_results.rds"))
 er_filter_comp_results <- read_rds(paste0(file_path, "Output/er_filter_comp_results.rds"))
 er_burn_level_results <- read_rds(paste0(file_path, "Output/er_burn_level_results.rds"))
@@ -652,6 +730,7 @@ tidy_results
 
 # Run results through function, save, combine for plotting
 er_tidy <- results_function(er_results, "ER Primary")
+er_lr_tidy <- results_function(er_results_lr, "ER Log Reg")
 er_income_tidy <- results_function(er_income_results, "ER + income")
 er_filter_comp_tidy <- results_function(er_filter_comp_results, "ER + filt comp")
 er_burn_level_tidy <- results_function(er_burn_level_results, "ER + burn level")
@@ -665,7 +744,7 @@ er_home_tidy <- results_function(er_home_results, "ER - home")
 
 
 # Combine cleaned results
-er_results_combined <- rbind(er_tidy, er_income_tidy, er_filter_comp_tidy, er_burn_level_tidy, 
+er_results_combined <- rbind(er_tidy, er_lr_tidy, er_income_tidy, er_filter_comp_tidy, er_burn_level_tidy, 
                               er_smoking_tidy, er_windows_tidy, er_door_tidy,
                               er_sweep_tidy, er_ambpm_tidy, er_ambtemp_tidy, er_home_tidy)
 
@@ -673,7 +752,7 @@ er_results_combined <- rbind(er_tidy, er_income_tidy, er_filter_comp_tidy, er_bu
 # Plot results
 er_plot_estimates <- er_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("ER Primary", "ER + income", "ER + filt comp", "ER + burn level",
+                        levels = c("ER Primary", "ER Log Reg", "ER + income", "ER + filt comp", "ER + burn level",
                                    "ER + smoke act", "ER + window act", "ER + door act",
                                    "ER + sweep act", "ER + amb PM", "ER + amb temp", "ER - home"))) %>% 
   ggplot(aes(group = term, shape = term)) +
@@ -684,7 +763,7 @@ er_plot_estimates <- er_results_combined %>%
   geom_hline(yintercept = 0) +
   theme_bw() +  
   ggtitle(label = "Results for ER framework, LRTI outcome") +
-  labs(y = "LRTI cases per IQR \n increase in PM2.5") +
+  labs(y = "LRTI events per IQR \n increase in PM2.5") +
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
@@ -706,6 +785,8 @@ er_plot_estimates
 #ggsave("er_plot_estimates.jpg", width = 12, height = 6)
 ```
 
+ER Primary = Negative binomial mixed model, as specified above  
+ER Log Reg = Logistic regression instead of Negative binomial model framework  
 ER + income = Primary model using income instead of education  
 ER + filt comp = Primary model plus variable for filter compliance  
 ER + burn level = Primary model plus self-reported burn-level compared to typical  
@@ -716,4 +797,85 @@ ER + sweep act = Primary model plus # days during sampling with sweeping/cleanin
 ER + amb PM = Primary model plus amb PM during LRTI at-risk period  
 ER + amb temp = Primary model plus amb temp during LRTI at-risk period  
 ER - home = Primary model without home as random term  
+
+
+```{r, eval=FALSE, include=FALSE}
+################ Plot/check individual models and various results ##############
+
+check_model_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + moisture_closest + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 20)
+
+summary(check_model_results)
+
+
+# Run function to clean results
+results_function <- function(model_results) {
+  
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  #mutate(group_filter = if_else(grepl("pm_mean", term), 1, 0)) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high)
+tidy_results
+
+}
+
+
+# Run results through function, save, combine for plotting
+results_tidy <- results_function(check_model_results)
+
+
+# Plot results
+plot_estimates <- results_tidy %>%
+  #filter(term != "treatment_filter_typeHoneywell") %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=1, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=1, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  labs(y = "Results compared to placebo") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "right",
+          legend.text = element_text(size = 14, colour = "black")) 
+plot_estimates
+
+
+# Check summary data
+grouped_data <- analysis_data %>% 
+  group_by(treatment_assigned) %>% 
+  summarize(min(moisture_closest, na.rm = TRUE),
+            median(moisture_closest, na.rm = TRUE),
+            max(moisture_closest, na.rm = TRUE),
+            mean(moisture_closest, na.rm = TRUE),
+            sd(moisture_closest, na.rm = TRUE))
+grouped_data
+#table(analysis_data$moisture_closest)
+#summary(analysis_data$moisture_closest)
+anova_model <- lm(moisture_closest ~ treatment_assigned, data = analysis_data)
+anova(anova_model)
+
+
+# Check model observation numbers
+table(model.frame(itt_results_int)$treatment_assigned)
+nobs(itt_results_int)
+
+
+# backtransform model results for log(pm) models
+((exp(-.418)-1)*100)
+```
 

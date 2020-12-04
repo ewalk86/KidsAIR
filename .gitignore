@@ -10,6 +10,8 @@
 *.pptx
 *.jpg
 *.jpeg
+*.png
 Input
 Output
 boxplots_kids_pm.jpg
+stove_grade_usage_cleaning.Rmd
