@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 30 Nov 2020"
+date: "Updated 7 Dec 2020"
 output: pdf_document
 ---
 
@@ -65,6 +65,14 @@ analysis_data_winter2 <- read_rds(paste0(file_path,
          pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 2)
+
+analysis_data_noak <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         lrti_events_di_total = as.factor(lrti_events_di_total),
+         person_time_at_risk_iqr = person_time_at_risk/20) %>% 
+  filter(area != "AK")
 ```
 
 
@@ -126,6 +134,13 @@ itt_winter2_results <- glmer(lrti_events_di_winter ~ treatment_assigned +
                      (1 | home:cohort:area),
                      data = analysis_data_winter2, family = binomial, nAGQ = 20)
 write_rds(itt_winter2_results, paste0(file_path, "Output/itt_winter2_results.rds"))
+
+
+itt_noak_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk +
+                     (1 | home:cohort:area),
+                     data = analysis_data_noak, family = binomial, nAGQ = 20)
+write_rds(itt_noak_results, paste0(file_path, "Output/itt_noak_results.rds"))
 
 
 itt_income_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
@@ -224,6 +239,7 @@ write_rds(itt_outlier_results, paste0(file_path, "Output/itt_outlier_results.rds
 # Load results
 itt_results <- read_rds(paste0(file_path, "Output/itt_results.rds"))
 itt_winter1_results <- read_rds(paste0(file_path, "Output/itt_winter1_results.rds"))
+itt_noak_results <- read_rds(paste0(file_path, "Output/itt_noak_results.rds"))
 #itt_winter2_results <- read_rds(paste0(file_path, "Output/itt_winter2_results.rds"))
 itt_income_results <- read_rds(paste0(file_path, "Output/itt_income_results.rds"))
 #itt_filter_type_results <- read_rds(paste0(file_path, "Output/itt_filter_type_results.rds"))
@@ -257,6 +273,7 @@ tidy_results
 # Run results through function, save, combine for plotting
 itt_tidy <- results_function(itt_results, "ITT Primary")
 itt_winter1_tidy <- results_function(itt_winter1_results, "ITT Winter 1")
+itt_noak_tidy <- results_function(itt_noak_results, "ITT no AK")
 #itt_winter2_tidy <- results_function(itt_winter2_results, "ITT Winter 2")
 itt_income_tidy <- results_function(itt_income_results, "ITT + income")
 #itt_filter_type_tidy <- results_function(itt_filter_type_results, "ITT + filt type")
@@ -274,7 +291,7 @@ itt_outlier_tidy <- results_function(itt_outlier_results, "ITT outlier")
 
 
 # Combine cleaned results
-itt_results_combined <- rbind(itt_tidy, itt_winter1_tidy, 
+itt_results_combined <- rbind(itt_tidy, itt_winter1_tidy, itt_noak_tidy,
                               itt_income_tidy, itt_filter_comp_tidy,
                               itt_smoke_tidy, itt_burn_level_tidy, itt_smoking_tidy,
                               itt_windows_tidy, itt_door_tidy, itt_sweep_tidy,
@@ -285,7 +302,7 @@ itt_results_combined <- rbind(itt_tidy, itt_winter1_tidy,
 # Plot results
 itt_plot_estimates <- itt_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("ITT Primary", "ITT Winter 1", 
+                        levels = c("ITT Primary", "ITT Winter 1", "ITT no AK",
                                    "ITT + income", "ITT + filt comp",
                                    "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
                                    "ITT + window act", "ITT + door act", "ITT + sweep act",
@@ -323,6 +340,7 @@ itt_plot_estimates
 
 ITT Primary = Logistic regression mixed model, as specified above  
 ITT Winter 1 = Primary model with Winter 1 data only  
+ITT no AK = Primary model without homes from AK (different placebo group)  
 ITT + income = Primary model plus categorical income variable  
 ITT + filt comp = Primary model plus variable for filter compliance  
 ITT + smoke hx = Primary model plus self-reported smoking variable  
@@ -364,33 +382,90 @@ qqline(residuals(itt_pm_results))
 ```
 
 
-```{r, eval=FALSE, include=FALSE}
+```{r, eval=FALSE, include=FALSE, fig.width=8, fig.height=5}
 # Effect modification/interaction analysis
-# Try home_floors_2level, home_sqft_2level, education_3level, child_age
-# home_year_built_2level, stove_age_3level, stove_grade_3level, chimney_clean_3level,
-# wood_collect_2level, burn_level_3level, residents_smoke
+
+int_function <- function(model_data, interaction_var) {
+  
+  new_model_data <- model_data %>% 
+    rename(int_var = interaction_var)
 
 # Run primary model and print results
-itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*residents_smoke + 
+itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*int_var + 
                               child_age + 
-                       (1 | cohort:area), data = analysis_data_winter1)
+                       (1 | cohort:area), data = new_model_data)
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
 #summary(itt_pm_results_int)
 
-int_emmeans <- emmeans(itt_pm_results_int, pairwise ~ treatment_assigned | residents_smoke)
+int_emmeans <- emmeans(itt_pm_results_int, pairwise ~ treatment_assigned | int_var)
 #summary(int_emmeans, conf.int = TRUE)
-confint(int_emmeans)
+save_results <- confint(int_emmeans)
+save_results <<- confint(int_emmeans$contrasts)
+#save_results
 
-table(model.frame(itt_results_int)$treatment_assigned)
-nobs(itt_results_int)
+plot_results <- as.data.frame(save_results$contrasts) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(lower.CL)-1)*100, digits = 2),
+         conf.high = round((exp(upper.CL)-1)*100, digits = 2)) %>% 
+  ggplot(aes(group = contrast, shape = contrast)) +
+  geom_point(aes(x=int_var, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Interaction contrasts for ITT framework, PM outcome",
+          subtitle = paste0("Interaction term = ", interaction_var)) +
+  labs(y = "% difference in PM2.5") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
 
-((exp(-.418)-1)*100)
+summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+
+plot_results 
+
+}
+
+int_function(analysis_data_winter1, "home_sqft_2level")
+
+
+# Try: home_floors_2level, home_sqft_2level, education_3level, child_age
+# home_year_built_2level, stove_age_3level, stove_grade_3level, chimney_clean_3level,
+# wood_collect_2level, wood_collect_method_2level, burn_level_3level, residents_smoke
+
+
+#table(model.frame(itt_results_int)$treatment_assigned)
+#((exp(-.418)-1)*100)
 ```
 
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results
+# Run and save model results 
+
+itt_pm_noak_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + child_age + 
+                       (1 | cohort:area), data = analysis_data_noak)
+write_rds(itt_pm_noak_results, paste0(file_path, "Output/itt_pm_noak_results.rds"))
 
 itt_pm_income_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
                                child_age + (1 | cohort:area) + 
@@ -400,6 +475,18 @@ write_rds(itt_pm_income_results, paste0(file_path, "Output/itt_pm_income_results
 
 itt_pm_filter_type_results <- glmer(log(pm_mean_sampling_period) ~ treatment_filter_type + 
                                   child_age + (1 | cohort:area), data = analysis_data_winter1)
+summary(itt_pm_filter_type_results)
+tidy_results <- tidy(itt_pm_filter_type_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_filter_type", "", term),
+         model = "Filter type") %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2)) %>% 
+  dplyr::select(model, term, estimate, conf.low, conf.high)
+tidy_results
+table(model.frame(itt_pm_filter_type_results)$treatment_filter_type)
 write_rds(itt_pm_filter_type_results, paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
  
 
@@ -461,6 +548,7 @@ write_rds(itt_pm_ambtemp_results, paste0(file_path, "Output/itt_pm_ambtemp_resul
 ```{r}
 # Load results
 itt_pm_results <- read_rds(paste0(file_path, "Output/itt_pm_results.rds"))
+itt_pm_noak_results <- read_rds(paste0(file_path, "Output/itt_pm_noak_results.rds"))
 itt_pm_income_results <- read_rds(paste0(file_path, "Output/itt_pm_income_results.rds"))
 itt_pm_filter_type_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
 itt_pm_filter_comp_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
@@ -493,6 +581,7 @@ tidy_results
 
 # Run results through function, save, combine for plotting
 itt_pm_tidy <- results_function(itt_pm_results, "ITT Primary")
+itt_pm_noak_tidy <- results_function(itt_pm_noak_results, "ITT no AK")
 itt_pm_income_tidy <- results_function(itt_pm_income_results, "ITT + income")
 itt_pm_filter_type_tidy <- results_function(itt_pm_filter_type_results, "ITT filter type")
 itt_pm_filter_comp_tidy <- results_function(itt_pm_filter_comp_results, "ITT + filt comp")
@@ -507,7 +596,7 @@ itt_pm_ambtemp_tidy <- results_function(itt_pm_ambtemp_results, "ITT + amb temp"
 
 
 # Combine cleaned results
-itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_income_tidy, itt_pm_filter_comp_tidy, 
+itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_noak_tidy, itt_pm_income_tidy, itt_pm_filter_comp_tidy, 
                               itt_pm_smoke_tidy, itt_pm_burn_level_tidy, itt_pm_smoking_tidy,
                               itt_pm_windows_tidy, itt_pm_door_tidy, itt_pm_sweep_tidy,
                               itt_pm_ambpm_tidy, itt_pm_ambtemp_tidy)
@@ -516,7 +605,7 @@ itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_income_tidy, itt_pm_filter_
 # Plot results
 itt_pm_plot_estimates <- itt_pm_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("ITT Primary", "ITT + income", "ITT + filt comp", 
+                        levels = c("ITT Primary", "ITT no AK", "ITT + income", "ITT + filt comp", 
                                    "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
                                    "ITT + window act", "ITT + door act", "ITT + sweep act",
                                    "ITT + amb PM", "ITT + amb temp"))) %>% 
@@ -551,6 +640,7 @@ itt_pm_plot_estimates
 ```
 
 ITT Primary = Linear mixed model, as specified above  
+ITT no AK = Primary model without homes from AK (different placebo group)  
 ITT + income = Primary model plus categorical income variable  
 ITT + filt comp = Primary model plus variable for filter compliance  
 ITT + smoke hx = Primary model plus self-reported smoking variable  
@@ -876,6 +966,42 @@ nobs(itt_results_int)
 
 
 # backtransform model results for log(pm) models
-((exp(-.418)-1)*100)
+((exp(-.374)-1)*100)
+```
+
+
+
+```{rr, eval=FALSE, include=FALSE}
+# ER framework using a Spline for PM
+
+
+# s() is the command for a spline
+# fx=TRUE makes a fixed df regression spline, as opposed to a penalized spline
+# bs = "cr" makes this a cubic regression spline
+## Default is "tp" for thin plate regression spline
+## Both seem to have the same effect on the model
+# k = 6 sets the degrees of freedom (df = k-1)
+
+library(splines)
+library(gamm4)
+
+model_pm_spline <- gamm4(lrti_events_di_winter ~ s(pm_mean_sampling_period_iqr, 
+                          fx = TRUE, bs = "tp", k = 6) + 
+                          child_age +  education_3level + residents_smoke +
+                          person_time_at_risk_winter, 
+                          data = analysis_data_winter1, family = binomial(link = "logit"), 
+                          random = ~(1 | home:cohort:area))
+plot(model_pm_spline$gam, seWithMean = TRUE, select = 1, shade = TRUE,
+     xlab = expression(paste("IQR increase in area PM"[2.5], 
+                             " (", mu, g/m^3, ")")),
+     ylab = expression(paste("OR, spline trend for area PM  "[2.5])))
+summary(model_pm_spline$gam)
+summary(model_pm_spline$mer)
+
+# Not sure how to add the offset in
+er_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
+                          education_3level + residents_smoke + 
+                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
+                          data = analysis_data_winter1)
 ```
 
