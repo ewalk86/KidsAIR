@@ -806,3 +806,110 @@ grid.table(kw_perc_exp_summary)
 dev.off()  
 ```
 
+
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_kw_clean <- 
+  read_rds(paste0(file_path, "Output/kids_kw_clean.rds"))
+
+filter_units <- 
+  read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
+  select(home_winter_id, area, filter_type)
+
+wmt_sampling_dates <- read_csv(paste0(file_path, "Input/WMT/homewinter.csv"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, interventiondate, 
+         samplingdate, pickupdate) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         intervention_date = ymd(interventiondate),
+         sampling_date = ymd(samplingdate),
+         pickup_date = ymd(pickupdate),
+         area = "WMT") %>% 
+  select(home_winter_id, intervention_date, 
+         sampling_date, pickup_date, area)
+
+nn_sampling_dates <- read_csv(paste0(file_path, "Input/NN/homewinter.csv"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, interventiondate, 
+         samplingdate, pickupdate) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         intervention_date = mdy(interventiondate),
+         sampling_date = mdy(samplingdate),
+         pickup_date = mdy(pickupdate),
+         area = "NN") %>% 
+  select(home_winter_id, intervention_date, 
+         sampling_date, pickup_date, area)
+
+ak_sampling_dates <- read_csv(paste0(file_path, "Input/AK/homewinter.csv"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, interventiondate, 
+         samplingdate, pickupdate) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         intervention_date = mdy(interventiondate),
+         sampling_date = mdy(samplingdate),
+         pickup_date = mdy(pickupdate),
+         area = "AK") %>% 
+  select(home_winter_id, intervention_date, 
+         sampling_date, pickup_date, area)
+
+kids_sampling_dates <- rbind(wmt_sampling_dates, nn_sampling_dates, ak_sampling_dates)
+
+
+
+kids_kw_filtered <- kids_kw_clean %>% 
+  left_join(kids_sampling_dates, by = c("area", "home_winter_id")) %>% 
+  mutate(date_diff = as.duration(interval(intervention_date, kw_date)),
+         date_diff = as.numeric(date_diff)/86400) %>% 
+  left_join(filter_units, by = c("area", "home_winter_id")) %>% 
+  distinct(area, home_winter_id, .keep_all = TRUE) %>% 
+  mutate(multiplier = if_else(filter_type == "Honeywell" & treatment_assigned == "Placebo",
+                              2.04, 0),
+         multiplier = if_else(filter_type == "Honeywell" & treatment_assigned == "Filter",
+                              4.224, multiplier),
+         multiplier = if_else(filter_type == "Small Filtrete" & treatment_assigned == "Placebo",
+                              0.888, multiplier),
+         multiplier = if_else(filter_type == "Small Filtrete" & treatment_assigned == "Filter",
+                              1.896, multiplier),
+         multiplier = if_else(filter_type == "Large Filtrete" & treatment_assigned == "Placebo",
+                              1.896, multiplier),
+         multiplier = if_else(filter_type == "Large Filtrete" & treatment_assigned == "Filter",
+                              3.48, multiplier),
+         multiplier = if_else(filter_type == "Winix" & treatment_assigned == "Placebo",
+                              0.0144, multiplier),
+         multiplier = if_else(filter_type == "Winix" & treatment_assigned == "Filter",
+                              0.48, multiplier)) %>% 
+  mutate(kw_expected = date_diff*multiplier,
+         kw_perc_exp = kw_hours/kw_expected*100)
+
+
+pm_data <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
+  arrange(area, home, pm_mean_sampling_period) %>% 
+  distinct(area, home, .keep_all = TRUE) %>% 
+  select(area, home, pm_mean_sampling_period)
+
+kw_perc_exp_summary <- kids_kw_filtered %>% 
+  left_join(pm_data, by = c("area", "home")) %>% 
+  filter(!is.na(kw_perc_exp)) %>% 
+  filter(kw_perc_exp < 30000) %>% 
+  #filter(area == "WMT") %>% 
+  group_by(filter_type, treatment_assigned) %>% 
+  summarize("Mean KW % Exp" = mean(kw_perc_exp, na.rm = TRUE),
+            "SD KW % Exp" = sd(kw_perc_exp, na.rm = TRUE),
+            "N KW % Exp" = n(),
+            "Min KW % Exp" = min(kw_perc_exp, na.rm = TRUE),
+            "Med KW % Exp" = median(kw_perc_exp, na.rm = TRUE),
+            "Max KW % Exp" = max(kw_perc_exp, na.rm = TRUE),
+            "Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Med PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+kw_perc_exp_summary
+
+png("Kids_KW_perc_exp_new.png", width=1200, height=480, bg = "white")
+grid.table(kw_perc_exp_summary)
+dev.off()  
+```
+
+
