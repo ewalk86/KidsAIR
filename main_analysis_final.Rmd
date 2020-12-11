@@ -421,7 +421,7 @@ int_function <- function(model_data, interaction_var) {
     rename(int_var = interaction_var)
 
 # Run primary model and print results
-itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*int_var + 
+itt_pm_results_int <<- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*int_var + 
                               child_age + 
                        (1 | cohort:area), data = new_model_data)
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
@@ -429,8 +429,10 @@ itt_pm_results_int <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*in
 
 int_emmeans <- emmeans(itt_pm_results_int, pairwise ~ treatment_assigned | int_var)
 #summary(int_emmeans, conf.int = TRUE)
-save_results <- confint(int_emmeans)
-save_results <<- confint(int_emmeans$contrasts)
+save_contrasts_full <<- summary(int_emmeans)
+save_contrasts <<- confint(int_emmeans$contrasts)
+obs <<- table(model.frame(itt_pm_results_int)$treatment_assigned)
+n_table <<- table(new_model_data$int_var, new_model_data$treatment_assigned)
 #save_results
 
 plot_results <- as.data.frame(save_results$contrasts) %>% 
@@ -477,6 +479,10 @@ plot_results
 }
 
 int_function(analysis_data_winter1, "home_sqft_2level")
+n_table
+save_contrasts
+summary_table
+save_contrasts_full
 
 
 # Try: home_floors_2level, home_sqft_2level, education_3level, child_age
