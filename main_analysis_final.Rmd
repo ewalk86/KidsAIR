@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 9 Dec 2020"
+date: "Updated 11 Dec 2020"
 output: pdf_document
 ---
 
@@ -100,26 +100,82 @@ plot(itt_res, rank = FALSE, quantreg = TRUE)
 ```
 
 
-```{r, eval=FALSE, include=FALSE}
+```{r, eval=FALSE, include=FALSE, fig.width=8, fig.height=5}
 # Effect modification/interaction analysis
-# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
+
+int_function <- function(model_data, interaction_var) {
+  
+  new_model_data <- model_data %>% 
+    rename(int_var = interaction_var)
 
 # Run primary model and print results
-itt_results_int <- glmer(lrti_events_di_total ~ treatment_assigned*residents_smoke + 
-                     child_age + 
-                     person_time_at_risk + (1 | home:cohort:area),
-                     data = analysis_data, family = binomial, nAGQ = 20)
-#write_rds(itt_results_int, paste0(file_path, "Output/itt_results_int_age.rds"))
-summary(itt_results_int)
+itt_results_int <<- glmer(lrti_events_di_total ~ treatment_assigned*int_var + 
+                          child_age + 
+                          person_time_at_risk + (1 | home:cohort:area),
+                          data = new_model_data, family = binomial, nAGQ = 20)
+#write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+#summary(itt_pm_results_int)
 
-int_emmeans <- emmeans(itt_results_int, pairwise ~ treatment_assigned | residents_smoke)
-summary(int_emmeans, conf.int = TRUE)
-confint(int_emmeans)
+int_emmeans <- emmeans(itt_results_int, revpairwise ~ treatment_assigned | int_var)
+#summary(int_emmeans, conf.int = TRUE)
+save_contrasts_full <<- summary(int_emmeans)
+save_contrasts <<- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         conf.low = round(asymp.LCL, digits = 2),
+         conf.high = round(asymp.UCL, digits = 2)) %>% 
+  dplyr::select(contrast, int_var, estimate, conf.low, conf.high)
+obs <<- table(model.frame(itt_results_int)$treatment_assigned)
+n_table <<- table(new_model_data$int_var, new_model_data$treatment_assigned)
+#save_results
 
-table(model.frame(itt_results_int)$treatment_assigned)
-nobs(itt_results_int)
+plot_results <- save_contrasts %>% 
+  ggplot(aes(group = contrast, shape = contrast)) +
+  geom_point(aes(x=int_var, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Interaction contrasts for ITT framework, LRTI outcome",
+          subtitle = paste0("Interaction term = ", interaction_var)) +
+  labs(y = "Odds of LRTI vs placebo") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+
+pm_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+
+plot_results 
+
+}
+
+int_function(analysis_data, "residents_smoke")
+n_table
+save_contrasts
+pm_summary_table
+save_contrasts_full
+
+# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
 ```
-
 
 
 ```{r, eval=FALSE, include=FALSE}
@@ -391,7 +447,7 @@ in the home, sqft of the home, or residents smoking.
 
 ```{r, echo=TRUE}
 # Run primary model and print results
-itt_pm_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
+itt_pm_results <- lmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
                        (1 | cohort:area), data = analysis_data_winter1)
 #write_rds(itt_pm_results, paste0(file_path, "Output/itt_pm_results.rds"))
 # Adding the randomization variable for child_age leads to the exact same model results
@@ -421,24 +477,25 @@ int_function <- function(model_data, interaction_var) {
     rename(int_var = interaction_var)
 
 # Run primary model and print results
-itt_pm_results_int <<- glmer(log(pm_mean_sampling_period) ~ treatment_assigned*int_var + 
+itt_pm_results_int <<- lmer(log(pm_mean_sampling_period) ~ treatment_assigned*int_var + 
                               child_age + 
                        (1 | cohort:area), data = new_model_data)
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
 #summary(itt_pm_results_int)
 
-int_emmeans <- emmeans(itt_pm_results_int, pairwise ~ treatment_assigned | int_var)
+int_emmeans <- emmeans(itt_pm_results_int, revpairwise ~ treatment_assigned | int_var)
 #summary(int_emmeans, conf.int = TRUE)
 save_contrasts_full <<- summary(int_emmeans)
-save_contrasts <<- confint(int_emmeans$contrasts)
+save_contrasts <<- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(lower.CL)-1)*100, digits = 2),
+         conf.high = round((exp(upper.CL)-1)*100, digits = 2)) %>% 
+  dplyr::select(contrast, int_var, estimate, conf.low, conf.high)
 obs <<- table(model.frame(itt_pm_results_int)$treatment_assigned)
 n_table <<- table(new_model_data$int_var, new_model_data$treatment_assigned)
 #save_results
 
-plot_results <- as.data.frame(save_results$contrasts) %>% 
-  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
-         conf.low = round((exp(lower.CL)-1)*100, digits = 2),
-         conf.high = round((exp(upper.CL)-1)*100, digits = 2)) %>% 
+plot_results <- save_contrasts %>% 
   ggplot(aes(group = contrast, shape = contrast)) +
   geom_point(aes(x=int_var, y=estimate), 
              position = position_dodge(width = 0.5), size = 4) +
@@ -464,7 +521,7 @@ plot_results <- as.data.frame(save_results$contrasts) %>%
           legend.position = "top",
           legend.text = element_text(size = 14, colour = "black")) 
 
-summary_table <<- new_model_data %>% 
+pm_summary_table <<- new_model_data %>% 
   filter(!is.na(int_var)) %>% 
   group_by(int_var, treatment_assigned) %>% 
   summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
@@ -478,10 +535,10 @@ plot_results
 
 }
 
-int_function(analysis_data_winter1, "home_sqft_2level")
+int_function(analysis_data_winter1, "burn_level_3level")
 n_table
 save_contrasts
-summary_table
+pm_summary_table
 save_contrasts_full
 
 
@@ -729,23 +786,96 @@ plot(er_res, rank = TRUE, quantreg = TRUE)
 # Try education_3level, child_age, chimney_clean_3level, wood_collect_2level, residents_smoke
 
 # Run primary model and print results
-er_results_int <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*chimney_clean_3level + 
-                          child_age + 
+er_results_int <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*child_age + 
+                          #child_age + 
                           education_3level + 
                           residents_smoke + 
                           person_time_at_risk_winter +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
+                          data = analysis_data_winter1, family = binomial, nAGQ = 20)
 #write_rds(er_results_int, paste0(file_path, "Output/er_results_int_age.rds"))
 #summary(er_results_int)
 
-int_emtrends <- emtrends(er_results_int, pairwise ~ chimney_clean_3level, var = "pm_mean_sampling_period_iqr")
+int_emtrends <- emtrends(er_results_int, pairwise ~ child_age, var = "pm_mean_sampling_period_iqr")
 summary(int_emtrends, conf.int = TRUE)
 
-table(model.frame(itt_results_int)$treatment_assigned)
 nobs(itt_results_int)
 ```
 
+
+```{r, eval=FALSE, include=FALSE, fig.width=8, fig.height=5}
+# Effect modification/interaction analysis
+
+int_function <- function(model_data, interaction_var) {
+  
+  new_model_data <- model_data %>% 
+    rename(int_var = interaction_var)
+
+# Run primary model and print results
+er_results_int <<- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*int_var + 
+                          #child_age + 
+                          education_3level + 
+                          residents_smoke + 
+                          person_time_at_risk_winter +
+                          (1 | home:cohort:area), 
+                          data = new_model_data, family = binomial, nAGQ = 20)
+#write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+#summary(itt_pm_results_int)
+
+int_emtrends <- emtrends(er_results_int, pairwise ~ int_var, var = "pm_mean_sampling_period_iqr")
+
+save_contrasts <<- confint(int_emtrends$emtrends) %>% 
+  mutate(estimate = round(pm_mean_sampling_period_iqr.trend, digits = 2),
+         conf.low = round(asymp.LCL, digits = 2),
+         conf.high = round(asymp.UCL, digits = 2)) %>% 
+  dplyr::select(int_var, estimate, conf.low, conf.high)
+
+plot_results <- save_contrasts %>% 
+  ggplot() +
+  geom_point(aes(x=int_var, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Interaction contrasts for ER framework, LRTI outcome",
+          subtitle = paste0("Interaction term = ", interaction_var)) +
+  labs(y = "Odds of LRTI IQR increase in PM2.5") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+
+pm_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var) %>% 
+  summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+
+plot_results 
+
+}
+
+int_function(analysis_data_winter1, "child_age")
+save_contrasts
+pm_summary_table
+
+# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
+```
 
 
 ```{r, eval=FALSE, include=FALSE}
