@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 11 Dec 2020"
+date: "Updated 14 Dec 2020"
 output: pdf_document
 ---
 
@@ -55,14 +55,16 @@ analysis_data_outliers <- analysis_data %>%
 analysis_data_winter1 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
-         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) %>% 
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         lrti_events_di_winter = as.factor(lrti_events_di_winter)) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 1)
 
 analysis_data_winter2 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
-         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25) %>% 
+         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         lrti_events_di_winter = as.factor(lrti_events_di_winter)) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 2)
 
@@ -83,7 +85,8 @@ analysis_data_noak <- read_rds(paste0(file_path,
 itt_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
                      child_age + person_time_at_risk +
                      (1 | home:cohort:area),
-                     data = analysis_data, family = binomial, nAGQ = 10)
+                     data = analysis_data, family = binomial, nAGQ = 10,
+                     control = glmerControl(optimizer = "bobyqa"))
 #write_rds(itt_results, paste0(file_path, "Output/itt_results.rds"))
 
 #table(model.frame(itt_results)$treatment_assigned)
@@ -94,6 +97,7 @@ itt_results <- glmer(lrti_events_di_total ~ treatment_assigned +
 ## Model summary and diagnostic plots
 ```{r}
 summary(itt_results)
+#tidy(itt_results, conf.int = T)
 itt_res <- simulateResiduals(itt_results)
 testDispersion(itt_res, alternative = "two.sided")
 plot(itt_res, rank = FALSE, quantreg = TRUE)
@@ -111,8 +115,9 @@ int_function <- function(model_data, interaction_var) {
 # Run primary model and print results
 itt_results_int <<- glmer(lrti_events_di_total ~ treatment_assigned*int_var + 
                           child_age + 
-                          person_time_at_risk + (1 | home:cohort:area),
-                          data = new_model_data, family = binomial, nAGQ = 20)
+                          person_time_at_risk + (1 | cohort:area),
+                          data = new_model_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
 #summary(itt_pm_results_int)
 
@@ -120,9 +125,9 @@ int_emmeans <- emmeans(itt_results_int, revpairwise ~ treatment_assigned | int_v
 #summary(int_emmeans, conf.int = TRUE)
 save_contrasts_full <<- summary(int_emmeans)
 save_contrasts <<- confint(int_emmeans$contrasts) %>% 
-  mutate(estimate = round(estimate, digits = 2),
-         conf.low = round(asymp.LCL, digits = 2),
-         conf.high = round(asymp.UCL, digits = 2)) %>% 
+  mutate(estimate = round((exp(estimate)), digits = 2),
+         conf.low = round((exp(asymp.LCL)), digits = 2),
+         conf.high = round((exp(asymp.UCL)), digits = 2)) %>% 
   dplyr::select(contrast, int_var, estimate, conf.low, conf.high)
 obs <<- table(model.frame(itt_results_int)$treatment_assigned)
 n_table <<- table(new_model_data$int_var, new_model_data$treatment_assigned)
@@ -134,7 +139,7 @@ plot_results <- save_contrasts %>%
              position = position_dodge(width = 0.5), size = 4) +
   geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
              position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
-  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = 1) +
   theme_bw() +  
   ggtitle(label = "Interaction contrasts for ITT framework, LRTI outcome",
           subtitle = paste0("Interaction term = ", interaction_var)) +
@@ -179,7 +184,7 @@ save_contrasts_full
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results 
+# Run and save model results
 
 itt_winter1_results <- glmer(lrti_events_di_winter ~ treatment_assigned + 
                      child_age + person_time_at_risk_winter +
@@ -207,9 +212,9 @@ tidy_results <- tidy(itt_filter_type_results, conf.int = TRUE) %>%
   filter(group_filter == 1) %>% 
   mutate(term = gsub("treatment_filter_type", "", term),
          model = "Filter type") %>% 
-  mutate(estimate = round(estimate, digits = 2),
-         conf.low = round(conf.low, digits = 2),
-         conf.high = round(conf.high, digits = 2)) %>% 
+  mutate(estimate = round(exp(estimate), digits = 2),
+         conf.low = round(exp(conf.low), digits = 2),
+         conf.high = round(exp(conf.high), digits = 2)) %>% 
   dplyr::select(model, term, estimate, conf.low, conf.high)
 tidy_results
 
@@ -346,6 +351,9 @@ tidy_results <- tidy(model_results, conf.int = TRUE) %>%
   filter(group_filter == 1) %>% 
   mutate(term = gsub("treatment_assigned", "", term),
          model = model_name) %>% 
+  mutate(estimate = round((exp(estimate)), digits = 2),
+         conf.low = round((exp(conf.low)), digits = 2),
+         conf.high = round((exp(conf.high)), digits = 2)) %>% 
   dplyr::select(model, term, estimate, p.value, conf.low, conf.high)
 tidy_results
 
@@ -395,8 +403,8 @@ itt_plot_estimates <- itt_results_combined %>%
              position = position_dodge(width = 0.5), size = 4) +
   geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
              position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
-  geom_hline(yintercept = 0) +
   theme_bw() +  
+  geom_hline(yintercept =  1) +
   ggtitle(label = "Results for ITT framework, LRTI outcome") +
   labs(y = "Odds of LRTI compared to placebo") +
   labs(x = "", group = "", shape = "") +
@@ -765,7 +773,8 @@ There were minimal differences in associations across groups for other variables
 er_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
                           education_3level + residents_smoke + person_time_at_risk_winter +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
+                          data = analysis_data_winter1, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
 #write_rds(er_results, paste0(file_path, "Output/er_results.rds"))
 
 #nobs(er_results)
@@ -781,28 +790,6 @@ plot(er_res, rank = TRUE, quantreg = TRUE)
 ```
 
 
-```{r, eval=FALSE, include=FALSE}
-# Effect modification/interaction analysis
-# Try education_3level, child_age, chimney_clean_3level, wood_collect_2level, residents_smoke
-
-# Run primary model and print results
-er_results_int <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*child_age + 
-                          #child_age + 
-                          education_3level + 
-                          residents_smoke + 
-                          person_time_at_risk_winter +
-                          (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 20)
-#write_rds(er_results_int, paste0(file_path, "Output/er_results_int_age.rds"))
-#summary(er_results_int)
-
-int_emtrends <- emtrends(er_results_int, pairwise ~ child_age, var = "pm_mean_sampling_period_iqr")
-summary(int_emtrends, conf.int = TRUE)
-
-nobs(itt_results_int)
-```
-
-
 ```{r, eval=FALSE, include=FALSE, fig.width=8, fig.height=5}
 # Effect modification/interaction analysis
 
@@ -813,21 +800,22 @@ int_function <- function(model_data, interaction_var) {
 
 # Run primary model and print results
 er_results_int <<- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*int_var + 
-                          #child_age + 
+                          child_age + 
                           education_3level + 
                           residents_smoke + 
                           person_time_at_risk_winter +
-                          (1 | home:cohort:area), 
-                          data = new_model_data, family = binomial, nAGQ = 20)
+                          (1 | cohort:area), 
+                          data = new_model_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
 #summary(itt_pm_results_int)
 
 int_emtrends <- emtrends(er_results_int, pairwise ~ int_var, var = "pm_mean_sampling_period_iqr")
 
 save_contrasts <<- confint(int_emtrends$emtrends) %>% 
-  mutate(estimate = round(pm_mean_sampling_period_iqr.trend, digits = 2),
-         conf.low = round(asymp.LCL, digits = 2),
-         conf.high = round(asymp.UCL, digits = 2)) %>% 
+  mutate(estimate = round(exp(pm_mean_sampling_period_iqr.trend), digits = 2),
+         conf.low = round(exp(asymp.LCL), digits = 2),
+         conf.high = round(exp(asymp.UCL), digits = 2)) %>% 
   dplyr::select(int_var, estimate, conf.low, conf.high)
 
 plot_results <- save_contrasts %>% 
@@ -836,7 +824,7 @@ plot_results <- save_contrasts %>%
              position = position_dodge(width = 0.5), size = 4) +
   geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
              position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
-  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = 1) +
   theme_bw() +  
   ggtitle(label = "Interaction contrasts for ER framework, LRTI outcome",
           subtitle = paste0("Interaction term = ", interaction_var)) +
@@ -870,7 +858,7 @@ plot_results
 
 }
 
-int_function(analysis_data_winter1, "child_age")
+int_function(analysis_data_winter1, "gender")
 save_contrasts
 pm_summary_table
 
@@ -976,6 +964,9 @@ tidy_results <- tidy(model_results, conf.int = TRUE) %>%
   filter(group_filter == 1) %>% 
   mutate(term = "PM2.5",
          model = model_name) %>% 
+  mutate(estimate = round((exp(estimate)), digits = 2),
+         conf.low = round((exp(conf.low)), digits = 2),
+         conf.high = round((exp(conf.high)), digits = 2)) %>% 
   dplyr::select(model, term, estimate, conf.low, conf.high)
 tidy_results
 
@@ -1012,7 +1003,7 @@ er_plot_estimates <- er_results_combined %>%
              position = position_dodge(width = 0.5), size = 4) +
   geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
              position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
-  geom_hline(yintercept = 0) +
+  geom_hline(yintercept = 1) +
   theme_bw() +  
   ggtitle(label = "Results for ER framework, LRTI outcome") +
   labs(y = "LRTI events per IQR \n increase in PM2.5") +
@@ -1126,6 +1117,20 @@ nobs(itt_results_int)
 
 # backtransform model results for log(pm) models
 ((exp(-.374)-1)*100)
+
+
+# Check PM concentrations for subgroups
+pm_summary_table <- analysis_data_winter1 %>% 
+  filter(!is.na(lrti_events_di_winter) & !is.na(pm_mean_sampling_period) &
+           !is.na(child_age) & !is.na(education_3level) & !is.na(residents_smoke)) %>% 
+  #group_by(treatment_assigned) %>% 
+  summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+pm_summary_table
 ```
 
 
