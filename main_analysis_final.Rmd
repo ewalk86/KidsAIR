@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 14 Dec 2020"
+date: "Updated 16 Dec 2020"
 output: pdf_document
 ---
 
@@ -40,7 +40,8 @@ analysis_data <- read_rds(paste0(file_path,
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
          pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
          lrti_events_di_total = as.factor(lrti_events_di_total),
-         person_time_at_risk_iqr = person_time_at_risk/20) 
+         person_time_at_risk_iqr = person_time_at_risk/20,
+         child_age = factor(child_age, levels = c("< 1", "1+"))) 
   #filter(gender == "Female")
   #filter(home_sqft_2level == "1500+")
 
@@ -50,13 +51,15 @@ analysis_data_outliers <- analysis_data %>%
   mutate(log_person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 2.33, log_person_time_at_risk)) %>% 
   mutate(person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 72, person_time_at_risk),
          lrti_events_total = as.factor(lrti_events_total),
-         lrti_events_di_total = as.factor(lrti_events_di_total)) 
+         lrti_events_di_total = as.factor(lrti_events_di_total),
+         child_age = factor(child_age, levels = c("< 1", "1+"))) 
   
 analysis_data_winter1 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
          pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
-         lrti_events_di_winter = as.factor(lrti_events_di_winter)) %>% 
+         lrti_events_di_winter = as.factor(lrti_events_di_winter),
+         child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 1)
 
@@ -64,7 +67,8 @@ analysis_data_winter2 <- read_rds(paste0(file_path,
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
          pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
-         lrti_events_di_winter = as.factor(lrti_events_di_winter)) %>% 
+         lrti_events_di_winter = as.factor(lrti_events_di_winter),
+         child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 2)
 
@@ -73,7 +77,8 @@ analysis_data_noak <- read_rds(paste0(file_path,
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
          pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
          lrti_events_di_total = as.factor(lrti_events_di_total),
-         person_time_at_risk_iqr = person_time_at_risk/20) %>% 
+         person_time_at_risk_iqr = person_time_at_risk/20,
+         child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
   filter(area != "AK")
 ```
 
@@ -118,8 +123,8 @@ itt_results_int <<- glmer(lrti_events_di_total ~ treatment_assigned*int_var +
                           person_time_at_risk + (1 | cohort:area),
                           data = new_model_data, family = binomial, nAGQ = 10,
                           control = glmerControl(optimizer = "bobyqa"))
-#write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
-#summary(itt_pm_results_int)
+#write_rds(itt_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+save_summary <<- summary(itt_results_int)
 
 int_emmeans <- emmeans(itt_results_int, revpairwise ~ treatment_assigned | int_var)
 #summary(int_emmeans, conf.int = TRUE)
@@ -169,6 +174,14 @@ pm_summary_table <<- new_model_data %>%
             "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
             "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
 
+lrti_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  mutate(lrti_events_num = as.numeric(lrti_events_di_total),
+         lrti_events_num = lrti_events_num - 1) %>%  
+  summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
+            "Group %" = `Total LRTI`/n()*100)
+
 plot_results 
 
 }
@@ -177,6 +190,8 @@ int_function(analysis_data, "residents_smoke")
 n_table
 save_contrasts
 pm_summary_table
+lrti_summary_table
+save_summary
 save_contrasts_full
 
 # Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
@@ -207,7 +222,7 @@ itt_filter_type_results <- glmer(lrti_events_di_total ~ treatment_filter_type +
 
 summary(itt_filter_type_results)
 
-tidy_results <- tidy(itt_filter_type_results, conf.int = TRUE) %>% 
+tidy_results <- tidy(itt_winter1_results, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
   filter(group_filter == 1) %>% 
   mutate(term = gsub("treatment_filter_type", "", term),
@@ -218,7 +233,7 @@ tidy_results <- tidy(itt_filter_type_results, conf.int = TRUE) %>%
   dplyr::select(model, term, estimate, conf.low, conf.high)
 tidy_results
 
-table(model.frame(itt_filter_type_results)$treatment_filter_type)
+table(model.frame(itt_winter1_results)$treatment_assigned)
 
 analysis_check <- analysis_data %>% 
   mutate(pm_na = if_else(!is.na(pm_mean_sampling_period), "PM Yes", "PM Missing"))
@@ -315,10 +330,10 @@ write_rds(itt_home_results, paste0(file_path, "Output/itt_home_results.rds"))
 
 
 itt_outlier_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
-                     child_age + person_time_at_risk + 
+                     child_age + person_time_at_risk +  
                      (1 | home:cohort:area),
                      data = analysis_data_outliers, family = binomial, nAGQ = 10)
-write_rds(itt_outlier_results, paste0(file_path, "Output/itt_outlier_results.rds"))
+write_rds(itt_outlier_results, paste0(file_path, "Output/itt_outlier_results.rds")) 
 ```
 
 
@@ -489,7 +504,7 @@ itt_pm_results_int <<- lmer(log(pm_mean_sampling_period) ~ treatment_assigned*in
                               child_age + 
                        (1 | cohort:area), data = new_model_data)
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
-#summary(itt_pm_results_int)
+save_summary <<- summary(itt_pm_results_int)
 
 int_emmeans <- emmeans(itt_pm_results_int, revpairwise ~ treatment_assigned | int_var)
 #summary(int_emmeans, conf.int = TRUE)
@@ -539,6 +554,14 @@ pm_summary_table <<- new_model_data %>%
             "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
             "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
 
+lrti_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  mutate(lrti_events_num = as.numeric(lrti_events_di_winter),
+         lrti_events_num = lrti_events_num - 1) %>%  
+  summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
+            "Group %" = `Total LRTI`/n()*100)
+
 plot_results 
 
 }
@@ -547,6 +570,8 @@ int_function(analysis_data_winter1, "burn_level_3level")
 n_table
 save_contrasts
 pm_summary_table
+lrti_summary_table
+save_summary
 save_contrasts_full
 
 
@@ -802,13 +827,13 @@ int_function <- function(model_data, interaction_var) {
 er_results_int <<- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*int_var + 
                           child_age + 
                           education_3level + 
-                          residents_smoke + 
+                          #residents_smoke + 
                           person_time_at_risk_winter +
                           (1 | cohort:area), 
                           data = new_model_data, family = binomial, nAGQ = 10,
                           control = glmerControl(optimizer = "bobyqa"))
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
-#summary(itt_pm_results_int)
+save_summary <<- summary(er_results_int)
 
 int_emtrends <- emtrends(er_results_int, pairwise ~ int_var, var = "pm_mean_sampling_period_iqr")
 
@@ -854,13 +879,25 @@ pm_summary_table <<- new_model_data %>%
             "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
             "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
 
+
+lrti_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var) %>% 
+  mutate(lrti_events_num = as.numeric(lrti_events_di_winter),
+         lrti_events_num = lrti_events_num - 1) %>%  
+  summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
+            "Group %" = `Total LRTI`/n()*100)
+
+
 plot_results 
 
 }
 
-int_function(analysis_data_winter1, "gender")
+int_function(analysis_data_winter1, "residents_smoke")
 save_contrasts
 pm_summary_table
+lrti_summary_table
+save_summary
 
 # Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
 ```
@@ -1131,12 +1168,53 @@ pm_summary_table <- analysis_data_winter1 %>%
             "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
             "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
 pm_summary_table
+
+
+pm_summary_table <- analysis_data_winter1 %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
+  group_by(treatment_filter_type) %>% 
+  summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+pm_summary_table
+
+
+lrti_summary_table <- analysis_data_winter1 %>% 
+  filter(!is.na(lrti_events_di_winter) & !is.na(pm_mean_sampling_period) &
+           !is.na(child_age) & !is.na(education_3level) & !is.na(residents_smoke)) %>% 
+  #group_by(treatment_assigned) %>% 
+  mutate(lrti_events_num = as.numeric(lrti_events_di_winter),
+         lrti_events_num = lrti_events_num - 1) %>%  
+  summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
+            "Group %" = `Total LRTI`/n()*100)
+lrti_summary_table
+
+
+lrti_summary_table <- analysis_data_winter1 %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
+  mutate(lrti_events_num = as.numeric(lrti_events_di_winter),
+         lrti_events_num = lrti_events_num - 1) %>% 
+  group_by(treatment_filter_type) %>% 
+  summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
+            "Group %" = `Total LRTI`/n()*100)
+lrti_summary_table
 ```
 
 
 
-```{rr, eval=FALSE, include=FALSE}
+```{r, eval=FALSE, include=FALSE}
 # ER framework using a Spline for PM
+
+spline_data <- analysis_data_winter1 %>% 
+  filter(pm_mean_sampling_period < 200) %>% 
+  mutate(pm_cat = cut(pm_mean_sampling_period,
+                      breaks = c(0, 10, 20, 35, 300),
+                      labels = c("0 to 10", "10 to 20",
+                                 "20 to 35", "35+")))
+  
 
 
 # s() is the command for a spline
@@ -1149,23 +1227,28 @@ pm_summary_table
 library(splines)
 library(gamm4)
 
-model_pm_spline <- gamm4(lrti_events_di_winter ~ s(pm_mean_sampling_period_iqr, 
-                          fx = TRUE, bs = "tp", k = 6) + 
+model_pm_spline <- gamm4(lrti_events_di_winter ~ s(pm_mean_sampling_period, 
+                          fx = TRUE, bs = "tp", k = 5) + 
                           child_age +  education_3level + residents_smoke +
                           person_time_at_risk_winter, 
-                          data = analysis_data_winter1, family = binomial(link = "logit"), 
-                          random = ~(1 | home:cohort:area))
+                          data = spline_data, family = binomial(link = "logit"), 
+                          random = ~(1 | cohort:area))
 plot(model_pm_spline$gam, seWithMean = TRUE, select = 1, shade = TRUE,
-     xlab = expression(paste("IQR increase in area PM"[2.5], 
+     xlab = expression(paste("Area PM"[2.5], 
                              " (", mu, g/m^3, ")")),
      ylab = expression(paste("OR, spline trend for area PM  "[2.5])))
 summary(model_pm_spline$gam)
 summary(model_pm_spline$mer)
 
-# Not sure how to add the offset in
-er_results <- glmer.nb(lrti_events_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          education_3level + residents_smoke + 
-                          (1 | home:cohort:area) + offset(log_person_time_at_risk_winter), 
-                          data = analysis_data_winter1)
+
+
+# Try using PM grouped by quartiles
+
+er_results <- glmer(lrti_events_di_winter ~ pm_cat + child_age + 
+                          education_3level + residents_smoke + person_time_at_risk_winter +
+                          (1 | cohort:area), 
+                          data = spline_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
+summary(er_results)
 ```
 
