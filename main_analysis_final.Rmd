@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 16 Dec 2020"
+date: "Updated 23 Dec 2020"
 output: pdf_document
 ---
 
@@ -42,6 +42,7 @@ analysis_data <- read_rds(paste0(file_path,
          lrti_events_di_total = as.factor(lrti_events_di_total),
          person_time_at_risk_iqr = person_time_at_risk/20,
          child_age = factor(child_age, levels = c("< 1", "1+"))) 
+  #filter(area == "WMT")
   #filter(gender == "Female")
   #filter(home_sqft_2level == "1500+")
 
@@ -61,6 +62,7 @@ analysis_data_winter1 <- read_rds(paste0(file_path,
          lrti_events_di_winter = as.factor(lrti_events_di_winter),
          child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
+  #filter(area == "WMT") %>% 
   filter(winter_id == 1)
 
 analysis_data_winter2 <- read_rds(paste0(file_path, 
@@ -259,10 +261,11 @@ itt_income_results <- glmer(lrti_events_di_total ~ treatment_assigned +
 write_rds(itt_income_results, paste0(file_path, "Output/itt_income_results.rds"))
 
 
-itt_filter_comp_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
-                     child_age + person_time_at_risk + kw_perc_exp_cat2 + 
+itt_filter_comp_results <- glmer(lrti_events_di_total ~ filter_compliance + 
+                     child_age + person_time_at_risk + 
                      (1 | home:cohort:area),
                      data = analysis_data, family = binomial, nAGQ = 10)
+summary(itt_filter_comp_results)
 write_rds(itt_filter_comp_results, paste0(file_path, "Output/itt_filter_comp_results.rds"))
 
 
@@ -587,7 +590,7 @@ save_contrasts_full
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results
+# Run and save model results 
 
 itt_pm_noak_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + child_age + 
                        (1 | cohort:area), data = analysis_data_noak)
@@ -616,9 +619,9 @@ table(model.frame(itt_pm_filter_type_results)$treatment_filter_type)
 write_rds(itt_pm_filter_type_results, paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
  
 
-itt_pm_filter_comp_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
-                                  child_age + (1 | cohort:area) + 
-                                  kw_perc_exp_cat2, data = analysis_data_winter1)
+itt_pm_filter_comp_results <- glmer(log(pm_mean_sampling_period) ~ filter_compliance + 
+                                  child_age + (1 | cohort:area), 
+                                  data = analysis_data_winter1)
 write_rds(itt_pm_filter_comp_results, paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
 
 

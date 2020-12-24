@@ -219,11 +219,11 @@ demographics_summary <- data %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment_assigned == "Placebo") %>% 
+  filter(treatment_assigned == "Filter") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
-  select(area, home, new_var) %>% 
+  dplyr::select(area, home, new_var) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
@@ -236,11 +236,11 @@ demographics_summary <- data %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
   filter(winter_id == 1) %>% 
-  filter(treatment_assigned == "Placebo") %>% 
+  filter(treatment_assigned == "Filter") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
-  select(area, home, new_var) %>% 
+  dplyr::select(area, home, new_var) %>% 
   group_by(area) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))

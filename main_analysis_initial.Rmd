@@ -55,26 +55,11 @@ kids_amb_temp_data <-
   mutate(sample_date = ymd(temp_date)) 
 
 
-kids_kw_report_1obs <- read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
-  group_by(home) %>% 
-  mutate(mean_kw_per_exp = mean(kw_perc_expected, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  distinct(area, home, .keep_all = TRUE) %>% 
-  mutate(kw_perc_exp_cat = cut(kw_perc_expected, 
-                               breaks = c(0, 30, 56, 106, 1000),
-                               labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
-  dplyr::select(-home_winter_id, -treatment_assigned, -treatment_actual, -home_id)
+kids_filter_compliance_total <- read_rds(paste0(file_path, "Output/kids_filter_compliance_total.rds")) %>% 
+  dplyr::select(-home_winter_id, -winter_id, -treatment_assigned)
 
-
-kids_kw_report_2obs <- read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
-  group_by(area, home_winter_id) %>% 
-  mutate(mean_kw_per_exp = mean(kw_perc_expected, na.rm = TRUE)) %>% 
-  ungroup() %>% 
-  distinct(area, home_winter_id, .keep_all = TRUE) %>% 
-  mutate(kw_perc_exp_cat = cut(kw_perc_expected, 
-                               breaks = c(0, 29, 53, 96, 1000),
-                               labels = c("Q1", "Q2", "Q3", "Q4"))) %>% 
-  dplyr::select(-home_winter_id, -treatment_assigned, -treatment_actual, -home_id)
+kids_filter_compliance_winter1 <- read_rds(paste0(file_path, "Output/kids_filter_compliance_winter1.rds")) %>% 
+  dplyr::select(-home, -treatment_assigned, -winter_id)
 
 
 # Condense LRTI data to 1 obs per child/winter and select analysis vars
@@ -183,7 +168,7 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   left_join(treatments_masked, by = "home") %>% 
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_total, by = c("area", "home", "child_id_num")) %>% 
-  left_join(kids_kw_report_1obs, by = c("area", "home")) %>% 
+  left_join(kids_filter_compliance_total, by = c("area", "home")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   dplyr::select(area, home, cohort, child_id_num, child_age, lrti_events_total, 
          person_time_at_risk_total, lrti_incidence_total, newtx, treatment_assigned,
@@ -198,7 +183,7 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
          home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum,
-         filter_type, mean_kw_per_exp, kw_perc_exp_cat) %>% 
+         filter_type, filter_compliance) %>% 
   rename(treatment = newtx,
          person_time_at_risk = person_time_at_risk_total) %>% 
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
@@ -211,10 +196,12 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
                                         levels = c("Placebo", "Education", 
                                                    "Honeywell", "Large Filtrete", 
                                                    "Small Filtrete", "Winix")),
-         kw_perc_exp_cat2 = as.character(kw_perc_exp_cat),
-         kw_perc_exp_cat2 = if_else(treatment_assigned == "Filter", kw_perc_exp_cat2, treatment_assigned),
-         kw_perc_exp_cat2 = factor(kw_perc_exp_cat2,
-                                  levels = c("Placebo", "Education", "Q1", "Q2", "Q3", "Q4"))) %>% 
+         filter_compliance2 = as.character(filter_compliance),
+         filter_compliance2 = if_else(treatment_assigned == "Education", treatment_assigned, filter_compliance2),
+         filter_compliance = factor(filter_compliance2,
+                                  levels = c("Placebo", "Education", 
+                                             "0-25 compliance", "25-50 compliance",
+                                             "50-75 compliance", "75-100 compliance"))) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,
@@ -235,7 +222,7 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   left_join(treatments_masked, by = "home") %>% 
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>%  
-  left_join(kids_kw_report_1obs, by = c("area", "home", "winter_id")) %>% 
+  left_join(kids_filter_compliance_winter1, by = c("area", "home_winter_id")) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
   dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, 
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
@@ -250,7 +237,7 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
          home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum,
-         filter_type, mean_kw_per_exp, kw_perc_exp_cat) %>% 
+         filter_type, filter_compliance) %>% 
   rename(treatment = newtx) %>% 
   mutate(log_person_time_at_risk_winter = log(person_time_at_risk_winter)) %>% 
   mutate(lrti_events_di_winter = if_else(lrti_events_winter == 0, 0, 1),
@@ -262,10 +249,12 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
                                         levels = c("Placebo", "Education", 
                                                    "Honeywell", "Large Filtrete", 
                                                    "Small Filtrete", "Winix")),
-         kw_perc_exp_cat2 = as.character(kw_perc_exp_cat),
-         kw_perc_exp_cat2 = if_else(treatment_assigned == "Filter", kw_perc_exp_cat2, treatment_assigned),
-         kw_perc_exp_cat2 = factor(kw_perc_exp_cat2,
-                                  levels = c("Placebo", "Education", "Q1", "Q2", "Q3", "Q4"))) %>% 
+         filter_compliance2 = as.character(filter_compliance),
+         filter_compliance2 = if_else(treatment_assigned == "Education", treatment_assigned, filter_compliance2),
+         filter_compliance = factor(filter_compliance2,
+                                  levels = c("Placebo", "Education", 
+                                             "0-25 compliance", "25-50 compliance",
+                                             "50-75 compliance", "75-100 compliance"))) %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Blackfoot", "Dearborn", "Smith")),
          treatment_assigned = factor(treatment_assigned,

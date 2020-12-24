@@ -488,6 +488,7 @@ treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), 
 
 kids_kw_report_clean <- kids_kw_report %>% 
   left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>%  
+  #filter(winter_id == 1) %>% 
   arrange(area, home_winter_id) %>% 
   mutate(filter_type = fct_collapse(filter_type,
                                     "Honeywell" = "Honeywell",
@@ -549,33 +550,65 @@ write_rds(kids_kw_report_clean, paste0(file_path, "Output/kids_kw_report_clean.r
 ```
 
 
+# WMT filter unit compliance phone calls conducted by Carolyn
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+wmt_filter_checks <- read_xlsx(paste0(file_path, "Input/WMT/EdChecks-WithComments.xlsx"), na = "NULL") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, date, 
+         filterrunning, 'filter details') %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         date = ymd(date),
+         filter_level = as.factor(filterrunning),
+         filter_comment = as.character(`filter details`),
+         area = "WMT") %>% 
+  select(home_winter_id, date, 
+         filter_level, filter_comment, area) %>% 
+  arrange(home_winter_id, date)
+
+
+write_rds(wmt_filter_checks, paste0(file_path, "Output/wmt_filter_checks.rds"))
+```
+
+
+# Summarize KWhour and PM data; print table
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 pm_data <- 
   read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
   arrange(area, home, pm_mean_sampling_period) %>% 
   distinct(area, home, .keep_all = TRUE) %>% 
-  select(area, home, pm_mean_sampling_period)
+  dplyr::select(area, home, pm_mean_sampling_period, treatment_assigned, home_sqft_2level)
 kids_kw_report_clean <- 
-  read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds"))
+  read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
+  dplyr::select(-treatment_assigned)
+wmt_filter_checks <- 
+  read_rds(paste0(file_path, "Output/wmt_filter_checks.rds"))
 
 
 kw_perc_exp_summary <- kids_kw_report_clean %>% 
   left_join(pm_data, by = c("area", "home")) %>% 
-  filter(!is.na(kw_perc_expected)) %>% 
-  #filter(area == "WMT") %>% 
-  group_by(filter_type, treatment_assigned) %>% 
-  summarize("Mean KW % Exp" = mean(kw_perc_expected),
-            "SD KW % Exp" = sd(kw_perc_expected),
-            "N KW % Exp" = n(),
-            "Min KW % Exp" = min(kw_perc_expected),
-            "Med KW % Exp" = median(kw_perc_expected),
-            "Max KW % Exp" = max(kw_perc_expected),
+  right_join(wmt_filter_checks, by = c("area", "home_winter_id")) %>% 
+  #filter(!is.na(kw_perc_expected)) %>% 
+  #filter(treatment_assigned == "Filter") %>% 
+  #distinct(area, home, .keep_all = TRUE) %>% 
+  #filter(!is.na(filter_type)) %>% 
+  #group_by(area, treatment_assigned, filter_type, home_sqft_2level) %>% 
+  filter(area == "WMT") %>% 
+  group_by(filter_type, treatment_assigned, filter_level) %>% 
+  summarize("N KW % Exp" = n(),
+            "Mean KW % Exp" = mean(kw_perc_expected, na.rm = TRUE),
+            #"SD KW % Exp" = sd(kw_perc_expected, na.rm = TRUE),
+            #"Min KW % Exp" = min(kw_perc_expected, na.rm = TRUE),
+            "Med KW % Exp" = median(kw_perc_expected, na.rm = TRUE),
+            #"Max KW % Exp" = max(kw_perc_expected),
             "Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
-            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
-            "Med PM" = median(pm_mean_sampling_period, na.rm = TRUE),
-            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+            "Med PM" = median(pm_mean_sampling_period, na.rm = TRUE))
 kw_perc_exp_summary
+
+# wmt_filte_checks data seems to validate the KW % expected as compliance data,
+# at least for WMT. KW % Exp is lower in homes that reported filter as too low or off.
 
 png("Kids_KW_perc_exp.png", width=1200, height=480, bg = "white")
 grid.table(kw_perc_exp_summary)
@@ -583,7 +616,7 @@ dev.off()
 ```
 
 
-# Try to extract sampling dates from KW hour data
+# Extract sampling dates and use KWhour data from PM sampling period
 ```{r}
 wmt_sampling_dates <- read_csv(paste0(file_path, "Input/WMT/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
@@ -693,57 +726,58 @@ dev.off()
 ```
 
 
+# Use KWhour data only if KWhours increased in subsequent dates
 ```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/") 
 
 kids_kw_clean <- 
   read_rds(paste0(file_path, "Output/kids_kw_clean.rds"))
 
 filter_units <- 
   read_rds(paste0(file_path, "Output/kids_kw_report_clean.rds")) %>% 
-  select(home_winter_id, area, filter_type)
+  dplyr::select(home_winter_id, area, filter_type)
 
 wmt_sampling_dates <- read_csv(paste0(file_path, "Input/WMT/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
-  select(homewinterid, interventiondate, 
+  dplyr::select(homewinterid, interventiondate, 
          samplingdate, pickupdate) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          intervention_date = ymd(interventiondate),
          sampling_date = ymd(samplingdate),
          pickup_date = ymd(pickupdate),
          area = "WMT") %>% 
-  select(home_winter_id, intervention_date, 
+  dplyr::select(home_winter_id, intervention_date, 
          sampling_date, pickup_date, area)
 
 nn_sampling_dates <- read_csv(paste0(file_path, "Input/NN/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
-  select(homewinterid, interventiondate, 
+  dplyr::select(homewinterid, interventiondate, 
          samplingdate, pickupdate) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          intervention_date = mdy(interventiondate),
          sampling_date = mdy(samplingdate),
          pickup_date = mdy(pickupdate),
          area = "NN") %>% 
-  select(home_winter_id, intervention_date, 
+  dplyr::select(home_winter_id, intervention_date, 
          sampling_date, pickup_date, area)
 
 ak_sampling_dates <- read_csv(paste0(file_path, "Input/AK/homewinter.csv"), na = "NULL") %>% 
   rename_all(tolower) %>% 
-  select(homewinterid, interventiondate, 
+  dplyr::select(homewinterid, interventiondate, 
          samplingdate, pickupdate) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          intervention_date = mdy(interventiondate),
          sampling_date = mdy(samplingdate),
          pickup_date = mdy(pickupdate),
          area = "AK") %>% 
-  select(home_winter_id, intervention_date, 
+  dplyr::select(home_winter_id, intervention_date, 
          sampling_date, pickup_date, area)
 
 kids_sampling_dates <- rbind(wmt_sampling_dates, nn_sampling_dates, ak_sampling_dates)
 
 
 
-kids_kw_filtered <- kids_kw_clean %>% 
+kids_filter_compliance <- kids_kw_clean %>% 
   group_by(area, home_winter_id) %>% 
   mutate(lag_diff = kw_hours - lag(kw_hours)) %>% 
   filter(lag_diff >= 0 | is.na(lag_diff)) %>% 
@@ -775,7 +809,75 @@ kids_kw_filtered <- kids_kw_clean %>%
          multiplier = if_else(filter_type == "Winix" & treatment_assigned == "Filter",
                               0.48, multiplier)) %>% 
   mutate(kw_expected = date_diff*multiplier,
-         kw_perc_exp = kw_hours/kw_expected*100)
+         kw_perc_exp = kw_hours/kw_expected*100) %>% 
+  dplyr::select(area, home_winter_id, winter_id, home, treatment_assigned, 
+                kw_date, kw_hours, date_diff, filter_type, multiplier,
+                kw_expected, kw_perc_exp)
+
+compliance_summary1 <- kids_filter_compliance %>% 
+  group_by(home) %>% 
+  mutate(kw_perc_exp_total = mean(kw_perc_exp, na.rm = TRUE)) %>%  
+  filter(treatment_assigned == "Filter") %>% 
+  filter(!is.na(kw_perc_exp_total)) %>% 
+  group_by(treatment_assigned) %>% 
+  summarize("Mean KW % Exp" = mean(kw_perc_exp_total),
+            "SD KW % Exp" = sd(kw_perc_exp_total),
+            "N KW % Exp" = n(),
+            "Min KW % Exp" = min(kw_perc_exp_total),
+            "25Q KW % Exp" = quantile(kw_perc_exp_total, 0.25),
+            "Med KW % Exp" = median(kw_perc_exp_total),
+            "75Q KW % Exp" = quantile(kw_perc_exp_total, 0.75),
+            "Max KW % Exp" = max(kw_perc_exp_total))
+compliance_summary1
+
+kids_filter_compliance_total <- kids_filter_compliance %>% 
+  group_by(home) %>% 
+  mutate(kw_perc_exp_total = mean(kw_perc_exp), 
+         treatment_assigned = as.character(treatment_assigned),
+         perc_exp_quart = cut(kw_perc_exp_total,
+                                  breaks = c(0, 30, 64, 100, 1000),
+                                  labels = c("0-25 compliance", "25-50 compliance",
+                                             "50-75 compliance", "75-100 compliance")),
+         perc_exp_quart = as.character(perc_exp_quart),
+         filter_compliance = if_else(treatment_assigned == "Filter",
+                                     perc_exp_quart, 
+                                     treatment_assigned)) %>% 
+  distinct(area, home, .keep_all = TRUE)
+
+
+compliance_summary2 <- kids_filter_compliance %>% 
+  group_by(area, home_winter_id) %>% 
+  mutate(kw_perc_exp_winter = mean(kw_perc_exp, na.rm = TRUE)) %>%  
+  filter(treatment_assigned == "Filter") %>% 
+  filter(!is.na(kw_perc_exp_winter)) %>% 
+  group_by(winter_id, treatment_assigned) %>% 
+  summarize("Mean KW % Exp" = mean(kw_perc_exp_winter),
+            "SD KW % Exp" = sd(kw_perc_exp_winter),
+            "N KW % Exp" = n(),
+            "Min KW % Exp" = min(kw_perc_exp_winter),
+            "25Q KW % Exp" = quantile(kw_perc_exp_winter, 0.25),
+            "Med KW % Exp" = median(kw_perc_exp_winter),
+            "75Q KW % Exp" = quantile(kw_perc_exp_winter, 0.75),
+            "Max KW % Exp" = max(kw_perc_exp_winter))
+compliance_summary2
+
+
+kids_filter_compliance_winter1 <- kids_filter_compliance %>% 
+  filter(winter_id == 1) %>% 
+  mutate(treatment_assigned = as.character(treatment_assigned),
+         perc_exp_quart = cut(kw_perc_exp,
+                                  breaks = c(0, 32, 60, 116, 1000),
+                                  labels = c("0-25 compliance", "25-50 compliance",
+                                             "50-75 compliance", "75-100 compliance")),
+         perc_exp_quart = as.character(perc_exp_quart),
+         filter_compliance = if_else(treatment_assigned == "Filter",
+                                     perc_exp_quart, 
+                                     treatment_assigned))
+
+
+
+write_rds(kids_filter_compliance_total, paste0(file_path, "Output/kids_filter_compliance_total.rds"))
+write_rds(kids_filter_compliance_winter1, paste0(file_path, "Output/kids_filter_compliance_winter1.rds"))
 
 
 pm_data <- 
@@ -906,6 +1008,10 @@ kw_perc_exp_summary <- kids_kw_filtered %>%
             "Med PM" = median(pm_mean_sampling_period, na.rm = TRUE),
             "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
 kw_perc_exp_summary
+
+# Changing the placebo multipliers above to the same as the filter multiplier
+# changes the picture quite a bit. It seems likely that participants ran the 
+# placebo filters on high more often than expected, resulting in high % Exp KWhours
 
 png("Kids_KW_perc_exp_new.png", width=1200, height=480, bg = "white")
 grid.table(kw_perc_exp_summary)
