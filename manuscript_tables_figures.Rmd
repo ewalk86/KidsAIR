@@ -45,7 +45,10 @@ treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), 
   mutate(home = gsub(" ", "", x = home),
          home = gsub("_", "", x = home))
 
-demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) 
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) %>% 
+  filter(area == "WMT") %>% 
+  filter(winter_id == 1) %>% 
+  distinct(home_winter_id, .keep_all = TRUE)
 
 exposure_analysis_data_long <- 
   read_rds(paste0(file_path, "Output/exposure_analysis_data_long_new.rds")) 
@@ -154,7 +157,7 @@ char_funct_area <- function(var, data = health_exposure_data_sampling_day){
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment_assigned == "Placebo") %>% 
+  #filter(treatment_assigned == "Placebo") %>% 
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   mutate(total_n = n()) %>% 

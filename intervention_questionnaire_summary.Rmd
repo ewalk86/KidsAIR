@@ -1,0 +1,55 @@
+---
+title: "KidsAIR intervention questionnaires summary"
+author: "Ethan Walker"
+date: "Started 20 Jan 2021, Updated 20 Jan 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+kids_pwq_filter_clean <- read_rds(paste0(file_path, "Output/kids_pwq_filter_clean.rds")) 
+kids_pwq_education_clean <- read_rds(paste0(file_path, "Output/kids_pwq_education_clean.rds")) 
+kids_kab_filter_clean <- read_rds(paste0(file_path, "Output/kids_kab_filter_clean.rds")) 
+kids_kab_education_clean <- read_rds(paste0(file_path, "Output/kids_kab_education_clean.rds")) 
+```
+
+# Summarize questionnaires for K99/R00 proposal
+```{r}
+kids_pwq_filter_summary <- kids_pwq_filter_clean %>% 
+  filter(area == "WMT") %>% 
+  filter(winter_id == 2) 
+summary(kids_pwq_filter_summary)
+  
+  
+  
+kids_pwq_education_summary <- kids_pwq_education_clean %>% 
+  filter(area == "WMT") %>% 
+  filter(winter_id == 2) 
+summary(kids_pwq_education_summary)
+  
+  
+  
+kids_kab_filter_summary <- kids_kab_filter_clean %>% 
+  filter(area == "WMT") %>% 
+  filter(winter_id == 2) 
+summary(kids_kab_filter_summary)
+  
+  
+  
+kids_kab_education_summary <- kids_kab_education_clean %>% 
+  filter(area == "WMT") %>% 
+  filter(winter_id == 2) 
+summary(kids_kab_education_summary)
+```
+

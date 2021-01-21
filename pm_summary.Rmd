@@ -231,11 +231,12 @@ boxplots_kids_pm
 
 ```{r, fig.height=4, fig.width=3}
 boxplots_kids_pm <- health_exposure_data_sampling_day %>% 
-  filter(winter_id == 1 & treatment_assigned == "Placebo") %>% 
+  filter(winter_id == 1) %>% 
+  #filter(treatment_assigned == "Placebo") %>% 
   arrange(area, home, sampling_day) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   ungroup() %>% 
-  ggplot(aes(area, pm_mean_sampling_period)) +
+  ggplot(aes(treatment_assigned, pm_mean_sampling_period)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red") +
@@ -254,7 +255,7 @@ boxplots_kids_pm <- health_exposure_data_sampling_day %>%
           axis.ticks = element_blank())
 boxplots_kids_pm
 
-ggsave("boxplots_kids_pm.jpg", height = 7, width = 4)
+#ggsave("boxplots_kids_pm.jpg", height = 7, width = 4)
 ```
 
 \pagebreak  

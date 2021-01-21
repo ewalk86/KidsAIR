@@ -1,0 +1,286 @@
+---
+title: "KidsAIR intervention questionnaires cleaning"
+author: "Ethan Walker"
+date: "Started 20 Jan 2021, Updated 20 Jan 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
+demographics <- read_rds(paste0(file_path, "Output/demographics_final.rds")) 
+```
+
+# Load, format, and save Post Winter Questionnaire - filter homes
+```{r}
+##### WMT #####
+# Load data
+pwq_wmt <- read_csv(paste0(file_path, "Input/WMT/eow.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "WMT") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:helpful) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### NN #####
+# Load data
+pwq_nn <- read_csv(paste0(file_path, "Input/NN/eow.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "NN") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:helpful) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### AK #####
+# Load data
+pwq_ak <- read_csv(paste0(file_path, "Input/AK/eow.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "AK") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:helpful) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+kids_pwq_filter <- rbind(pwq_wmt, pwq_nn, pwq_ak)
+
+write_rds(kids_pwq_filter, paste0(file_path, "Output/kids_pwq_filter.rds"))
+```
+
+# Clean up all Post Winter Questionnaire - filter homes
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_pwq_filter <- read_rds(paste0(file_path, "Output/kids_pwq_filter.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
+
+kids_pwq_filter_clean <- kids_pwq_filter %>% 
+  mutate(area = as.factor(area)) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>%
+  filter(!is.na(treatment_assigned)) %>% 
+  mutate(enteredby = as.factor(enteredby),
+         fuse = as.factor(fuse),
+         continuously = as.factor(continuously),
+         reasonnoise = as.factor(reasonnoise),
+         reasoncost = as.factor(reasoncost),
+         reasonappearance = as.factor(reasonappearance),
+         reasonspace = as.factor(reasonspace),
+         reasoninconvenience = as.factor(reasoninconvenience),
+         mostimp = as.factor(mostimp),
+         helpful = as.factor(helpful)) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+summary(kids_pwq_filter_clean)
+
+write_rds(kids_pwq_filter_clean, paste0(file_path, "Output/kids_pwq_filter_clean.rds"))
+```
+
+###############################################
+
+# Load, format, and save Post Winter Questionnaire - education homes
+```{r}
+##### WMT #####
+# Load data
+pwq_wmt <- read_csv(paste0(file_path, "Input/WMT/eowe.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "WMT") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### NN #####
+# Load data
+pwq_nn <- read_csv(paste0(file_path, "Input/NN/eowe.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "NN") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### AK #####
+# Load data
+pwq_ak <- read_csv(paste0(file_path, "Input/AK/eowe.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "AK") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:comments) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+kids_pwq_education <- rbind(pwq_wmt, pwq_nn, pwq_ak)
+
+write_rds(kids_pwq_education, paste0(file_path, "Output/kids_pwq_education.rds"))
+```
+
+# Clean up all Post Winter Questionnaire - education homes
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_pwq_education <- read_rds(paste0(file_path, "Output/kids_pwq_education.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
+
+kids_pwq_education_clean <- kids_pwq_education %>% 
+  mutate(area = as.factor(area)) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>%
+  filter(!is.na(treatment_assigned)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+summary(kids_pwq_education_clean)
+
+write_rds(kids_pwq_education_clean, paste0(file_path, "Output/kids_pwq_education_clean.rds"))
+```
+
+###############################################
+
+# Load, format, and save KAB Questionnaire - filter homes
+```{r}
+##### WMT #####
+# Load data
+kab_wmt <- read_csv(paste0(file_path, "Input/WMT/kab.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "WMT") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:knowstove) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### NN #####
+# Load data
+kab_nn <- read_csv(paste0(file_path, "Input/NN/kab.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "NN") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:knowstove) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### AK #####
+# Load data
+kab_ak <- read_csv(paste0(file_path, "Input/AK/kab.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "AK") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:knowstove) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+kids_kab_filter <- rbind(kab_wmt, kab_nn, kab_ak)
+
+write_rds(kids_kab_filter, paste0(file_path, "Output/kids_kab_filter.rds"))
+```
+
+# Clean up all KAB Questionnaire - filter homes
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_kab_filter <- read_rds(paste0(file_path, "Output/kids_kab_filter.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
+
+kids_kab_filter_clean <- kids_kab_filter %>% 
+  mutate(area = as.factor(area)) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>%
+  filter(!is.na(treatment_assigned)) %>% 
+  mutate_all(as.factor) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+summary(kids_kab_filter_clean)
+
+write_rds(kids_kab_filter_clean, paste0(file_path, "Output/kids_kab_filter_clean.rds"))
+```
+
+###############################################
+
+# Load, format, and save KAB Questionnaire - education homes
+```{r}
+##### WMT #####
+# Load data
+kab_wmt <- read_csv(paste0(file_path, "Input/WMT/kabe.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "WMT") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:knowstove) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### NN #####
+# Load data
+kab_nn <- read_csv(paste0(file_path, "Input/NN/kabe.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "NN") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:knowstove) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+##### AK #####
+# Load data
+kab_ak <- read_csv(paste0(file_path, "Input/AK/kabe.csv"), 
+                                  na = c("NULL", "", "NA", -999)) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         area = "AK") %>% 
+  rename_all(tolower) %>% 
+  select(home_winter_id, area, enteredby:knowstove) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+kids_kab_education <- rbind(kab_wmt, kab_nn, kab_ak)
+
+write_rds(kids_kab_education, paste0(file_path, "Output/kids_kab_education.rds"))
+```
+
+# Clean up all KAB Questionnaire - education homes
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+kids_kab_education <- read_rds(paste0(file_path, "Output/kids_kab_education.rds"))
+kids_linked_ids <- read_rds(paste0(file_path, "Output/kids_linked_ids_final.rds")) 
+
+kids_kab_education_clean <- kids_kab_education %>% 
+  mutate(area = as.factor(area)) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id")) %>%
+  filter(!is.na(treatment_assigned)) %>% 
+  mutate_all(as.factor) %>% 
+  ungroup() %>% 
+  arrange(area, home, winter_id)
+
+summary(kids_kab_education_clean)
+
+write_rds(kids_kab_education_clean, paste0(file_path, "Output/kids_kab_education_clean.rds"))
+```
+
