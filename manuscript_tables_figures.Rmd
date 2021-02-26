@@ -33,7 +33,9 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) %>% 
+  mutate(home_sqft_2level = cut(home_sqft, breaks = c(0, 1400, 100000),
+                                labels = c("<130 sq m", "130+ sq m")))
 
 health_data_merged <- 
   read_rds(paste0(file_path, "Output/health_data_merged.rds")) 
@@ -109,6 +111,12 @@ kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>%
   filter(original == 1)
 ```
 
+
+# Demographics summary
+```{r}
+table(demographics$hispanic_parent, demographics$race_parent, demographics$gender_parent)
+```
+
 # Count number of households and kids that participated by area and winter
 ```{r}
 # number of households, total and by area
@@ -138,7 +146,7 @@ char_funct_total <- function(var, data = health_exposure_data_sampling_day){
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment_assigned == "Placebo") %>%
+  #filter(treatment_assigned == "Placebo") %>%
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   mutate(total_n = n()) %>% 
@@ -148,7 +156,7 @@ demographics_summary <- data %>%
   mutate(n = n(),
          percent = n()/total_n) %>% 
   distinct(new_var, .keep_all = TRUE) %>% 
-  select(new_var, n, percent)
+  dplyr::select(new_var, n, percent)
 demographics_summary
 }
 
@@ -161,14 +169,14 @@ demographics_summary <- data %>%
   arrange(new_var) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   mutate(total_n = n()) %>% 
-  group_by(area) %>% 
+  group_by(treatment_assigned) %>% 
   mutate(area_n = n()) %>% 
-  group_by(area, new_var) %>% 
+  group_by(treatment_assigned, new_var) %>% 
   mutate(n = n(),
          percent = n()/area_n) %>% 
   distinct(new_var, .keep_all = TRUE) %>% 
-  select(new_var, n, percent) %>% 
-  arrange(area, new_var)
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(treatment_assigned, new_var)
 demographics_summary
 }
 
@@ -176,6 +184,8 @@ demographics_summary
 
 char_funct_total("gender_parent")
 char_funct_area("gender_parent")
+char_funct_total("gender")
+char_funct_area("gender")
 char_funct_total("hispanic_parent")
 char_funct_area("hispanic_parent")
 char_funct_total("race_parent")
@@ -186,6 +196,8 @@ char_funct_total("income_3level")
 char_funct_area("income_3level")
 char_funct_total("home_floors_2level")
 char_funct_area("home_floors_2level")
+char_funct_total("home_sqft_2level")
+char_funct_area("home_sqft_2level")
 char_funct_total("home_year_built_2level")
 char_funct_area("home_year_built_2level")
 char_funct_total("home_pets_2level")
@@ -305,6 +317,12 @@ other_vars_area <- health_exposure_data_sampling_day %>%
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 other_vars_area
+
+
+other_vars_total <- health_exposure_data_sampling_day %>% 
+  dplyr::select(area, child_id_num, race_child, treatment_assigned) %>% 
+  arrange(race_child) %>% 
+  distinct(area, child_id_num, .keep_all = TRUE) 
 ```
 
 
@@ -391,5 +409,86 @@ home_summary <- health_exposure_data_sampling_day %>%
          Winter = winter_id)
 
 write_csv(home_summary, paste0(file_path, "Output/kids_letter_data.csv"), na = "")
+```
+
+
+# Table S1 summary data
+```{r}
+analysis_data <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_mean_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         lrti_events_di_total = as.factor(lrti_events_di_total),
+         person_time_at_risk_iqr = person_time_at_risk/20,
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%")),
+         stove_age_di = fct_collapse(stove_age_3level, 
+                                     "0-5 years old" = "0-5 years old",
+                                     "6+ years old" = c("6-15 years old", "16 + years old"),
+                                     "Do not know" = "Do not know")) 
+  #filter(area == "WMT")
+  #filter(gender == "Female")
+  #filter(home_sqft_2level == "1500+")
+
+analysis_data_winter1 <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
+  mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
+         pm_mean_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         lrti_events_di_winter = as.factor(lrti_events_di_winter),
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%")),
+         stove_age_di = fct_collapse(stove_age_3level, 
+                                     "0-5 years old" = "0-5 years old",
+                                     "6+ years old" = c("6-15 years old", "16 + years old"),
+                                     "Do not know" = "Do not know")) %>% 
+  filter(person_time_at_risk_winter > 0) %>% 
+  #filter(area == "WMT") %>% 
+  filter(winter_id == 1)
+
+
+n_summary_table <- analysis_data_winter1 %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  mutate(int_var = stove_grade_3level) %>% 
+  filter(!is.na(int_var)) %>% 
+  dplyr::select(area, home, int_var, treatment_assigned) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  summarize("n" = n())
+n_summary_table
+
+pm_summary_table <- analysis_data_winter1 %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  mutate(int_var = stove_grade_3level) %>% 
+  filter(!is.na(int_var)) %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  summarize("n" = n(),
+            "Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+pm_summary_table
+
+n_summary_table <- analysis_data %>% 
+  distinct(area, child_id_num, .keep_all = T) %>% 
+  mutate(int_var = stove_grade_3level) %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  summarize("n" = n())
+n_summary_table
+
+lrti_summary_table <- analysis_data %>% 
+  distinct(area, child_id_num, .keep_all = T) %>% 
+  mutate(int_var = stove_grade_3level) %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment_assigned) %>% 
+  mutate(lrti_events_num = as.numeric(lrti_events_di_total),
+         lrti_events_num = lrti_events_num - 1) %>%  
+  summarize("n" = n(),
+            "Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
+            "Group %" = `Total LRTI`/n()*100)
+lrti_summary_table
 ```
 

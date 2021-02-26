@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 23 Dec 2020"
+date: "Updated 26 Feb 2021"
 output: pdf_document
 ---
 
@@ -38,10 +38,17 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 analysis_data <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
-         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period = pm_at_home_sampling_period,
          lrti_events_di_total = as.factor(lrti_events_di_total),
          person_time_at_risk_iqr = person_time_at_risk/20,
-         child_age = factor(child_age, levels = c("< 1", "1+"))) 
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%")),
+         stove_age_di = fct_collapse(stove_age_3level, 
+                                     "0-5 years old" = "0-5 years old",
+                                     "6+ years old" = c("6-15 years old", "16 + years old"),
+                                     "Do not know" = "Do not know")) 
   #filter(area == "WMT")
   #filter(gender == "Female")
   #filter(home_sqft_2level == "1500+")
@@ -53,14 +60,23 @@ analysis_data_outliers <- analysis_data %>%
   mutate(person_time_at_risk = if_else(area == "AK" & child_id_num == 31, 72, person_time_at_risk),
          lrti_events_total = as.factor(lrti_events_total),
          lrti_events_di_total = as.factor(lrti_events_di_total),
-         child_age = factor(child_age, levels = c("< 1", "1+"))) 
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%"))) 
   
 analysis_data_winter1 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
-         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period = pm_at_home_sampling_period,
          lrti_events_di_winter = as.factor(lrti_events_di_winter),
-         child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%")),
+         stove_age_di = fct_collapse(stove_age_3level, 
+                                     "0-5 years old" = "0-5 years old",
+                                     "6+ years old" = c("6-15 years old", "16 + years old"),
+                                     "Do not know" = "Do not know")) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   #filter(area == "WMT") %>% 
   filter(winter_id == 1)
@@ -68,19 +84,33 @@ analysis_data_winter1 <- read_rds(paste0(file_path,
 analysis_data_winter2 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
-         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period = pm_at_home_sampling_period,
          lrti_events_di_winter = as.factor(lrti_events_di_winter),
-         child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%")),
+         stove_age_di = fct_collapse(stove_age_3level, 
+                                     "0-5 years old" = "0-5 years old",
+                                     "6+ years old" = c("6-15 years old", "16 + years old"),
+                                     "Do not know" = "Do not know")) %>% 
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 2)
 
 analysis_data_noak <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
-         pm_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period_iqr = pm_at_home_sampling_period/25,
+         pm_mean_at_home_sampling_period = pm_at_home_sampling_period,
          lrti_events_di_total = as.factor(lrti_events_di_total),
          person_time_at_risk_iqr = person_time_at_risk/20,
-         child_age = factor(child_age, levels = c("< 1", "1+"))) %>% 
+         child_age = factor(child_age, levels = c("< 1", "1+")),
+         moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
+                           labels = c("<11%", ">=11%")),
+         stove_age_di = fct_collapse(stove_age_3level, 
+                                     "0-5 years old" = "0-5 years old",
+                                     "6+ years old" = c("6-15 years old", "16 + years old"),
+                                     "Do not know" = "Do not know")) %>% 
   filter(area != "AK")
 ```
 
@@ -188,7 +218,7 @@ plot_results
 
 }
 
-int_function(analysis_data, "residents_smoke")
+int_function(analysis_data, "home_sqft_2level")
 n_table
 save_contrasts
 pm_summary_table
@@ -569,7 +599,7 @@ plot_results
 
 }
 
-int_function(analysis_data_winter1, "burn_level_3level")
+int_function(analysis_data_winter1, "stove_grade_3level")
 n_table
 save_contrasts
 pm_summary_table
@@ -579,7 +609,7 @@ save_contrasts_full
 
 
 # Try: home_floors_2level, home_sqft_2level, education_3level, child_age
-# home_year_built_2level, stove_age_3level, stove_grade_3level, chimney_clean_3level,
+# home_year_built_2level, stove_age_3level, stove_age_di, stove_grade_3level, chimney_clean_3level,
 # wood_collect_2level, wood_collect_method_2level, burn_level_3level, residents_smoke
 
 
@@ -595,6 +625,13 @@ save_contrasts_full
 itt_pm_noak_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + child_age + 
                        (1 | cohort:area), data = analysis_data_noak)
 write_rds(itt_pm_noak_results, paste0(file_path, "Output/itt_pm_noak_results.rds"))
+
+
+itt_pm_at_home_results <- glmer(log(pm_mean_at_home_sampling_period) ~ treatment_assigned + 
+                               child_age + (1 | cohort:area), 
+                               data = analysis_data_winter1)
+write_rds(itt_pm_at_home_results, paste0(file_path, "Output/itt_pm_at_home_results.rds"))
+
 
 itt_pm_income_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
                                child_age + (1 | cohort:area) + 
@@ -622,6 +659,7 @@ write_rds(itt_pm_filter_type_results, paste0(file_path, "Output/itt_pm_filter_ty
 itt_pm_filter_comp_results <- glmer(log(pm_mean_sampling_period) ~ filter_compliance + 
                                   child_age + (1 | cohort:area), 
                                   data = analysis_data_winter1)
+summary(itt_pm_filter_comp_results)
 write_rds(itt_pm_filter_comp_results, paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
 
 
@@ -677,10 +715,11 @@ write_rds(itt_pm_ambtemp_results, paste0(file_path, "Output/itt_pm_ambtemp_resul
 ```{r}
 # Load results
 itt_pm_results <- read_rds(paste0(file_path, "Output/itt_pm_results.rds"))
+itt_pm_at_home_results <- read_rds(paste0(file_path, "Output/itt_pm_at_home_results.rds"))
 itt_pm_noak_results <- read_rds(paste0(file_path, "Output/itt_pm_noak_results.rds"))
 itt_pm_income_results <- read_rds(paste0(file_path, "Output/itt_pm_income_results.rds"))
-#itt_pm_filter_type_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
-#itt_pm_filter_comp_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
+itt_pm_filter_type_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_type_results.rds"))
+itt_pm_filter_comp_results <- read_rds(paste0(file_path, "Output/itt_pm_filter_comp_results.rds"))
 itt_pm_smoke_results <- read_rds(paste0(file_path, "Output/itt_pm_smoke_results.rds"))
 itt_pm_burn_level_results <- read_rds(paste0(file_path, "Output/itt_pm_burn_level_results.rds"))
 itt_pm_smoking_results <- read_rds(paste0(file_path, "Output/itt_pm_smoking_results.rds"))
@@ -710,6 +749,7 @@ tidy_results
 
 # Run results through function, save, combine for plotting
 itt_pm_tidy <- results_function(itt_pm_results, "ITT Primary")
+itt_pm_at_home_tidy <- results_function(itt_pm_at_home_results, "ITT PM at-home")
 itt_pm_noak_tidy <- results_function(itt_pm_noak_results, "ITT no AK")
 itt_pm_income_tidy <- results_function(itt_pm_income_results, "ITT + income")
 #itt_pm_filter_type_tidy <- results_function(itt_pm_filter_type_results, "ITT filter type")
@@ -725,7 +765,7 @@ itt_pm_ambtemp_tidy <- results_function(itt_pm_ambtemp_results, "ITT + amb temp"
 
 
 # Combine cleaned results
-itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_noak_tidy, itt_pm_income_tidy, 
+itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_at_home_tidy, itt_pm_noak_tidy, itt_pm_income_tidy, 
                               itt_pm_smoke_tidy, itt_pm_burn_level_tidy, itt_pm_smoking_tidy,
                               itt_pm_windows_tidy, itt_pm_door_tidy, itt_pm_sweep_tidy,
                               itt_pm_ambpm_tidy, itt_pm_ambtemp_tidy)
@@ -734,7 +774,7 @@ itt_pm_results_combined <- rbind(itt_pm_tidy, itt_pm_noak_tidy, itt_pm_income_ti
 # Plot results
 itt_pm_plot_estimates <- itt_pm_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("ITT Primary", "ITT no AK", "ITT + income", 
+                        levels = c("ITT Primary", "ITT PM at-home", "ITT no AK", "ITT + income", 
                                    "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
                                    "ITT + window act", "ITT + door act", "ITT + sweep act",
                                    "ITT + amb PM", "ITT + amb temp"))) %>% 
@@ -769,6 +809,7 @@ itt_pm_plot_estimates
 ```
 
 ITT Primary = Linear mixed model, as specified above  
+ITT PM at-home = Primary model using PM when child was at home  
 ITT no AK = Primary model without homes from AK (different placebo group)  
 ITT + income = Primary model plus categorical income variable  
 ITT + smoke hx = Primary model plus self-reported smoking variable  
@@ -798,10 +839,14 @@ There were minimal differences in associations across groups for other variables
 # Run primary model and print results
 # The Neg Bin model was overfit; see isSingular() for further explanation
 
-er_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          education_3level + residents_smoke + person_time_at_risk_winter +
+er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10,
+                          data = analysis_data, family = binomial, nAGQ = 10,
                           control = glmerControl(optimizer = "bobyqa"))
 #write_rds(er_results, paste0(file_path, "Output/er_results.rds"))
 
@@ -827,12 +872,15 @@ int_function <- function(model_data, interaction_var) {
     rename(int_var = interaction_var)
 
 # Run primary model and print results
-er_results_int <<- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr*int_var + 
-                          child_age + 
-                          education_3level + 
-                          #residents_smoke + 
-                          person_time_at_risk_winter +
-                          (1 | cohort:area), 
+er_results_int <<- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr*int_var + 
+                          #child_age + 
+                          gender + 
+                          residents_smoke + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + 
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
+                          (1 | home:cohort:area), 
                           data = new_model_data, family = binomial, nAGQ = 10,
                           control = glmerControl(optimizer = "bobyqa"))
 #write_rds(itt_pm_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
@@ -886,7 +934,7 @@ pm_summary_table <<- new_model_data %>%
 lrti_summary_table <<- new_model_data %>% 
   filter(!is.na(int_var)) %>% 
   group_by(int_var) %>% 
-  mutate(lrti_events_num = as.numeric(lrti_events_di_winter),
+  mutate(lrti_events_num = as.numeric(lrti_events_di_total),
          lrti_events_num = lrti_events_num - 1) %>%  
   summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
             "Group %" = `Total LRTI`/n()*100)
@@ -896,104 +944,105 @@ plot_results
 
 }
 
-int_function(analysis_data_winter1, "residents_smoke")
+int_function(analysis_data, "child_age")
 save_contrasts
 pm_summary_table
 lrti_summary_table
 save_summary
 
-# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
+# Try child_age, gender, residents_smoke
 ```
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results 
+# Run and save model results  
 
-er_income_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          residents_smoke + person_time_at_risk_winter + 
-                          income_3level + 
+er_results_at_home <- er_results <- glmer(lrti_events_di_total ~ pm_mean_at_home_sampling_period_iqr + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_income_results, paste0(file_path, "Output/er_income_results.rds"))
+                          data = analysis_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
+write_rds(er_results_at_home, paste0(file_path, "Output/er_results_at_home.rds"))
 
 
-er_filter_comp_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter + 
-                          kw_perc_exp_cat2 + 
-                          (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_filter_comp_results, paste0(file_path, "Output/er_filter_comp_results.rds"))
+er_winter1_results <- er_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk_winter +
+                          (1 | cohort:area), 
+                          data = analysis_data_winter1, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
+write_rds(er_winter1_results, paste0(file_path, "Output/er_winter1_results.rds"))
 
 
-er_burn_level_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter + 
+er_burn_level_results <- er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr + 
                           burn_level_3level + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
+                          data = analysis_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
 write_rds(er_burn_level_results, paste0(file_path, "Output/er_burn_level_results.rds"))
 
 
-er_smoking_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + person_time_at_risk_winter + 
-                          home_act_smoking_sum + 
+er_home_size_results <- er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr + 
+                          home_sqft_2level + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_smoking_results, paste0(file_path, "Output/er_smoking_results.rds"))
+                          data = analysis_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
+write_rds(er_home_size_results, paste0(file_path, "Output/er_home_size_results.rds"))
 
 
-er_windows_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter + 
-                          home_act_windows_sum + 
+er_stove_grade_results <- er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr + 
+                          stove_grade_3level + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_windows_results, paste0(file_path, "Output/er_windows_results.rds"))
+                          data = analysis_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
+write_rds(er_stove_grade_results, paste0(file_path, "Output/er_stove_grade_results.rds"))
 
 
-er_door_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter + 
-                          home_act_door_sum + 
+er_stove_age_results <- er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr + 
+                          stove_age_3level + 
+                          child_age + gender + 
+                          race_parent + gender_parent +
+                          income_3level + education_3level + residents_smoke +
+                          amb_temp_lrti + amb_pm_lrti + 
+                          person_time_at_risk +
                           (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_door_results, paste0(file_path, "Output/er_door_results.rds"))
-
-
-er_sweep_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter +
-                          home_act_sweep_sum + 
-                          (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_sweep_results, paste0(file_path, "Output/er_sweep_results.rds"))
-
-
-er_ambpm_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter +
-                          amb_pm_lrti + 
-                          (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_ambpm_results, paste0(file_path, "Output/er_ambpm_results.rds"))
-
-
-er_ambtemp_results <- glmer(lrti_events_di_winter ~ pm_mean_sampling_period_iqr + child_age + 
-                          income_3level + residents_smoke + person_time_at_risk_winter +
-                          amb_temp_lrti + 
-                          (1 | home:cohort:area), 
-                          data = analysis_data_winter1, family = binomial, nAGQ = 10)
-write_rds(er_ambtemp_results, paste0(file_path, "Output/er_ambtemp_results.rds"))
+                          data = analysis_data, family = binomial, nAGQ = 10,
+                          control = glmerControl(optimizer = "bobyqa"))
+write_rds(er_stove_age_results, paste0(file_path, "Output/er_stove_age_results.rds"))
 ```
 
 
 ```{r}
 # Load results
 er_results <- read_rds(paste0(file_path, "Output/er_results.rds"))
-er_income_results <- read_rds(paste0(file_path, "Output/er_income_results.rds"))
-#er_filter_comp_results <- read_rds(paste0(file_path, "Output/er_filter_comp_results.rds"))
+er_results_at_home <- read_rds(paste0(file_path, "Output/er_results_at_home.rds"))
+er_winter1_results <- read_rds(paste0(file_path, "Output/er_winter1_results.rds"))
 er_burn_level_results <- read_rds(paste0(file_path, "Output/er_burn_level_results.rds"))
-er_smoking_results <- read_rds(paste0(file_path, "Output/er_smoking_results.rds"))
-er_windows_results <- read_rds(paste0(file_path, "Output/er_windows_results.rds"))
-er_door_results <- read_rds(paste0(file_path, "Output/er_door_results.rds"))
-er_sweep_results <- read_rds(paste0(file_path, "Output/er_sweep_results.rds"))
-er_ambpm_results <- read_rds(paste0(file_path, "Output/er_ambpm_results.rds"))
-er_ambtemp_results <- read_rds(paste0(file_path, "Output/er_ambtemp_results.rds"))
+er_home_size_results <- read_rds(paste0(file_path, "Output/er_home_size_results.rds"))
+er_stove_grade_results <- read_rds(paste0(file_path, "Output/er_stove_grade_results.rds"))
+er_stove_age_results <- read_rds(paste0(file_path, "Output/er_stove_age_results.rds"))
 
 
 # Run function to clean results
@@ -1015,29 +1064,25 @@ tidy_results
 
 # Run results through function, save, combine for plotting
 er_tidy <- results_function(er_results, "ER Primary")
-er_income_tidy <- results_function(er_income_results, "ER + income")
-#er_filter_comp_tidy <- results_function(er_filter_comp_results, "ER + filt comp")
+er_at_home_tidy <- results_function(er_results_at_home, "ER PM at-home")
+er_winter1_tidy <- results_function(er_winter1_results, "ER Winter 1 only")
 er_burn_level_tidy <- results_function(er_burn_level_results, "ER + burn level")
-er_smoking_tidy <- results_function(er_smoking_results, "ER + smoke act")
-er_windows_tidy <- results_function(er_windows_results, "ER + window act")
-er_door_tidy <- results_function(er_door_results, "ER + door act")
-er_sweep_tidy <- results_function(er_sweep_results, "ER + sweep act")
-er_ambpm_tidy <- results_function(er_ambpm_results, "ER + amb PM")
-er_ambtemp_tidy <- results_function(er_ambtemp_results, "ER + amb temp")
+er_home_size_tidy <- results_function(er_home_size_results, "ER + home size")
+er_stove_grade_tidy <- results_function(er_stove_grade_results, "ER + stove grade")
+er_stove_age_tidy <- results_function(er_stove_age_results, "ER + stove age")
 
 
 # Combine cleaned results
-er_results_combined <- rbind(er_tidy, er_income_tidy, er_burn_level_tidy, 
-                              er_smoking_tidy, er_windows_tidy, er_door_tidy,
-                              er_sweep_tidy, er_ambpm_tidy, er_ambtemp_tidy)
+er_results_combined <- rbind(er_tidy, er_at_home_tidy, er_winter1_tidy, er_burn_level_tidy, 
+                              er_home_size_tidy, er_stove_grade_tidy, er_stove_age_tidy)
 
 
 # Plot results
 er_plot_estimates <- er_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("ER Primary", "ER + income", "ER + burn level",
-                                   "ER + smoke act", "ER + window act", "ER + door act",
-                                   "ER + sweep act", "ER + amb PM", "ER + amb temp"))) %>% 
+                        levels = c("ER Primary", "ER PM at-home", "ER Winter 1 only", 
+                                   "ER + burn level", "ER + home size", 
+                                   "ER + stove grade", "ER + stove age"))) %>% 
   ggplot(aes(group = term, shape = term)) +
   geom_point(aes(x=model, y=estimate), 
              position = position_dodge(width = 0.5), size = 4) +
@@ -1069,14 +1114,12 @@ er_plot_estimates
 ```
 
 ER Primary = Logistic regression mixed model, as specified above  
-ER + income = Primary model using income instead of education  
+ER PM at-home = Primary model using PM from when the child was at home  
+ER Winter 1 only = Primary model using data only from Winter 1  
 ER + burn level = Primary model plus self-reported burn-level compared to typical  
-ER + smoke act = Primary model plus # days during sampling with smoking  
-ER + window act = Primary model plus # days during sampling with windows open  
-ER + door act = Primary model plus # days during sampling with doors open  
-ER + sweep act = Primary model plus # days during sampling with sweeping/cleaning  
-ER + amb PM = Primary model plus amb PM during LRTI at-risk period  
-ER + amb temp = Primary model plus amb temp during LRTI at-risk period  
+ER + home size = Primary model plus home size (sqaure meters)  
+ER + stove grade = Primary model plus assigned stove grade  
+ER + stove age = Primary model plus caregiver reported stove age  
 
 
 ```{r, eval=FALSE, include=FALSE}
@@ -1176,6 +1219,18 @@ pm_summary_table
 pm_summary_table <- analysis_data_winter1 %>% 
   filter(!is.na(pm_mean_sampling_period)) %>% 
   group_by(treatment_filter_type) %>% 
+  summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),
+            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
+            "Median PM" = median(pm_mean_sampling_period, na.rm = TRUE),
+            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
+pm_summary_table
+
+
+pm_summary_table <- analysis_data_winter1 %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
+  group_by(filter_compliance) %>% 
   summarize("Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
             "n" = n(),
             "SD PM" = sd(pm_mean_sampling_period, na.rm = TRUE),

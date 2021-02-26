@@ -37,7 +37,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
 
 health_exposure_data_sampling_day <- 
-  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds"))
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) 
 
 
 treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), na = "NULL") %>% 
@@ -164,13 +164,15 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   #select(-treatment_assigned, -treatment_actual) %>% 
   mutate(child_age = fct_collapse(age_child_nov,
                                   "< 1" = "Less than 1",
-                                  "1+" = c(1, 2, 3, 4))) %>% 
+                                  "1+" = c(1, 2, 3, 4)),
+         home_sqft_2level = cut(home_sqft, breaks = c(0, 1400, 100000),
+                                labels = c("<130 sq m", "130+ sq m"))) %>% 
   left_join(treatments_masked, by = "home") %>% 
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_total, by = c("area", "home", "child_id_num")) %>% 
   left_join(kids_filter_compliance_total, by = c("area", "home")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, child_age, lrti_events_total, 
+  dplyr::select(area, home, cohort, child_id_num, child_age, race_child, hispanic_child, lrti_events_total, 
          person_time_at_risk_total, lrti_incidence_total, newtx, treatment_assigned,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
@@ -218,13 +220,15 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   #select(-treatment_assigned, -treatment_actual) %>% 
   mutate(child_age = fct_collapse(age_child_nov,
                                   "< 1" = "Less than 1",
-                                  "1+" = c(1, 2, 3, 4))) %>% 
+                                  "1+" = c(1, 2, 3, 4)),
+         home_sqft_2level = cut(home_sqft, breaks = c(0, 1400, 100000),
+                                labels = c("<130 sq m", "130+ sq m"))) %>% 
   left_join(treatments_masked, by = "home") %>% 
   arrange(area, home, child_id_num, winter_id, age_child_nov) %>% 
   right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>%  
   left_join(kids_filter_compliance_winter1, by = c("area", "home_winter_id")) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, 
+  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, race_child, hispanic_child,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
          lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter, newtx, treatment_assigned,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
