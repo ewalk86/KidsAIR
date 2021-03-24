@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 26 Feb 2021"
+date: "Updated 24 March 2021"
 output: pdf_document
 ---
 
@@ -226,6 +226,18 @@ lrti_summary_table
 save_summary
 save_contrasts_full
 
+
+obs <- analysis_data %>% 
+  filter(!is.na(lrti_events_di_total)) %>% 
+  filter(!is.na(child_age)) %>%
+  filter(!is.na(area)) %>% 
+  filter(!is.na(cohort)) %>% 
+  filter(!is.na(treatment_assigned)) %>% 
+  filter(!is.na(residents_smoke)) %>%
+  group_by(residents_smoke, treatment_assigned) %>% 
+  count()
+obs
+
 # Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
 ```
 
@@ -433,8 +445,7 @@ itt_results_combined <- rbind(itt_tidy, itt_winter1_tidy, itt_noak_tidy,
                               itt_income_tidy, 
                               itt_smoke_tidy, itt_burn_level_tidy, itt_smoking_tidy,
                               itt_windows_tidy, itt_door_tidy, itt_sweep_tidy,
-                              itt_ambpm_tidy, itt_ambtemp_tidy,
-                              itt_outlier_tidy)
+                              itt_ambpm_tidy, itt_ambtemp_tidy)
 
 
 # Plot results
@@ -444,8 +455,7 @@ itt_plot_estimates <- itt_results_combined %>%
                                    "ITT + income", 
                                    "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
                                    "ITT + window act", "ITT + door act", "ITT + sweep act",
-                                   "ITT + amb PM", "ITT + amb temp",
-                                   "ITT outlier"))) %>% 
+                                   "ITT + amb PM", "ITT + amb temp"))) %>% 
   ggplot(aes(group = term, shape = term)) +
   geom_point(aes(x=model, y=estimate), 
              position = position_dodge(width = 0.5), size = 4) +
@@ -454,7 +464,7 @@ itt_plot_estimates <- itt_results_combined %>%
   theme_bw() +  
   geom_hline(yintercept =  1) +
   ggtitle(label = "Results for ITT framework, LRTI outcome") +
-  labs(y = "Odds of LRTI compared to placebo") +
+  labs(y = "Odds of LRTI compared to Control") +
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
@@ -530,6 +540,7 @@ qqline(residuals(itt_pm_results))
 int_function <- function(model_data, interaction_var) {
   
   new_model_data <- model_data %>% 
+    #distinct(area, child_id_num, .keep_all = T) %>% 
     rename(int_var = interaction_var)
 
 # Run primary model and print results
@@ -607,13 +618,23 @@ lrti_summary_table
 save_summary
 save_contrasts_full
 
+obs <- analysis_data_winter1 %>% 
+  distinct(area, child_id_num, .keep_all = T) %>% 
+  filter(!is.na(pm_mean_sampling_period)) %>% 
+  filter(!is.na(child_age)) %>%
+  filter(!is.na(area)) %>% 
+  filter(!is.na(cohort)) %>% 
+  filter(!is.na(treatment_assigned)) %>% 
+  filter(!is.na(home_sqft_2level)) %>%
+  group_by(home_sqft_2level, treatment_assigned) %>% 
+  count()
+obs
+
 
 # Try: home_floors_2level, home_sqft_2level, education_3level, child_age
 # home_year_built_2level, stove_age_3level, stove_age_di, stove_grade_3level, chimney_clean_3level,
 # wood_collect_2level, wood_collect_method_2level, burn_level_3level, residents_smoke
 
-
-#table(model.frame(itt_results_int)$treatment_assigned)
 #((exp(-.418)-1)*100)
 ```
 
@@ -785,8 +806,8 @@ itt_pm_plot_estimates <- itt_pm_results_combined %>%
              position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
   geom_hline(yintercept = 0) +
   theme_bw() +  
-  ggtitle(label = "Results for ITT framework, PM outcome") +
-  labs(y = "% difference in PM2.5 \n compared to placebo") +
+  ggtitle(label = "Results for ITT framework, PM2.5 outcome") +
+  labs(y = "% difference in PM2.5 \n compared to Control") +
   labs(x = "", group = "", shape = "") +
   theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
@@ -842,8 +863,8 @@ There were minimal differences in associations across groups for other variables
 er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr + 
                           child_age + gender + 
                           race_parent + gender_parent +
-                          income_3level + education_3level + residents_smoke +
-                          amb_temp_lrti + amb_pm_lrti + 
+                          income_3level + education_3level + 
+                          amb_temp_lrti + amb_pm_lrti + residents_smoke +
                           person_time_at_risk +
                           (1 | home:cohort:area), 
                           data = analysis_data, family = binomial, nAGQ = 10,
@@ -851,6 +872,8 @@ er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr +
 #write_rds(er_results, paste0(file_path, "Output/er_results.rds"))
 
 #nobs(er_results)
+#table(model.frame(er_results)$residents_smoke)
+
 #isSingular(er_results)
 ```
 
