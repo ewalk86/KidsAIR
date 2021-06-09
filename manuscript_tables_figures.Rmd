@@ -78,6 +78,7 @@ kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics) %
   filter(!is.na(child_id_num)) %>% 
   count(area, winter_id, treatment) %>% 
   filter(winter_id != 2)
+kids_demographics
 ```
 
 # Count number of households initially randomized
@@ -109,6 +110,8 @@ kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>%
   right_join(treatments_masked, by = "home") %>% 
   filter(home != "WMA222" & home != "WMA233") %>%
   filter(original == 1)
+
+kids_ids
 ```
 
 
@@ -122,14 +125,16 @@ table(demographics$hispanic_parent, demographics$race_parent, demographics$gende
 # number of households, total and by area
 study_homes <- health_exposure_data_sampling_day %>% 
   distinct(home, winter_id, .keep_all = TRUE) %>%
-  count(area, winter_id, treatment_assigned)
+  count(winter_id, treatment_assigned)
+study_homes
 
 
 study_kids <- health_exposure_data_sampling_day %>% 
-  select(area, home, child_id_char, child_id_num, winter_id, treatment_assigned) %>% 
+  dplyr::select(area, home, child_id_char, child_id_num, winter_id, treatment_assigned) %>% 
   filter(!is.na(child_id_char)) %>% 
-  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
-  count(area, winter_id, treatment_assigned)
+  distinct(area, child_id_char, winter_id, .keep_all = TRUE) %>% 
+  count(winter_id, treatment_assigned)
+study_kids
 ```
 
 
@@ -140,15 +145,21 @@ checkdata <- health_exposure_data_sampling_day %>%
 ```
 
 ```{r}
+demographics_summary <- health_exposure_data_sampling_day %>% 
+  filter(winter_id == 1 | winter_id == 0) %>% 
+  arrange(winter_id) %>% 
+  #filter(treatment_assigned == "Placebo") %>%
+  distinct(child_id_char, .keep_all = TRUE)
+
 # summary data for manuscript tables
 char_funct_total <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
-  filter(winter_id == 1) %>% 
+  filter(winter_id != 2) %>% 
   #filter(treatment_assigned == "Placebo") %>%
-  arrange(new_var) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
+  arrange(area, child_id_char, new_var) %>% 
+  distinct(area, child_id_char, .keep_all = TRUE) %>% # change to child_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(area) %>% 
   mutate(area_n = n()) %>% 
@@ -164,10 +175,10 @@ char_funct_area <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
-  filter(winter_id == 1) %>% 
+  filter(winter_id != 2) %>% 
   #filter(treatment_assigned == "Placebo") %>% 
-  arrange(new_var) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
+  arrange(area, child_id_char, new_var) %>% 
+  distinct(area, child_id_char, .keep_all = TRUE) %>% # change to child_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(treatment_assigned) %>% 
   mutate(area_n = n()) %>% 
@@ -180,12 +191,17 @@ demographics_summary <- data %>%
 demographics_summary
 }
 
-
-
-char_funct_total("gender_parent")
-char_funct_area("gender_parent")
+# distinct by child - change var in functions above to child_id_char
 char_funct_total("gender")
 char_funct_area("gender")
+char_funct_total("hispanic_parent")
+char_funct_area("hispanic_parent")
+char_funct_total("race_child")
+char_funct_area("race_child")
+
+# distinct by home - change var in functions above to home
+char_funct_total("gender_parent")
+char_funct_area("gender_parent")
 char_funct_total("hispanic_parent")
 char_funct_area("hispanic_parent")
 char_funct_total("race_parent")
@@ -490,5 +506,19 @@ lrti_summary_table <- analysis_data %>%
             "Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
             "Group %" = `Total LRTI`/n()*100)
 lrti_summary_table
+```
+
+# Check ambient temp within groups of self-reported relative stove use
+```{r}
+analysis_data <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_2obs_per_child.rds"))
+
+summary_results <- analysis_data %>% 
+  select(home, area, winter_id, burn_level_3level, amb_temp_lrti) %>% 
+  group_by(burn_level_3level) %>% 
+  summarize(mean(amb_temp_lrti, na.rm = T),
+            median(amb_temp_lrti, na.rm = T))
+
+summary_results
 ```
 

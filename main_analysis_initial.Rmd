@@ -172,7 +172,7 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
   right_join(lrti_1obs_total, by = c("area", "home", "child_id_num")) %>% 
   left_join(kids_filter_compliance_total, by = c("area", "home")) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, child_age, race_child, hispanic_child, lrti_events_total, 
+  dplyr::select(area, home, cohort, child_id_char, child_id_num, child_age, race_child, hispanic_child, lrti_events_total, 
          person_time_at_risk_total, lrti_incidence_total, newtx, treatment_assigned,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
@@ -228,7 +228,7 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
   right_join(lrti_1obs_per_winter, by = c("area", "home", "child_id_num", "winter_id")) %>%  
   left_join(kids_filter_compliance_winter1, by = c("area", "home_winter_id")) %>% 
   distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
-  dplyr::select(area, home, cohort, child_id_num, home_winter_id, winter_id, child_age, race_child, hispanic_child,
+  dplyr::select(area, home, cohort, child_id_char, child_id_num, home_winter_id, winter_id, child_age, race_child, hispanic_child,
          amb_pm_lrti, amb_temp_lrti, amb_dewp_lrti, amb_pressure_lrti, amb_wind_lrti, gender,
          lrti_events_winter, person_time_at_risk_winter, lrti_incidence_winter, newtx, treatment_assigned,
          gender_parent, hispanic_parent, race_parent, education_3level, income_3level,
@@ -298,26 +298,24 @@ treatments_masked <- read_csv(paste0(file_path, "Input/KidsAIRrnd_masked.csv"), 
 
 
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+analysis_data <- read_rds(paste0(file_path, 
+                                 "Output/kids_analysis_data_1obs_per_child.rds"))
+
+health_exposure_data_sampling_day <- 
+  read_rds(paste0(file_path, "Output/health_exposure_data_sampling_day.rds")) 
+
 # Summary analysis for categorical variables
 
-# clean up data for table 1 summary
-table_1_data <- health_exposure_data_sampling_day %>% 
-  mutate(treatment_assigned = factor(treatment_assigned,
-                                     levels = c("Placebo", "Filter", "Education"))) %>% 
-    #select(-treatment_assigned, -treatment_actual) %>% 
-  #left_join(treatments_masked, by = "home") %>%
-  #rename(treatment = newtx) %>% 
-  arrange(area, home, winter_id, sampling_day) %>% 
-  filter(winter_id == 1) %>% 
-  filter(area == "AK") %>% # Change area filter as necessary
-  distinct(area, home, .keep_all = TRUE) 
-
-
 # summary data for manuscript tables
-char_funct_total <- function(var, data = table_1_data){
+char_funct_total <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
+  filter(winter_id == 1) %>% 
   rename(new_var = var) %>% 
+  arrange(area, home, new_var) %>% 
+  distinct(area, home, .keep_all = T) %>% 
   mutate(total_n = n()) %>% 
   group_by(new_var) %>% 
   mutate(n = n(),
@@ -328,10 +326,13 @@ demographics_summary <- data %>%
 demographics_summary
 }
 
-char_funct_treatment <- function(var, data = table_1_data){
+char_funct_treatment <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
+  filter(winter_id == 1) %>% 
   rename(new_var = var) %>% 
+  arrange(area, home, new_var) %>% 
+  distinct(area, home, .keep_all = T) %>% 
   group_by(treatment_assigned) %>% 
   mutate(treatment_n = n()) %>% 
   group_by(treatment_assigned, new_var) %>% 
@@ -391,47 +392,98 @@ char_funct_total("home_act_sweep_sum")
 char_funct_treatment("home_act_sweep_sum")
 char_funct_total("home_act_door_sum")
 char_funct_treatment("home_act_door_sum")
+
+
+
+# Summary analysis for categorical variables - by distinct child
+
+# summary data for manuscript tables
+char_funct_total <- function(var, data = health_exposure_data_sampling_day){
+
+demographics_summary <- data %>% 
+  mutate(child_age = fct_collapse(age_child_nov,
+                                  "< 1" = "Less than 1",
+                                  "1+" = c(1, 2, 3, 4))) %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(child_id_char)) %>% 
+  rename(new_var = var) %>% 
+  arrange(area, child_id_char, new_var) %>% 
+  distinct(area, child_id_char, .keep_all = T) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = round(n()/total_n*100)) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(new_var)
+demographics_summary
+}
+
+char_funct_treatment <- function(var, data = health_exposure_data_sampling_day){
+
+demographics_summary <- data %>% 
+  mutate(child_age = fct_collapse(age_child_nov,
+                                  "< 1" = "Less than 1",
+                                  "1+" = c(1, 2, 3, 4))) %>% 
+  filter(winter_id == 1) %>% 
+  rename(new_var = var) %>% 
+  arrange(area, child_id_char, new_var) %>% 
+  distinct(area, child_id_char, .keep_all = T) %>% 
+  group_by(treatment_assigned) %>% 
+  mutate(treatment_n = n()) %>% 
+  group_by(treatment_assigned, new_var) %>% 
+    mutate(n = n(),
+         percent = round(n()/treatment_n*100)) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(treatment_assigned, new_var)
+demographics_summary
+}
+
+
+
+char_funct_total("gender")
+char_funct_treatment("gender")
+char_funct_total("child_age")
+char_funct_treatment("child_age")
+char_funct_total("race_child")
+char_funct_treatment("race_child")
+char_funct_total("hispanic_child")
+char_funct_treatment("hispanic_child")
 ```
 
 
 ```{r}
 # Summary analysis for numeric variables
 
-# clean up data for table 1 summary
-table_1_data <- health_exposure_data_sampling_day %>% 
-  mutate(treatment_assigned = factor(treatment_assigned,
-                                     levels = c("Placebo", "Filter", "Education"))) %>% 
-  #select(-treatment_assigned, -treatment_actual) %>% 
-  #left_join(treatments_masked, by = "home") %>%
-  #rename(treatment = newtx) %>% 
-  arrange(area, home, winter_id, sampling_day) %>% 
-  filter(winter_id == 1) %>% 
-  #filter(area == "AK") %>% # Change area filter as necessary
-  distinct(area, home, .keep_all = TRUE) 
-
-
 # summary data for manuscript tables
-num_funct_total <- function(var, data = table_1_data){
+num_funct_total <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
+  filter(winter_id == 1) %>% 
   rename(new_var = var) %>% 
+  arrange(area, home, new_var) %>% 
+  distinct(area, home, .keep_all = T) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   filter(!is.na(new_var)) %>% 
-  select(treatment_assigned, home, new_var) %>% 
+  dplyr::select(treatment_assigned, home, new_var) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
 }
 
-num_funct_treatment <- function(var, data = table_1_data){
+num_funct_treatment <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
-  rename(new_var = var) %>%
+  filter(winter_id == 1) %>% 
+  rename(new_var = var) %>% 
+  arrange(area, home, new_var) %>% 
+  distinct(area, home, .keep_all = T) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
   filter(!is.na(new_var)) %>% 
-  select(treatment_assigned, home, new_var) %>% 
+  dplyr::select(treatment_assigned, home, new_var) %>% 
   group_by(treatment_assigned) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
@@ -497,15 +549,16 @@ at_home_pm_summary
 
 # Initial summary data for LRTI
 incidence_summary <- analysis_data %>% 
-  filter(area == "NN") %>% # Change area filter as necessary  
+  #filter(!is.na(child_id_char)) %>% 
+  filter(area == "WMT") %>% # Change area filter as necessary  
   #group_by(treatment) %>% # Change treatment grouping as necessary  
   #filter(lrti_incidence < 0.7) %>% 
-  summarize(mean_inc = mean(lrti_incidence, na.rm = TRUE),
-            sd_inc = sd(lrti_incidence, na.rm = TRUE),
+  summarize(mean_inc = mean(lrti_incidence_total, na.rm = TRUE),
+            sd_inc = sd(lrti_incidence_total, na.rm = TRUE),
             n_inc = n(),
-            min_inc = min(lrti_incidence, na.rm = TRUE),
-            median_inc = median(lrti_incidence, na.rm = TRUE),
-            max_inc = max(lrti_incidence, na.rm = TRUE))
+            min_inc = min(lrti_incidence_total, na.rm = TRUE),
+            median_inc = median(lrti_incidence_total, na.rm = TRUE),
+            max_inc = max(lrti_incidence_total, na.rm = TRUE))
 incidence_summary
 
 

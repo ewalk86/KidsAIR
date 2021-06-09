@@ -27,16 +27,30 @@ kids_kab_education_clean <- read_rds(paste0(file_path, "Output/kids_kab_educatio
 # Summarize questionnaires for K99/R00 proposal
 ```{r}
 kids_pwq_filter_summary <- kids_pwq_filter_clean %>% 
-  filter(area == "WMT") %>% 
-  filter(winter_id == 2) 
-summary(kids_pwq_filter_summary)
+  filter(treatment_assigned == "Filter") %>% 
+  select(area, winter_id, fuse, helpful, continuously) %>% 
+  group_by(winter_id) %>% 
+  mutate(winter_n = n()) %>% 
+  group_by(winter_id, winter_n, helpful) %>% 
+  count() %>% 
+  mutate(var_perc = round(n/winter_n*100, digits = 1)) %>% 
+  ungroup() %>% 
+  select(winter_id, helpful, n, var_perc)
+kids_pwq_filter_summary
   
   
   
 kids_pwq_education_summary <- kids_pwq_education_clean %>% 
-  filter(area == "WMT") %>% 
-  filter(winter_id == 2) 
-summary(kids_pwq_education_summary)
+  select(area, winter_id, mmuse, mmhelpfulness,
+         thuse, thhelpfulness, fsuse, fshelpfulness) %>% 
+  group_by(winter_id) %>% 
+  mutate(winter_n = n()) %>% 
+  group_by(winter_id, winter_n, fshelpfulness) %>% 
+  count() %>% 
+  mutate(var_perc = round(n/winter_n*100, digits = 1)) %>% 
+  ungroup() %>% 
+  select(winter_id, fshelpfulness, n, var_perc)
+kids_pwq_education_summary
   
   
   
