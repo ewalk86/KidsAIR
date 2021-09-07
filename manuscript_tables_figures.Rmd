@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 13 May 2020, Updated 30 June 2020"
+date: "Started 13 May 2020, Updated 7 September 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -144,6 +144,8 @@ checkdata <- health_exposure_data_sampling_day %>%
   select(area, home, residents_under_five)
 ```
 
+
+# Character/factor data summary stats
 ```{r}
 demographics_summary <- health_exposure_data_sampling_day %>% 
   filter(winter_id == 1 | winter_id == 0) %>% 
@@ -241,6 +243,7 @@ char_funct_area("ruca_code_3")
 ```
 
 
+# Numeric data summary stats
 ```{r}
 # summary data for manuscript tables
 num_funct_total <- function(var, data = health_exposure_data_sampling_day){
@@ -306,6 +309,7 @@ num_funct_area("sums_events_sampling_period_7.5")
 ```
 
 
+# Summarize home activity variables
 ```{r}
 other_vars_total <- health_exposure_data_sampling_day %>% 
   rename(new_var = home_act_sweep_sum) %>% 

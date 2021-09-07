@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 9 June 2021"
+date: "Updated 7 September 2021"
 output: pdf_document
 ---
 
@@ -36,6 +36,8 @@ library(faraway)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
 
+
+# Primary analysis dataset - load and format a few variables
 analysis_data <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
@@ -49,11 +51,14 @@ analysis_data <- read_rds(paste0(file_path,
          stove_age_di = fct_collapse(stove_age_3level, 
                                      "0-5 years old" = "0-5 years old",
                                      "6+ years old" = c("6-15 years old", "16 + years old"),
-                                     "Do not know" = "Do not know")) 
+                                     "Do not know" = "Do not know"))
+  #filter(!is.na(home_sqft_2level))
   #filter(area == "WMT")
   #filter(gender == "Female")
   #filter(home_sqft_2level == "1500+")
 
+
+# Dataset for sensitivity analysis - replace "outlier" for person time with mean value
 analysis_data_outliers <- analysis_data %>% 
   #rownames_to_column() %>% 
   #mutate(filter_outliers = if_else(rowname %in% c(57), 1, 0)) %>% 
@@ -64,7 +69,9 @@ analysis_data_outliers <- analysis_data %>%
          child_age = factor(child_age, levels = c("< 1", "1+")),
          moisture_di = cut(moisture_closest, breaks = c(0, 11, 100),
                            labels = c("<11%", ">=11%"))) 
-  
+
+
+# Dataset for sensitivity analysis - filter for Winter 1 data only
 analysis_data_winter1 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
@@ -82,6 +89,8 @@ analysis_data_winter1 <- read_rds(paste0(file_path,
   #filter(area == "WMT") %>% 
   filter(winter_id == 1) 
 
+
+# Dataset for sensitivity analysis - filter for Winter 2 data only
 analysis_data_winter2 <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_2obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
@@ -98,6 +107,8 @@ analysis_data_winter2 <- read_rds(paste0(file_path,
   filter(person_time_at_risk_winter > 0) %>% 
   filter(winter_id == 2)
 
+
+# Dataset for sensitivity analysis - filter out AK data
 analysis_data_noak <- read_rds(paste0(file_path, 
                                  "Output/kids_analysis_data_1obs_per_child.rds")) %>% 
   mutate(pm_mean_sampling_period_iqr = pm_mean_sampling_period/25,
@@ -220,7 +231,10 @@ Anova(itt_results_int)
 
 }
 
+# Run function with selected interaction term
+# Use next few lines to help fill in Tables for publication
 int_function(analysis_data, "residents_smoke")
+
 n_table
 save_contrasts
 pm_summary_table
@@ -244,8 +258,8 @@ obs
 ```
 
 
-```{r, eval=FALSE, include=FALSE}
-# Run and save model results
+```{r, eval=FALSE, include=FALSE} 
+# Run and save model results for various sensitivity analyses
 
 itt_winter1_results <- glmer(lrti_events_di_winter ~ treatment_assigned + 
                      child_age + person_time_at_risk_winter +
@@ -384,7 +398,7 @@ write_rds(itt_outlier_results, paste0(file_path, "Output/itt_outlier_results.rds
 ```
 
 
-```{r} 
+```{r}  
 # Load results
 itt_results <- read_rds(paste0(file_path, "Output/itt_results.rds"))
 itt_winter1_results <- read_rds(paste0(file_path, "Output/itt_winter1_results.rds"))
@@ -622,6 +636,9 @@ Anova(itt_pm_results_int)
 
 }
 
+
+# Run function with selected interaction term
+# Use next few lines to help fill in Tables for publication
 int_function(winter_1_data_pm, "stove_grade_3level")
 
 n_table
@@ -648,13 +665,13 @@ obs
 # home_year_built_2level, stove_age_3level, stove_age_di, stove_grade_3level, chimney_clean_3level,
 # wood_collect_2level, wood_collect_method_2level, burn_level_3level, residents_smoke
 
-((exp(-0.07214)-1)*100)
+((exp(-0.07214)-1)*100) # formula for exponentiating results (percent difference)
 ```
 
 
 
 ```{r, eval=FALSE, include=FALSE} 
-# Run and save model results 
+# Run and save model results for various sensitivity analyses
 
 itt_pm_noak_results <- glmer(log(pm_mean_sampling_period) ~ treatment_assigned + 
                        (1 | cohort:area), data = winter_1_data_pm_noak)
@@ -904,6 +921,7 @@ er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr +
 ## Model summary and diagnostic plots
 ```{r}
 summary(er_results)
+#summary(er_results2)
 er_res <- simulateResiduals(er_results)
 testDispersion(er_res, alternative = "two.sided")
 plot(er_res, rank = TRUE, quantreg = TRUE)
@@ -992,6 +1010,8 @@ Anova(er_results_int)
 
 }
 
+# Run function with selected interaction term
+# Use next few lines to help fill in Tables for publication
 int_function(analysis_data, "residents_smoke")
 save_contrasts
 pm_summary_table
@@ -1003,7 +1023,7 @@ save_summary
 
 
 ```{r, eval=FALSE, include=FALSE}
-# Run and save model results  
+# Run and save model results for various sensitivity analyses
 
 er_results_at_home <- er_results <- glmer(lrti_events_di_total ~ pm_mean_at_home_sampling_period_iqr + 
                           child_age + gender + 
@@ -1092,6 +1112,8 @@ er_home_size_results <- read_rds(paste0(file_path, "Output/er_home_size_results.
 er_stove_grade_results <- read_rds(paste0(file_path, "Output/er_stove_grade_results.rds"))
 er_stove_age_results <- read_rds(paste0(file_path, "Output/er_stove_age_results.rds"))
 
+nobs(er_stove_age_results)
+
 
 # Run function to clean results
 results_function <- function(model_results, model_name) {
@@ -1171,7 +1193,7 @@ ER + stove age = Primary model plus caregiver reported stove age
 
 
 ```{r, eval=FALSE, include=FALSE}
-################ Plot/check individual models and various results ##############
+################ Code to plot/check individual models and various results ##############
 
 check_model_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
                      child_age + person_time_at_risk + moisture_closest + 
