@@ -1,7 +1,7 @@
 ---
 title: 'KidsAIR: Main analysis'
 author: "Ethan Walker"
-date: "Updated 7 September 2021"
+date: "Updated 19 Oct 2021"
 output: pdf_document
 ---
 
@@ -136,6 +136,7 @@ itt_results <- glmer(lrti_events_di_total ~ treatment_assigned +
                      (1 | home:cohort:area),
                      data = analysis_data, family = binomial, nAGQ = 10,
                      control = glmerControl(optimizer = "bobyqa"))
+
 #write_rds(itt_results, paste0(file_path, "Output/itt_results.rds"))
 
 #table(model.frame(itt_results)$treatment_assigned)
@@ -233,7 +234,7 @@ Anova(itt_results_int)
 
 # Run function with selected interaction term
 # Use next few lines to help fill in Tables for publication
-int_function(analysis_data, "residents_smoke")
+int_function(analysis_data, "flu_shot")
 
 n_table
 save_contrasts
@@ -254,12 +255,12 @@ obs <- analysis_data %>%
   count()
 obs
 
-# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke
+# Try child_age, gender, home_floors_2level, home_sqft_2level, residents_smoke, flu_shot
 ```
 
 
 ```{r, eval=FALSE, include=FALSE} 
-# Run and save model results for various sensitivity analyses
+# Run and save model results for various sensitivity analyses 
 
 itt_winter1_results <- glmer(lrti_events_di_winter ~ treatment_assigned + 
                      child_age + person_time_at_risk_winter +
@@ -383,11 +384,32 @@ itt_ambtemp_results <- glmer(lrti_events_di_total ~ treatment_assigned +
 write_rds(itt_ambtemp_results, paste0(file_path, "Output/itt_ambtemp_results.rds"))
 
 
+itt_fluvax_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + person_time_at_risk + flu_shot + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 10)
+write_rds(itt_fluvax_results, paste0(file_path, "Output/itt_fluvax_results.rds"))
+
+
 itt_home_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
                      child_age + person_time_at_risk + 
                      (1 | cohort:area),
                      data = analysis_data, family = binomial, nAGQ = 10)
 write_rds(itt_home_results, paste0(file_path, "Output/itt_home_results.rds"))
+
+
+itt_area_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + area + person_time_at_risk + 
+                     (1 | home:cohort),
+                     data = analysis_data, family = binomial, nAGQ = 10)
+write_rds(itt_area_results, paste0(file_path, "Output/itt_area_results.rds"))
+
+
+itt_offset_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
+                     child_age + 
+                     (1 | home:cohort:area),
+                     data = analysis_data, family = binomial, nAGQ = 10)
+write_rds(itt_offset_results, paste0(file_path, "Output/itt_offset_results.rds"))
 
 
 itt_outlier_results <- glmer(lrti_events_di_total ~ treatment_assigned + 
@@ -415,7 +437,10 @@ itt_door_results <- read_rds(paste0(file_path, "Output/itt_door_results.rds"))
 itt_sweep_results <- read_rds(paste0(file_path, "Output/itt_sweep_results.rds"))
 itt_ambpm_results <- read_rds(paste0(file_path, "Output/itt_ambpm_results.rds"))
 itt_ambtemp_results <- read_rds(paste0(file_path, "Output/itt_ambtemp_results.rds"))
-#itt_home_results <- read_rds(paste0(file_path, "Output/itt_home_results.rds"))
+itt_fluvax_results <- read_rds(paste0(file_path, "Output/itt_fluvax_results.rds"))
+itt_home_results <- read_rds(paste0(file_path, "Output/itt_home_results.rds"))
+itt_area_results <- read_rds(paste0(file_path, "Output/itt_area_results.rds"))
+itt_offset_results <- read_rds(paste0(file_path, "Output/itt_offset_results.rds"))
 itt_outlier_results <- read_rds(paste0(file_path, "Output/itt_outlier_results.rds"))
 
 
@@ -452,7 +477,10 @@ itt_door_tidy <- results_function(itt_door_results, "ITT + door act")
 itt_sweep_tidy <- results_function(itt_sweep_results, "ITT + sweep act")
 itt_ambpm_tidy <- results_function(itt_ambpm_results, "ITT + amb PM")
 itt_ambtemp_tidy <- results_function(itt_ambtemp_results, "ITT + amb temp")
-#itt_home_tidy <- results_function(itt_home_results, "ITT - home")
+itt_fluvax_tidy <- results_function(itt_fluvax_results, "ITT + flu vax")
+itt_home_tidy <- results_function(itt_home_results, "ITT no Home")
+itt_area_tidy <- results_function(itt_area_results, "ITT area fixed")
+itt_offset_tidy <- results_function(itt_offset_results, "ITT no offset")
 itt_outlier_tidy <- results_function(itt_outlier_results, "ITT outlier")
 
 
@@ -461,7 +489,8 @@ itt_results_combined <- rbind(itt_tidy, itt_winter1_tidy, itt_noak_tidy,
                               itt_income_tidy, 
                               itt_smoke_tidy, itt_burn_level_tidy, itt_smoking_tidy,
                               itt_windows_tidy, itt_door_tidy, itt_sweep_tidy,
-                              itt_ambpm_tidy, itt_ambtemp_tidy)
+                              itt_ambpm_tidy, itt_ambtemp_tidy, itt_fluvax_tidy, 
+                              itt_area_tidy, itt_offset_tidy, itt_home_tidy)
 
 
 # Plot results
@@ -471,7 +500,8 @@ itt_plot_estimates <- itt_results_combined %>%
                                    "ITT + income", 
                                    "ITT + smoke hx", "ITT + burn level", "ITT + smoke act",
                                    "ITT + window act", "ITT + door act", "ITT + sweep act",
-                                   "ITT + amb PM", "ITT + amb temp"))) %>% 
+                                   "ITT + amb PM", "ITT + amb temp", "ITT + flu vax", 
+                                   "ITT area fixed", "ITT no offset", "ITT no Home"))) %>% 
   ggplot(aes(group = term, shape = term)) +
   geom_point(aes(x=model, y=estimate), 
              position = position_dodge(width = 0.5), size = 4) +
@@ -502,9 +532,9 @@ itt_plot_estimates
 #ggsave("itt_plot_estimates.jpg", width = 12, height = 6)
 ```
 
-ITT Primary = Logistic regression mixed model, as specified above  
+ITT Primary = Logistic regression mixed model, as specified in main results  
 ITT Winter 1 = Primary model with Winter 1 data only  
-ITT no AK = Primary model without homes from AK (different placebo group)  
+ITT no AK = Primary model without homes from Alaska (different placebo group)  
 ITT + income = Primary model plus categorical income variable  
 ITT + smoke hx = Primary model plus self-reported smoking variable  
 ITT + burn level = Primary model plus self-reported burn-level compared to typical  
@@ -514,7 +544,11 @@ ITT + door act = Primary model plus # days during sampling with doors open
 ITT + sweep act = Primary model plus # days during sampling with sweeping/cleaning  
 ITT + amb PM = Primary model plus amb PM during LRTI at-risk period  
 ITT + amb temp = Primary model plus amb temp during LRTI at-risk period  
-ITT outlier = Primary model with data that fixes incidence outlier  
+ITT + flu vax = Primary model plus caregiver-reported influenza vaccination status of child  
+ITT area fixed = Primary model with area as a fixed term instead of a random term
+ITT no offset = Primary model without fixed offset term for person-time of follow-up
+ITT no Home = Primary model without the random nested term for household/home
+  
 
 ## Analysis to assess effect modification
 
@@ -905,7 +939,9 @@ er_results <- glmer(lrti_events_di_total ~ pm_mean_sampling_period_iqr +
                           child_age + gender + 
                           race_parent + gender_parent +
                           income_3level + education_3level + 
-                          amb_temp_lrti + amb_pm_lrti + residents_smoke +
+                          amb_temp_lrti + 
+                          #amb_pm_lrti + 
+                          residents_smoke +
                           person_time_at_risk +
                           (1 | home:cohort:area), 
                           data = analysis_data, family = binomial, nAGQ = 10,
@@ -1310,14 +1346,17 @@ pm_summary_table <- analysis_data_winter1 %>%
 pm_summary_table
 
 
-lrti_summary_table <- analysis_data_winter1 %>% 
-  filter(!is.na(lrti_events_di_winter) & !is.na(pm_mean_sampling_period) &
-           !is.na(child_age) & !is.na(education_3level) & !is.na(residents_smoke)) %>% 
+lrti_summary_table <- analysis_data_winter2 %>% 
+  #filter(!is.na(lrti_events_di_winter) & !is.na(pm_mean_sampling_period) &
+   #        !is.na(child_age) & !is.na(education_3level) & !is.na(residents_smoke)) %>% 
   #group_by(treatment_assigned) %>% 
   mutate(lrti_events_num = as.numeric(lrti_events_di_winter),
          lrti_events_num = lrti_events_num - 1) %>%  
+  filter(area == "AK") %>% 
+  group_by(treatment_assigned) %>% 
   summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
-            "Group %" = `Total LRTI`/n()*100)
+            "Group %" = `Total LRTI`/n()*100,
+            n())
 lrti_summary_table
 
 
@@ -1329,6 +1368,18 @@ lrti_summary_table <- analysis_data_winter1 %>%
   summarize("Total LRTI" = sum(lrti_events_num, na.rm = TRUE),
             "Group %" = `Total LRTI`/n()*100)
 lrti_summary_table
+
+person_time_summary <- analysis_data %>% 
+  group_by(treatment_assigned) %>% 
+  summarize(mean_var = mean(person_time_at_risk), 
+            sd_var = sd(person_time_at_risk), 
+            n_var = n(), 
+            min_var = min(person_time_at_risk), 
+            p25 = quantile(person_time_at_risk, probs = 0.25),
+            med_var = median(person_time_at_risk), 
+            p75 = quantile(person_time_at_risk, probs = 0.75), 
+            max_var = max(person_time_at_risk))
+person_time_summary
 ```
 
 

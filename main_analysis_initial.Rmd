@@ -185,7 +185,7 @@ kids_analysis_data_1obs_per_child <- health_exposure_data_sampling_day %>%
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
          home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum,
-         filter_type, filter_compliance) %>% 
+         filter_type, filter_compliance, flu_shot, flu_shot_planned) %>% 
   rename(treatment = newtx,
          person_time_at_risk = person_time_at_risk_total) %>% 
   mutate(log_person_time_at_risk = log(person_time_at_risk)) %>% 
@@ -241,7 +241,7 @@ kids_analysis_data_2obs_per_child <- health_exposure_data_sampling_day %>%
          moisture_closest, temp_indoor_max, rh_indoor_max, sums_events_sampling_period_2.5,
          sums_events_sampling_period_5, sums_events_sampling_period_7.5,
          home_act_smoking_sum, home_act_windows_sum, home_act_sweep_sum, home_act_door_sum,
-         filter_type, filter_compliance) %>% 
+         filter_type, filter_compliance, flu_shot, flu_shot_planned) %>% 
   rename(treatment = newtx) %>% 
   mutate(log_person_time_at_risk_winter = log(person_time_at_risk_winter)) %>% 
   mutate(lrti_events_di_winter = if_else(lrti_events_winter == 0, 0, 1),
@@ -313,6 +313,7 @@ char_funct_total <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
   filter(winter_id == 1) %>% 
+  filter(area == "WMT") %>% 
   rename(new_var = var) %>% 
   arrange(area, home, new_var) %>% 
   distinct(area, home, .keep_all = T) %>% 
@@ -330,6 +331,7 @@ char_funct_treatment <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
   filter(winter_id == 1) %>% 
+  filter(area == "WMT") %>% 
   rename(new_var = var) %>% 
   arrange(area, home, new_var) %>% 
   distinct(area, home, .keep_all = T) %>% 
@@ -392,9 +394,10 @@ char_funct_total("home_act_sweep_sum")
 char_funct_treatment("home_act_sweep_sum")
 char_funct_total("home_act_door_sum")
 char_funct_treatment("home_act_door_sum")
+```
 
 
-
+```{r}
 # Summary analysis for categorical variables - by distinct child
 
 # summary data for manuscript tables
@@ -404,6 +407,7 @@ demographics_summary <- data %>%
   mutate(child_age = fct_collapse(age_child_nov,
                                   "< 1" = "Less than 1",
                                   "1+" = c(1, 2, 3, 4))) %>% 
+  filter(area == "WMT") %>% 
   filter(winter_id == 1) %>% 
   filter(!is.na(child_id_char)) %>% 
   rename(new_var = var) %>% 
@@ -425,7 +429,9 @@ demographics_summary <- data %>%
   mutate(child_age = fct_collapse(age_child_nov,
                                   "< 1" = "Less than 1",
                                   "1+" = c(1, 2, 3, 4))) %>% 
+  filter(area == "WMT") %>% 
   filter(winter_id == 1) %>% 
+  filter(!is.na(child_id_char)) %>% 
   rename(new_var = var) %>% 
   arrange(area, child_id_char, new_var) %>% 
   distinct(area, child_id_char, .keep_all = T) %>% 
@@ -460,33 +466,39 @@ char_funct_treatment("hispanic_child")
 num_funct_total <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
+  filter(area == "WMT") %>% 
   filter(winter_id == 1) %>% 
   rename(new_var = var) %>% 
   arrange(area, home, new_var) %>% 
   distinct(area, home, .keep_all = T) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
-  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
+  mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   filter(!is.na(new_var)) %>% 
   dplyr::select(treatment_assigned, home, new_var) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
-            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+            min_var = min(new_var), p25 = quantile(new_var, probs = 0.25), 
+            med_var = median(new_var), p75 = quantile(new_var, probs = 0.75), 
+            max_var = max(new_var))
 demographics_summary
 }
 
 num_funct_treatment <- function(var, data = health_exposure_data_sampling_day){
 
 demographics_summary <- data %>% 
+  filter(area == "WMT") %>% 
   filter(winter_id == 1) %>% 
   rename(new_var = var) %>% 
   arrange(area, home, new_var) %>% 
   distinct(area, home, .keep_all = T) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
-  #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
+  mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
   filter(!is.na(new_var)) %>% 
   dplyr::select(treatment_assigned, home, new_var) %>% 
   group_by(treatment_assigned) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
-            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+            min_var = min(new_var), p25 = quantile(new_var, probs = 0.25), 
+            med_var = median(new_var), p75 = quantile(new_var, probs = 0.75), 
+            max_var = max(new_var))
 demographics_summary
 }
 
@@ -528,18 +540,20 @@ num_funct_treatment("home_act_candle_sum")
 
 # At-home PM summary - different than function above due to distinct obs by child instead of home
 at_home_pm_summary <- health_exposure_data_sampling_day %>% 
-  select(-treatment_assigned, -treatment_actual) %>% 
-  left_join(treatments_masked, by = "home") %>%
-  rename(treatment = newtx) %>% 
+  #select(-treatment_assigned, -treatment_actual) %>% 
+  #left_join(treatments_masked, by = "home") %>%
+  rename(treatment = treatment_assigned) %>% 
   arrange(area, home, winter_id, sampling_day) %>% 
   filter(winter_id == 1) %>% 
   distinct(area, child_id_num, .keep_all = TRUE) %>% 
   mutate(new_var = pm_at_home_sampling_period) %>% 
   filter(!is.na(new_var)) %>%
-  filter(area == "NN") %>% # Change area filter as necessary 
+  #filter(area == "NN") %>% # Change area filter as necessary 
   group_by(treatment) %>% # Change treatment grouping as necessary 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
-            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+            min_var = min(new_var), p25 = quantile(new_var, probs = 0.25), 
+            med_var = median(new_var), p75 = quantile(new_var, probs = 0.75), 
+            max_var = max(new_var))
 at_home_pm_summary
 ```
 
